@@ -31,6 +31,7 @@ from deepcell_data_processing import processing
 from deepcell_data_processing import retinanet
 
 from deepcell_data_processing.processing import normalize
+from deepcell_data_processing.processing import phase_preprocess
 from deepcell_data_processing.processing import mibi
 from deepcell_data_processing.processing import watershed
 from deepcell_data_processing.processing import pixelwise

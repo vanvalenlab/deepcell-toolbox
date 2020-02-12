@@ -33,6 +33,8 @@ from scipy import ndimage
 from scipy.ndimage import fourier_shift
 from skimage import morphology
 from skimage.feature import peak_local_max, register_translation
+from skimage.exposure import equalize_adapthist
+from skimage.exposure import rescale_intensity
 from skimage.measure import label
 
 from keras_retinanet.utils.compute_overlap import compute_overlap
@@ -49,6 +51,26 @@ def normalize(image):
     """
     normal_image = (image - image.mean()) / image.std()
     return normal_image
+
+
+def phase_preprocess(image, kernel_size=64):
+    """Pre-process phase cytoplasm images using Contrast Limited Adaptive
+    Histogram Equalization (CLAHE).
+
+    Args:
+        image (numpy.array): numpy array of phase image data.
+        kernel_size (integer): Size of kernel for CLAHE.
+
+    Returns:
+        numpy.array: Pre-processed phase image data.
+    """
+    for batch in range(image.shape[0]):
+        for channel in range(image.shape[-1]):
+            X = image[batch, ..., channel]
+            X = rescale_intensity(X, out_range='float')
+            X = equalize_adapthist(X, kernel_size=(kernel_size, kernel_size))
+            image[batch, ..., channel] = X
+    return image
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
