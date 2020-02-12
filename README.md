@@ -1,2 +1,3 @@
 # deepcell-data-processing
-Data processing tools associated with deepcell
+
+A collection of tools for processing data for [`deepcell-tf`](https://github.com/vanvalenlab/deepcell-tf).
