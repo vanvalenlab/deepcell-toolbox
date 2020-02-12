@@ -35,11 +35,11 @@ from deepcell_data_processing.processing import phase_preprocess
 from deepcell_data_processing.processing import mibi
 from deepcell_data_processing.processing import watershed
 from deepcell_data_processing.processing import pixelwise
-from deepcell_data_processing.processing import correct_drift
 
 from deepcell_data_processing.retinanet import retinamask_postprocess
 from deepcell_data_processing.retinanet import retinamask_semantic_postprocess
 
+from deepcell_data_processing.utils import correct_drift
 from deepcell_data_processing.utils import erode_edges
 
 # alias for backwards compatibility

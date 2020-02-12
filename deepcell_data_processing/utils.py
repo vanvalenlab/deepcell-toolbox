@@ -65,3 +65,55 @@ def erode_edges(mask, erosion_width):
         return np.multiply(new_mask, mask).astype('int')
     return mask
 
+
+def correct_drift(X, y=None):
+    """Correct drift across frames of numpy arrays.
+
+    Args:
+        X (numpy.array): The raw data to correct.
+        X (numpy.array): Optional, the labeled data to correct.
+
+    Returns:
+        numpy.array: The drift-corrected data.
+    """
+    if len(X.shape) < 3:
+        raise ValueError('A minimum of 3 dimensons are required.'
+                         'Found {} dimensions.'.format(len(X.shape)))
+
+    if y is not None and len(X.shape) != len(y.shape):
+        raise ValueError('y {} must have same shape as X {}'.format(y.shape, X.shape))
+
+    def _shift_image(img, shift):
+        # Shift frame
+        img_corr = fourier_shift(np.fft.fftn(img), shift)
+        img_corr = np.fft.ifftn(img_corr)
+
+        # Set values offset by shift to zero
+        if shift[0] < 0:
+            img_corr[int(shift[0]):, :] = 0
+        elif shift[0] > 0:
+            img_corr[:int(shift[0]), :] = 0
+
+        if shift[1] < 0:
+            img_corr[:, int(shift[1]):] = 0
+        elif shift[1] > 0:
+            img_corr[:, :int(shift[1])] = 0
+
+        return img_corr
+
+    # Start with the first image since we compare to the previous
+    for t in range(1, X.shape[0]):
+        # Calculate shift
+        shift, _, _ = register_translation(X[t - 1], X[t])
+
+        # Correct X image
+        X[t] = _shift_image(X[t], shift)
+
+        # Correct y if available
+        if y is not None:
+            y[t] = _shift_image(y[t], shift)
+
+    if y is not None:
+        return X, y
+
+    return X
