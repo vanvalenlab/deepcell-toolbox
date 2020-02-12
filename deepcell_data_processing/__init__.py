@@ -28,14 +28,16 @@ from __future__ import division
 from __future__ import print_function
 
 from deepcell_data_processing import processing
+from deepcell_data_processing import retinanet
 
 from deepcell_data_processing.processing import normalize
 from deepcell_data_processing.processing import mibi
 from deepcell_data_processing.processing import watershed
 from deepcell_data_processing.processing import pixelwise
-from deepcell_data_processing.processing import retinanet_semantic_to_label_image
-from deepcell_data_processing.processing import retinanet_to_label_image
 from deepcell_data_processing.processing import correct_drift
+
+from deepcell_data_processing.retinanet import retinanet_semantic_to_label_image
+from deepcell_data_processing.retinanet import retinanet_to_label_image
 
 del absolute_import
 del division
