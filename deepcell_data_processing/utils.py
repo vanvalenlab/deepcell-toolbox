@@ -23,29 +23,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+"""Utility functions that may be used in other transforms."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from deepcell_data_processing import processing
-from deepcell_data_processing import retinanet
+import numpy as np
+from scipy.ndimage import fourier_shift
+from skimage.morphology import ball, disk
+from skimage.morphology import binary_erosion
+from skimage.feature import register_translation
 
-from deepcell_data_processing.processing import normalize
-from deepcell_data_processing.processing import phase_preprocess
-from deepcell_data_processing.processing import mibi
-from deepcell_data_processing.processing import watershed
-from deepcell_data_processing.processing import pixelwise
-from deepcell_data_processing.processing import correct_drift
 
-from deepcell_data_processing.retinanet import retinamask_postprocess
-from deepcell_data_processing.retinanet import retinamask_semantic_postprocess
+def erode_edges(mask, erosion_width):
+    """Erode edge of objects to prevent them from touching
 
-from deepcell_data_processing.utils import erode_edges
+    Args:
+        mask (numpy.array): uniquely labeled instance mask
+        erosion_width (int): integer value for pixel width to erode edges
 
-# alias for backwards compatibility
-retinanet_to_label_image = retinamask_postprocess
-retinanet_semantic_to_label_image = retinamask_semantic_postprocess
+    Returns:
+        numpy.array: mask where each instance has had the edges eroded
 
-del absolute_import
-del division
-del print_function
+    Raises:
+        ValueError: mask.ndim is not 2 or 3
+    """
+    if erosion_width:
+        new_mask = np.zeros(mask.shape)
+        if mask.ndim == 2:
+            strel = disk(erosion_width)
+        elif mask.ndim == 3:
+            strel = ball(erosion_width)
+        else:
+            raise ValueError('erode_edges expects arrays of ndim 2 or 3.'
+                             'Got ndim: {}'.format(mask.ndim))
+        for cell_label in np.unique(mask):
+            if cell_label != 0:
+                temp_img = mask == cell_label
+                temp_img = binary_erosion(temp_img, strel)
+                new_mask = np.where(mask == cell_label, temp_img, new_mask)
+        return np.multiply(new_mask, mask).astype('int')
+    return mask
+
