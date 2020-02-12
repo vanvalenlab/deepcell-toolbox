@@ -30,7 +30,8 @@ VERSION = '0.1.0'
 
 setup(name='Deepcell_Data_Processing',
       version=VERSION,
-      description='Pre- and post-processing functions.',
+      description='The pre- and post-processing functions module for '
+                  'deepcell-tf.',
       author='Van Valen Lab',
       author_email='vanvalenlab@gmail.com',
       url='https://github.com/vanvalenlab/deepcell-data-processing',
