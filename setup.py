@@ -45,5 +45,5 @@ setup(name='Deepcell_Data_Processing',
           'tests': ['pytest',
                     'pytest-pep8',
                     'pytest-cov'],
-      },
+      },  # nopep8
       packages=find_packages())
