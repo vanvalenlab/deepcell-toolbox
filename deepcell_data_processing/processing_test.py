@@ -29,7 +29,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from skimage.measure import regionprops
 import pytest
 
 from deepcell_data_processing import processing
@@ -40,51 +39,6 @@ def _get_image(img_h=300, img_w=300):
     variance = np.random.rand(img_w, img_h) * (255 - 64)
     img = np.random.rand(img_w, img_h) * variance + bias
     return img
-
-
-def _sample1(w, h, imw, imh):
-    """Basic single cell synthetic sample"""
-    x = np.random.randint(0, imw - w * 2)
-    y = np.random.randint(0, imh - h * 2)
-
-    im = np.zeros((imw, imh))
-    im[x:x + w, y:y + h] = 1
-
-    # Randomly rotate to pick horizontal or vertical
-    if np.random.random() > 0.5:
-        im = np.rot90(im)
-
-    return im
-
-
-def _retinanet_data(im):
-    n_batch = 1
-    n_det = 1
-    mask_size = 14  # Is this correct?
-    n_labels = 1
-
-    # boxes
-    rp = regionprops(im.astype(int))[0].bbox
-    boxes = np.zeros((n_batch, n_det, 4))
-    boxes[0, 0, :] = rp
-
-    # scores
-    scores = np.zeros((n_batch, n_det, 1))
-    scores[0, 0, 0] = np.random.rand()
-
-    # labels
-    labels = np.zeros((n_batch, n_det, n_labels))
-    labels[0, 0, 0] = 1
-
-    # masks
-    masks = np.ones((n_batch, n_det, mask_size, mask_size))
-
-    # semantic
-    semantic = np.zeros((n_batch, im.shape[0], im.shape[1], 4))
-    semantic[:, :, :] = processing.watershed(np.reshape(
-        im, (1, im.shape[0], im.shape[1], 1)))
-
-    return [boxes, scores, labels, masks, semantic]
 
 
 def test_normalize():
@@ -114,20 +68,6 @@ def test_watershed():
     img = np.random.rand(300, 300, channels)
     watershed_img = processing.watershed(img)
     np.testing.assert_equal(watershed_img.shape, (300, 300, 1))
-
-
-def test_retinanet():
-    im = _sample1(10, 10, 40, 40)
-    out = _retinanet_data(im)[:-1]
-
-    label = processing.retinanet_to_label_image(out, 40, 40)
-
-
-def test_retinanet_semantic():
-    im = _sample1(10, 10, 40, 40)
-    out = _retinanet_data(im)
-
-    label = processing.retinanet_semantic_to_label_image(out)
 
 
 def test_correct_drift():
