@@ -37,8 +37,12 @@ from deepcell_data_processing.processing import watershed
 from deepcell_data_processing.processing import pixelwise
 from deepcell_data_processing.processing import correct_drift
 
-from deepcell_data_processing.retinanet import retinanet_semantic_to_label_image
-from deepcell_data_processing.retinanet import retinanet_to_label_image
+from deepcell_data_processing.retinanet import retinamask_postprocess
+from deepcell_data_processing.retinanet import retinamask_semantic_postprocess
+
+# alias for backwards compatibility
+retinanet_to_label_image = retinamask_postprocess
+retinanet_semantic_to_label_image = retinamask_semantic_postprocess
 
 del absolute_import
 del division
