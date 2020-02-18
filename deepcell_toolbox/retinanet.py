@@ -51,13 +51,13 @@ def compute_iou(boxes, mask_image):
     return ious
 
 
-def retinanet_semantic_to_label_image(retinanet_outputs,
-                                      score_threshold=0.5,
-                                      multi_iou_threshold=0.25,
-                                      binarize_threshold=0.5,
-                                      watershed_threshold=0.5,
-                                      perimeter_area_threshold=2,
-                                      small_objects_threshold=100):
+def retinamask_semantic_postprocess(retinanet_outputs,
+                                    score_threshold=0.5,
+                                    multi_iou_threshold=0.25,
+                                    binarize_threshold=0.5,
+                                    watershed_threshold=0.5,
+                                    perimeter_area_threshold=2,
+                                    small_objects_threshold=100):
 
     boxes_batch = retinanet_outputs[-5]
     scores_batch = retinanet_outputs[-4]
@@ -190,13 +190,13 @@ def retinanet_semantic_to_label_image(retinanet_outputs,
     return label_images
 
 
-def retinanet_to_label_image(retinanet_outputs,
-                             shape0,
-                             shape1,
-                             score_threshold=0.5,
-                             multi_iou_threshold=0.25,
-                             binarize_threshold=0.5,
-                             small_objects_threshold=100):
+def retinamask_postprocess(retinanet_outputs,
+                           shape0,
+                           shape1,
+                           score_threshold=0.5,
+                           multi_iou_threshold=0.25,
+                           binarize_threshold=0.5,
+                           small_objects_threshold=100):
 
     boxes_batch = retinanet_outputs[-4]
     scores_batch = retinanet_outputs[-3]
