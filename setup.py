@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.github.com/vanvalenlab/deepcell-data-processing/LICENSE
+#     http://www.github.com/vanvalenlab/deepcell-toolbox/LICENSE
 #
 # The Work provided may be used for non-commercial academic purposes only.
 # For any other use of the Work, including commercial use, please contact:
@@ -28,15 +28,15 @@ from setuptools import find_packages
 
 VERSION = '0.1.0'
 
-setup(name='Deepcell_Data_Processing',
+setup(name='Deepcell_Toolbox',
       version=VERSION,
       description='The pre- and post-processing functions module for '
                   'deepcell-tf.',
       author='Van Valen Lab',
       author_email='vanvalenlab@gmail.com',
-      url='https://github.com/vanvalenlab/deepcell-data-processing',
+      url='https://github.com/vanvalenlab/deepcell-toolbox',
       download_url='https://github.com/vanvalenlab/'
-                   'deepcell-data-processing/tarball/{}'.format(VERSION),
+                   'deepcell-toolbox/tarball/{}'.format(VERSION),
       license='LICENSE',
       install_requires=['keras-retinanet',
                         'numpy',

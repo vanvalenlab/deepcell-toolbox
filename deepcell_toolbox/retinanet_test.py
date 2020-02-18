@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.github.com/vanvalenlab/deepcell-data-processing/LICENSE
+#     http://www.github.com/vanvalenlab/deepcell-toolbox/LICENSE
 #
 # The Work provided may be used for non-commercial academic purposes only.
 # For any other use of the Work, including commercial use, please contact:
@@ -31,8 +31,8 @@ from __future__ import print_function
 import numpy as np
 from skimage.measure import regionprops
 
-from deepcell_data_processing import processing
-from deepcell_data_processing import retinanet
+from deepcell_toolbox import processing
+from deepcell_toolbox import retinanet
 
 
 def _sample1(w, h, imw, imh):
@@ -50,45 +50,50 @@ def _sample1(w, h, imw, imh):
     return im
 
 
-def _retinanet_data(im):
-    n_batch = 1
-    n_det = 1
+def _retinamask_data(im, semantic=False):
+    n_batch = 2
+    n_det = 10
     mask_size = 14  # Is this correct?
     n_labels = 1
 
     # boxes
     rp = regionprops(im.astype(int))[0].bbox
     boxes = np.zeros((n_batch, n_det, 4))
-    boxes[0, 0, :] = rp
+    boxes[..., :] = rp
 
     # scores
     scores = np.zeros((n_batch, n_det, 1))
-    scores[0, 0, 0] = np.random.rand()
+    scores[..., :] = np.random.rand()
 
     # labels
     labels = np.zeros((n_batch, n_det, n_labels))
-    labels[0, 0, 0] = 1
+    labels[..., :] = 1
 
     # masks
     masks = np.ones((n_batch, n_det, mask_size, mask_size))
 
     # semantic
-    semantic = np.zeros((n_batch, im.shape[0], im.shape[1], 4))
-    semantic[:, :, :] = processing.watershed(np.reshape(
+    semantic_mask = np.zeros((n_batch, im.shape[0], im.shape[1], 4))
+    semantic_mask[..., :] = processing.watershed(np.reshape(
         im, (1, im.shape[0], im.shape[1], 1)))
 
-    return [boxes, scores, labels, masks, semantic]
+    outputs = [boxes, scores, labels, masks]
+
+    if semantic:
+        outputs.append(semantic_mask)
+
+    return outputs
 
 
-def test_retinanet():
+def test_retinamask_postprocess():
     im = _sample1(10, 10, 40, 40)
-    out = _retinanet_data(im)[:-1]
+    out = _retinamask_data(im, semantic=False)
 
-    label = retinanet.retinanet_to_label_image(out, 40, 40)
+    label = retinanet.retinanet_to_label_image(out, im.shape[0], im.shape[1])
 
 
-def test_retinanet_semantic():
+def test_retinamask_semantic_postprocess():
     im = _sample1(10, 10, 40, 40)
-    out = _retinanet_data(im)
+    out = _retinamask_data(im, semantic=True)
 
     label = retinanet.retinanet_semantic_to_label_image(out)
