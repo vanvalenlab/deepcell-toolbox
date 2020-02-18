@@ -89,7 +89,7 @@ def test_retinamask_postprocess():
     im = _sample1(10, 10, 40, 40)
     out = _retinamask_data(im, semantic=False)
 
-    label = retinanet.retinanet_to_label_image(out, im.shape)
+    label = retinanet.retinanet_to_label_image(out, im.shape[0], im.shape[1])
 
 
 def test_retinamask_semantic_postprocess():
