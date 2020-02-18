@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.github.com/vanvalenlab/deepcell-data-processing/LICENSE
+#     http://www.github.com/vanvalenlab/deepcell-toolbox/LICENSE
 #
 # The Work provided may be used for non-commercial academic purposes only.
 # For any other use of the Work, including commercial use, please contact:
@@ -27,17 +27,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from deepcell_data_processing import processing
-from deepcell_data_processing import retinanet
+from deepcell_toolbox import processing
+from deepcell_toolbox import retinanet
 
-from deepcell_data_processing.processing import normalize
-from deepcell_data_processing.processing import mibi
-from deepcell_data_processing.processing import watershed
-from deepcell_data_processing.processing import pixelwise
-from deepcell_data_processing.processing import correct_drift
+from deepcell_toolbox.processing import normalize
+from deepcell_toolbox.processing import mibi
+from deepcell_toolbox.processing import watershed
+from deepcell_toolbox.processing import pixelwise
+from deepcell_toolbox.processing import correct_drift
 
-from deepcell_data_processing.retinanet import retinanet_semantic_to_label_image
-from deepcell_data_processing.retinanet import retinanet_to_label_image
+from deepcell_toolbox.retinanet import retinanet_semantic_to_label_image
+from deepcell_toolbox.retinanet import retinanet_to_label_image
 
 del absolute_import
 del division

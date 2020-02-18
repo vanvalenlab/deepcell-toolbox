@@ -18,7 +18,7 @@ install:
   - travis_retry pip install pytest pytest-cov==2.5.1 pytest-pep8 coveralls
 
 script:
-  - pytest --cov=deepcell_data_processing --pep8
+  - pytest --cov=deepcell_toolbox --pep8
 
 jobs:
   include:
