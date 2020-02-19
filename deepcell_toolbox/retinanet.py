@@ -31,8 +31,10 @@ from __future__ import print_function
 import numpy as np
 from skimage import morphology
 from skimage.measure import label, regionprops
-from skimage.transform import resize
+from skimage.morphology import watershed, remove_small_objects
 from skimage.segmentation import random_walker, relabel_sequential
+from skimage.transform import resize
+
 from keras_retinanet.utils.compute_overlap import compute_overlap
 
 
@@ -138,6 +140,7 @@ def retinamask_semantic_postprocess(retinanet_outputs,
 
             for j in range(1, masks_overlaps.shape[0] + 1):
                 masks_overlaps[j - 1] = segments == j
+
             range_overlaps = np.arange(masks_no_overlaps.shape[0] + 1,
                                        masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
             masks_overlaps *= np.expand_dims(np.expand_dims(range_overlaps, axis=-1), axis=-1)
@@ -155,7 +158,8 @@ def retinamask_semantic_postprocess(retinanet_outputs,
         if np.sum(local_maxi.flatten()) > 0:
             markers_semantic = label(local_maxi)
             distance = semantic_argmax
-            segments_semantic = morphology.watershed(-distance, markers_semantic, mask=foreground)
+            segments_semantic = morphology.watershed(
+                -distance, markers_semantic, mask=foreground)
 
             # Remove misshapen watershed cells
             props = regionprops(segments_semantic)
@@ -165,6 +169,7 @@ def retinamask_semantic_postprocess(retinanet_outputs,
 
             masks_semantic = np.zeros((np.amax(segments_semantic).astype(int),
                                        semantic.shape[0], semantic.shape[1]))
+
             for j in range(1, masks_semantic.shape[0] + 1):
                 masks_semantic[j - 1] = segments_semantic == j
 
@@ -190,22 +195,39 @@ def retinamask_semantic_postprocess(retinanet_outputs,
     return label_images
 
 
-def retinamask_postprocess(retinanet_outputs,
-                           shape0,
-                           shape1,
+def retinamask_postprocess(outputs,
+                           image_shape=(256, 256),
                            score_threshold=0.5,
                            multi_iou_threshold=0.25,
                            binarize_threshold=0.5,
-                           small_objects_threshold=100):
+                           small_objects_threshold=0,
+                           dtype='float32'):
+    """Post processing function for RetinaMask models.
+    Expects model that produces an output list [boxes, scores, labels, masks]
 
-    boxes_batch = retinanet_outputs[-4]
-    scores_batch = retinanet_outputs[-3]
-    labels_batch = retinanet_outputs[-2]
-    masks_batch = retinanet_outputs[-1]
+    Args:
+        boxes_batch: Bounding box predictions.
+        scores_batch: Scores for each detection.
+        labels_batch: Label for each detection.
+        masks_batch: Masks for each detection.
+        image_shape: Shape of the image.
+        score_threshold: Score threshold for detections.
+        multi_iou_threshold: Threshold to suppress detections that have multiple
+            overlaps with other detections.
+        binarize_threshold: Threshold to binarize masks.
+        small_objects_threshold: Area threshold to remove small objects.
+        dtype: data type of label mask.
+
+    Returns:
+        numpy.array: label mask for the image.
+    """
+    boxes_batch = outputs[-4]
+    scores_batch = outputs[-3]
+    labels_batch = outputs[-2]
+    masks_batch = outputs[-1]
 
     # Create empty label matrix
-    label_images = np.zeros(
-        (masks_batch.shape[0], shape0, shape1))
+    label_images = np.zeros((masks_batch.shape[0], image_shape[0], image_shape[1]))
 
     # Iterate over batches
     for i in range(boxes_batch.shape[0]):
@@ -222,14 +244,16 @@ def retinamask_postprocess(retinanet_outputs,
         masks = masks[selection, ..., -1]
 
         # Compute overlap of masks with each other
-        mask_image = np.zeros((masks.shape[0], shape0, shape1), dtype='float32')
+        mask_shape = (masks.shape[0], image_shape[0], image_shape[1])
+        mask_image = np.zeros(mask_shape, dtype=dtype)
 
         for j in range(masks.shape[0]):
             mask = masks[j]
             box = boxes[j].astype(int)
-            mask = resize(mask, (box[3] - box[1], box[2] - box[0]))
-            mask = (mask > binarize_threshold).astype('float32')
-            mask_image[j, box[1]:box[3], box[0]:box[2]] = mask
+            if box[3] > box[1] and box[2] > box[0]:
+                mask = resize(mask, (box[3] - box[1], box[2] - box[0]))
+                mask = (mask > binarize_threshold).astype(dtype)
+                mask_image[j, box[1]:box[3], box[0]:box[2]] = mask
 
         ious = compute_iou(boxes, mask_image)
 
@@ -282,8 +306,7 @@ def retinamask_postprocess(retinanet_outputs,
         label_image = np.sum(masks_concat, axis=0).astype(int)
 
         # Remove small objects
-        label_image = morphology.remove_small_objects(
-            label_image, min_size=small_objects_threshold)
+        label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
 
         # Relabel the label image
         label_image, _, _ = relabel_sequential(label_image)
