@@ -31,8 +31,8 @@ from __future__ import print_function
 import numpy as np
 from skimage.measure import regionprops
 
-from deepcell_data_processing import processing
-from deepcell_data_processing import retinanet
+from deepcell_toolbox import processing
+from deepcell_toolbox import retinanet
 
 
 def _sample1(w, h, imw, imh):

@@ -33,7 +33,7 @@ from skimage.measure import label
 
 import pytest
 
-from deepcell_data_processing import utils
+from deepcell_toolbox import utils
 
 
 def _get_image(img_h=300, img_w=300):
