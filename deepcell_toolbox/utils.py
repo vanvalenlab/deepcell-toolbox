@@ -120,3 +120,116 @@ def correct_drift(X, y=None):
         return X, y
 
     return X
+
+
+def tile_image(image, model_input_shape=(512, 512), dtype='float32'):
+    image_size_x, image_size_y = image.shape[1:3]
+    tile_size_x = model_input_shape[0]
+    tile_size_y = model_input_shape[1]
+
+    stride_x = np.int(0.75 * tile_size_x)
+    stride_y = np.int(0.75 * tile_size_y)
+
+    rep_number_x = np.int(np.ceil((image_size_x - tile_size_x) / stride_x + 1))
+    rep_number_y = np.int(np.ceil((image_size_y - tile_size_y) / stride_y + 1))
+    new_batch_size = image.shape[0] * rep_number_x * rep_number_y
+
+    tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
+    tiles = np.zeros(tiles_shape, dtype=dtype)
+
+    counter = 0
+    batches = []
+    x_starts = []
+    x_ends = []
+    y_starts = []
+    y_ends = []
+
+    for b in range(image.shape[0]):
+        for i in range(rep_number_x):
+            for j in range(rep_number_y):
+                _axis = 1
+                if i != rep_number_x - 1:
+                    x_start, x_end = i * stride_x, i * stride_x + tile_size_x
+                else:
+                    x_start, x_end = -tile_size_x, image.shape[_axis]
+
+                if j != rep_number_y - 1:
+                    y_start, y_end = j * stride_y, j * stride_y + tile_size_y
+                else:
+                    y_start, y_end = -tile_size_y, image.shape[_axis + 1]
+
+                tiles[counter] = image[b, x_start:x_end, y_start:y_end, :]
+                batches.append(b)
+                x_starts.append(x_start)
+                x_ends.append(x_end)
+                y_starts.append(y_start)
+                y_ends.append(y_end)
+                counter += 1
+
+    tiles_info = {}
+    tiles_info['batches'] = batches
+    tiles_info['x_starts'] = x_starts
+    tiles_info['x_ends'] = x_ends
+    tiles_info['y_starts'] = y_starts
+    tiles_info['y_ends'] = y_ends
+    tiles_info['stride_x'] = stride_x
+    tiles_info['stride_y'] = stride_y
+    tiles_info['image_shape'] = image.shape
+
+    return tiles, tiles_info
+
+
+def untile_image(tiles, tiles_info,
+                 model_input_shape=(512, 512),
+                 dtype='float32'):
+    _axis = 1
+    image_shape = tiles_info['image_shape']
+    batches = tiles_info['batches']
+    x_starts = tiles_info['x_starts']
+    x_ends = tiles_info['x_ends']
+    y_starts = tiles_info['y_starts']
+    y_ends = tiles_info['y_ends']
+    stride_x = tiles_info['stride_x']
+    stride_y = tiles_info['stride_y']
+
+    tile_size_x = model_input_shape[0]
+    tile_size_y = model_input_shape[1]
+
+    image_shape = (image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1])
+    image = np.zeros(image_shape, dtype=dtype)
+    n_tiles = tiles.shape[0]
+
+    zipped = zip(tiles, batches, x_starts, x_ends, y_starts, y_ends)
+    for tile, batch, x_start, x_end, y_start, y_end in zipped:
+        tile_x_start = 0
+        tile_x_end = tile_size_x
+        tile_y_start = 0
+        tile_y_end = tile_size_y
+
+        if x_start != 0:
+            x_start += (tile_size_x - stride_x) / 2
+            tile_x_start += (tile_size_x - stride_x) / 2
+        if x_end != image_shape[_axis]:
+            x_end -= (tile_size_x - stride_x) / 2
+            tile_x_end -= (tile_size_x - stride_x) / 2
+        if y_start != 0:
+            y_start += (tile_size_y - stride_y) / 2
+            tile_y_start += (tile_size_y - stride_y) / 2
+        if y_end != image_shape[_axis]:
+            y_end -= (tile_size_y - stride_y) / 2
+            tile_y_end -= (tile_size_y - stride_y) / 2
+
+        x_start = np.int(x_start)
+        x_end = np.int(x_end)
+        y_start = np.int(y_start)
+        y_end = np.int(y_end)
+
+        tile_x_start = np.int(tile_x_start)
+        tile_x_end = np.int(tile_x_end)
+        tile_y_start = np.int(tile_y_start)
+        tile_y_end = np.int(tile_y_end)
+
+        image[batch, x_start:x_end, y_start:y_end, :] = \
+            tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
+
+    return image
