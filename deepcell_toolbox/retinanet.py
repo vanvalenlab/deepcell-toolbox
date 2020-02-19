@@ -31,7 +31,7 @@ from __future__ import print_function
 import numpy as np
 from skimage import morphology
 from skimage.measure import label, regionprops
-from skimage.morphology import watershed, remove_small_objects
+from skimage.morphology import remove_small_objects
 from skimage.segmentation import random_walker, relabel_sequential
 from skimage.transform import resize
 
@@ -264,7 +264,8 @@ def retinamask_postprocess(outputs,
 
         masks_no_overlaps = mask_image[no_overlaps]
         range_no_overlaps = np.arange(1, masks_no_overlaps.shape[0] + 1)
-        masks_no_overlaps *= np.expand_dims(np.expand_dims(range_no_overlaps, axis=-1), axis=-1)
+        range_no_overlaps = np.expand_dims(range_no_overlaps, axis=-1)
+        masks_no_overlaps *= np.expand_dims(range_no_overlaps, axis=-1)
 
         masks_concat = masks_no_overlaps
 

@@ -37,8 +37,6 @@ from skimage.exposure import equalize_adapthist
 from skimage.exposure import rescale_intensity
 from skimage.measure import label
 
-from keras_retinanet.utils.compute_overlap import compute_overlap
-
 
 def normalize(image):
     """Normalize image data by dividing by the maximum pixel value
@@ -56,9 +54,11 @@ def normalize(image):
 def phase_preprocess(image, kernel_size=64):
     """Pre-process phase cytoplasm images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
+
     Args:
         image (numpy.array): numpy array of phase image data.
         kernel_size (integer): Size of kernel for CLAHE.
+
     Returns:
         numpy.array: Pre-processed phase image data.
     """

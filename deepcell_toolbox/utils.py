@@ -148,12 +148,12 @@ def tile_image(image, model_input_shape=(512, 512), dtype='float32'):
         for i in range(rep_number_x):
             for j in range(rep_number_y):
                 _axis = 1
-                if i != rep_number_x - 1:
+                if i != rep_number_x - 1:  # not the last one
                     x_start, x_end = i * stride_x, i * stride_x + tile_size_x
                 else:
                     x_start, x_end = -tile_size_x, image.shape[_axis]
 
-                if j != rep_number_y - 1:
+                if j != rep_number_y - 1:  # not the last one
                     y_start, y_end = j * stride_y, j * stride_y + tile_size_y
                 else:
                     y_start, y_end = -tile_size_y, image.shape[_axis + 1]
