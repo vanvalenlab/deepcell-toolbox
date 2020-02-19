@@ -122,20 +122,33 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image(image, model_input_shape=(512, 512), dtype='float32'):
+def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
+    """
+    Tile large image into many overlapping tiles of size "model_input_shape".
+
+    Args:
+        image (numpy.array): The image to tile.
+        model_input_shape (tuple): The input size of the model.
+        stride_ratio (float): The ratio of overlap between stride
+            and tile shape.
+
+    Returns:
+        tuple(numpy.array, dict): An tuple consisting of an array of tiled
+            images and a dictionary of tiling details (for use in un-tiling).
+    """
     image_size_x, image_size_y = image.shape[1:3]
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
-    stride_x = np.int(0.75 * tile_size_x)
-    stride_y = np.int(0.75 * tile_size_y)
+    stride_x = np.int(stride_ratio * tile_size_x)
+    stride_y = np.int(stride_ratio * tile_size_y)
 
     rep_number_x = np.int(np.ceil((image_size_x - tile_size_x) / stride_x + 1))
     rep_number_y = np.int(np.ceil((image_size_y - tile_size_y) / stride_y + 1))
     new_batch_size = image.shape[0] * rep_number_x * rep_number_y
 
     tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
-    tiles = np.zeros(tiles_shape, dtype=dtype)
+    tiles = np.zeros(tiles_shape, dtype=image.dtype)
 
     counter = 0
     batches = []
@@ -147,16 +160,16 @@ def tile_image(image, model_input_shape=(512, 512), dtype='float32'):
     for b in range(image.shape[0]):
         for i in range(rep_number_x):
             for j in range(rep_number_y):
-                _axis = 1
+                x_axis = 1
                 if i != rep_number_x - 1:  # not the last one
                     x_start, x_end = i * stride_x, i * stride_x + tile_size_x
                 else:
-                    x_start, x_end = -tile_size_x, image.shape[_axis]
+                    x_start, x_end = -tile_size_x, image.shape[x_axis]
 
                 if j != rep_number_y - 1:  # not the last one
                     y_start, y_end = j * stride_y, j * stride_y + tile_size_y
                 else:
-                    y_start, y_end = -tile_size_y, image.shape[_axis + 1]
+                    y_start, y_end = -tile_size_y, image.shape[x_axis + 1]
 
                 tiles[counter] = image[b, x_start:x_end, y_start:y_end, :]
                 batches.append(b)
@@ -175,13 +188,23 @@ def tile_image(image, model_input_shape=(512, 512), dtype='float32'):
     tiles_info['stride_x'] = stride_x
     tiles_info['stride_y'] = stride_y
     tiles_info['image_shape'] = image.shape
+    tiles_info['dtype'] = image.dtype
 
     return tiles, tiles_info
 
 
 def untile_image(tiles, tiles_info,
-                 model_input_shape=(512, 512),
-                 dtype='float32'):
+                 model_input_shape=(512, 512)):
+    """Untile a set of tiled images back to the original model shape.
+
+    Args:
+        tiles (numpy.array): The tiled images image to untile.
+        tiles_info (dict): Details of how the image was tiled (from tile_image).
+        model_input_shape (tuple): The input size of the model.
+
+    Returns:
+        numpy.array: The untiled image.
+    """
     _axis = 1
     image_shape = tiles_info['image_shape']
     batches = tiles_info['batches']
@@ -191,13 +214,13 @@ def untile_image(tiles, tiles_info,
     y_ends = tiles_info['y_ends']
     stride_x = tiles_info['stride_x']
     stride_y = tiles_info['stride_y']
+    dtype = tiles_info['dtype']
 
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
-    image_shape = (image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1])
+    image_shape = tuple(list(image_shape[0:3]) + [tiles.shape[-1]])
     image = np.zeros(image_shape, dtype=dtype)
-    n_tiles = tiles.shape[0]
 
     zipped = zip(tiles, batches, x_starts, x_ends, y_starts, y_ends)
     for tile, batch, x_start, x_end, y_start, y_end in zipped:

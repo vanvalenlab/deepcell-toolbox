@@ -125,3 +125,31 @@ def test_correct_drift():
     # 4d input
     res = utils.correct_drift(img4d)
     assert len(res.shape) == 4
+
+
+def test_tile_image():
+    shape = (4, 20, 20, 1)
+    big_image = np.random.random(shape)
+    model_input_shape = (5, 5)
+    stride_ratio = 0.8
+    tiles, tiles_info = utils.tile_image(big_image, model_input_shape,
+                                         stride_ratio=stride_ratio)
+
+    assert tiles_info['image_shape'] == shape
+
+    expected_batches = shape[0]
+    expected_batches *= (shape[1] // model_input_shape[0]) / stride_ratio
+    expected_batches *= (shape[2] // model_input_shape[1]) / stride_ratio
+    assert tiles.shape[0] == int(expected_batches)  # pylint: disable=E1136
+
+
+def test_untile_image():
+    shape = (4, 20, 20, 1)
+    big_image = np.random.random(shape)
+    model_input_shape = (5, 5)
+    stride_ratio = 0.75
+    tiles, tiles_info = utils.tile_image(big_image, model_input_shape,
+                                         stride_ratio=stride_ratio)
+
+    untiled_image = utils.untile_image(tiles, tiles_info, model_input_shape)
+    np.testing.assert_equal(untiled_image, big_image)
