@@ -71,10 +71,13 @@ def correct_drift(X, y=None):
 
     Args:
         X (numpy.array): The raw data to correct.
-        X (numpy.array): Optional, the labeled data to correct.
+        y (numpy.array): Optional, the labeled data to correct.
 
     Returns:
         numpy.array: The drift-corrected data.
+
+    Raises:
+        ValueError: If X.dim != 3.
     """
     if len(X.shape) < 3:
         raise ValueError('A minimum of 3 dimensons are required.'
