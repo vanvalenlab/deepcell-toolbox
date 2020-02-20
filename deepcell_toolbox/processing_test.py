@@ -29,6 +29,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+
 import pytest
 
 from deepcell_toolbox import processing
@@ -47,6 +48,14 @@ def test_normalize():
     normalized_img = processing.normalize(img)
     np.testing.assert_almost_equal(normalized_img.mean(), 0)
     np.testing.assert_almost_equal(normalized_img.var(), 1)
+
+
+def test_phase_preprocess():
+    height, width = 30, 30
+    img = _get_image(height, width)
+    # TODO: bugfix for phase preprocessing
+    # preprocessed_img = processing.phase_preprocess(img)
+    # TODO assert correctness
 
 
 def test_mibi():

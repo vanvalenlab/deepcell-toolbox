@@ -7,7 +7,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.github.com/vanvalenlab/deepcell-toolbox/LICENSE
+#     http://www.github.com/vanvalenlab/deepcell-data-processing/LICENSE
 #
 # The Work provided may be used for non-commercial academic purposes only.
 # For any other use of the Work, including commercial use, please contact:
@@ -89,11 +89,11 @@ def test_retinamask_postprocess():
     im = _sample1(10, 10, 40, 40)
     out = _retinamask_data(im, semantic=False)
 
-    label = retinanet.retinanet_to_label_image(out, im.shape[0], im.shape[1])
+    label = retinanet.retinamask_postprocess(out, im.shape)
 
 
 def test_retinamask_semantic_postprocess():
     im = _sample1(10, 10, 40, 40)
     out = _retinamask_data(im, semantic=True)
 
-    label = retinanet.retinanet_semantic_to_label_image(out)
+    label = retinanet.retinamask_semantic_postprocess(out)

@@ -23,29 +23,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+"""Tests for post-processing functions"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from deepcell_toolbox import processing
-from deepcell_toolbox import retinanet
+import numpy as np
 
-from deepcell_toolbox.processing import normalize
-from deepcell_toolbox.processing import phase_preprocess
-from deepcell_toolbox.processing import mibi
-from deepcell_toolbox.processing import watershed
-from deepcell_toolbox.processing import pixelwise
+import pytest
 
-from deepcell_toolbox.retinanet import retinamask_postprocess
-from deepcell_toolbox.retinanet import retinamask_semantic_postprocess
+from deepcell_toolbox import deep_watershed
 
-from deepcell_toolbox.utils import correct_drift
-from deepcell_toolbox.utils import erode_edges
 
-# alias for backwards compatibility
-retinanet_to_label_image = retinamask_postprocess
-retinanet_semantic_to_label_image = retinamask_semantic_postprocess
+def _get_image(img_h=300, img_w=300):
+    bias = np.random.rand(img_w, img_h) * 64
+    variance = np.random.rand(img_w, img_h) * (255 - 64)
+    img = np.random.rand(img_w, img_h) * variance + bias
+    return img
 
-del absolute_import
-del division
-del print_function
+
+def test_deep_watershed():
+    shape = (5, 21, 21, 1)
+    inner_distance = np.random.random(shape) * 100
+    outer_distance = np.random.random(shape) * 100
+    fgbg = np.random.randint(0, 1, size=shape)
+    inputs = [inner_distance, outer_distance, fgbg]
+
+    # basic tests
+    watershed_img = deep_watershed.deep_watershed(inputs)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
+
+    # turn some knobs
+    watershed_img = deep_watershed.deep_watershed(inputs,
+                                                  small_objects_threshold=1,
+                                                  exclude_border=True)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
