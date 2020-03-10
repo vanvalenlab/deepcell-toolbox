@@ -215,7 +215,6 @@ def untile_image(tiles, tiles_info,
     y_ends = tiles_info['y_ends']
     stride_x = tiles_info['stride_x']
     stride_y = tiles_info['stride_y']
-    
     if dtype is None:
         dtype = tiles_info['dtype']
 
