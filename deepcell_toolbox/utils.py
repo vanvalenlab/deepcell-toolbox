@@ -201,7 +201,7 @@ def untile_image(tiles, tiles_info, dtype=None,
         tiles (numpy.array): The tiled images image to untile.
         tiles_info (dict): Details of how the image was tiled (from tile_image).
         dtype (string): optional dtype for output image, defaults to input image dtype
-	model_input_shape (tuple): The input size of the model.
+        model_input_shape (tuple): The input size of the model.
 
     Returns:
         numpy.array: The untiled image.
@@ -217,7 +217,7 @@ def untile_image(tiles, tiles_info, dtype=None,
     stride_y = tiles_info['stride_y']
     
     if dtype is None:
-	dtype = tiles_info['dtype']
+        dtype = tiles_info['dtype']
 
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
