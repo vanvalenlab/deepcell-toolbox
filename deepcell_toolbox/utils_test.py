@@ -151,7 +151,10 @@ def test_untile_image():
     tiles, tiles_info = utils.tile_image(big_image, model_input_shape,
                                          stride_ratio=stride_ratio)
 
-    untiled_image = utils.untile_image(tiles, tiles_info, model_input_shape)
+    untiled_image = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
+                                       model_input_shape=model_input_shape, dtype=None)
     np.testing.assert_equal(untiled_image, big_image)
-    untiled_int = utils.untile_image(tiles, tiles_info, "int16", model_input_shape)
-    np.testing.assert_equal(untiled_int.dtype, "int16")
+
+    untiled_int = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
+                                     model_input_shape=model_input_shape, dtype="int16")
+    np.testing.assert_equal(untiled_int.dtype, np.dtype("int16"))

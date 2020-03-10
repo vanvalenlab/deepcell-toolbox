@@ -193,15 +193,15 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     return tiles, tiles_info
 
 
-def untile_image(tiles, tiles_info, dtype=None,
-                 model_input_shape=(512, 512)):
+def untile_image(tiles, tiles_info,
+                 model_input_shape=(512, 512), dtype=None):
     """Untile a set of tiled images back to the original model shape.
 
     Args:
         tiles (numpy.array): The tiled images image to untile.
         tiles_info (dict): Details of how the image was tiled (from tile_image).
-        dtype (string): optional dtype for output image, defaults to input image dtype
         model_input_shape (tuple): The input size of the model.
+        dtype (string): optional dtype for output image, defaults to input image dtype
 
     Returns:
         numpy.array: The untiled image.
