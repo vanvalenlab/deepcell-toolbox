@@ -33,6 +33,7 @@ from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
 from skimage.morphology import binary_erosion
 from skimage.feature import register_translation
+from skimage import transform
 
 
 def erode_edges(mask, erosion_width):
@@ -258,3 +259,25 @@ def untile_image(tiles, tiles_info,
             tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
 
     return image
+
+
+def rescale(x, input_size, output_size):
+    """Rescales an input array x to match the desired output_size.
+    Assumes a x is a 4D array with the last dimension as a single channel dimension
+
+    Args:
+        x (np.array): Array with dimensions [batch, x, y, 1]
+        input_size (float): Scale of the input image, usually microns per pixel
+        output_size (float): Scale of the desired output image, usually microns per pixel
+
+    Returns:
+        np.array: Rescalled array with dimensions [batch, x', y', 1]
+    """
+
+    rscl = []
+    for i in range(x.shape[0]):
+        rscl.append(transform.rescale(x[i, ..., 0], input_size / output_size))
+
+    out = np.expand_dims(np.array(rscl), -1)
+
+    return out
