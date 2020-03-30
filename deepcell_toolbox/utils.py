@@ -29,10 +29,12 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import cv2
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
 from skimage.morphology import binary_erosion
 from skimage.feature import register_translation
+from skimage import transform
 
 
 def erode_edges(mask, erosion_width):
@@ -258,3 +260,37 @@ def untile_image(tiles, tiles_info,
             tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
 
     return image
+
+
+def resize(data, shape, data_format='channels_last'):
+    """Resize the data to the given shape.
+    Uses openCV to resize the data if the data is a single channel, as it
+    is very fast. However, openCV does not support multi-channel resizing,
+    so if the data has multiple channels, use skimage.
+    Args:
+        data (np.array): data to be reshaped.
+        shape (tuple): shape of the output data.
+        data_format (str): determines the order of the channel axis,
+            one of 'channels_first' and 'channels_last'.
+    Returns:
+        numpy.array: data reshaped to new shape.
+    """
+    # cv2 resize is faster but does not support multi-channel data
+    # If the data is multi-channel, use skimage.transform.resize
+    channel_axis = 0 if data_format == 'channels_first' else -1
+
+    if data.shape[channel_axis] > 1:  # multichannel data, use skimage
+        # resize with skimage
+        if data_format == 'channels_first':
+            shape = tuple([data.shape[channel_axis]] + list(shape))
+        else:
+            shape = tuple(list(shape) + [data.shape[channel_axis]])
+        resized = transform.resize(data, shape,
+                                   mode='constant',
+                                   preserve_range=True)
+
+    else:  # single channel image, resize with cv2
+        resized = cv2.resize(np.squeeze(data), shape)  # pylint: disable=E1101
+        resized = np.expand_dims(resized, axis=channel_axis)
+
+    return resized

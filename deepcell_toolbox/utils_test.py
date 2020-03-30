@@ -158,3 +158,20 @@ def test_untile_image():
     untiled_int = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
                                      model_input_shape=model_input_shape, dtype='int16')
     np.testing.assert_equal(untiled_int.dtype, np.dtype('int16'))
+
+
+def test_resize():
+    channel_sizes = (3, 1)  # skimage used for multi-channel, cv2 otherwise
+    for c in channel_sizes:
+        for data_format in ('channels_last', 'channels_first'):
+            channel_axis = 2 if data_format == 'channels_last' else 0
+            img = np.stack([_get_image()] * c, axis=channel_axis)
+
+            resize_shape = (28, 28)
+            resized_img = utils.resize(img, resize_shape,
+                                       data_format=data_format)
+
+            if data_format == 'channels_first':
+                assert resized_img.shape[1:] == resize_shape
+            else:
+                assert resized_img.shape[:-1] == resize_shape
