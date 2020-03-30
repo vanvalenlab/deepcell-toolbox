@@ -160,23 +160,18 @@ def test_untile_image():
     np.testing.assert_equal(untiled_int.dtype, np.dtype('int16'))
 
 
-def test_rescale():
+def test_resize():
+    channel_sizes = (3, 1)  # skimage used for multi-channel, cv2 otherwise
+    for c in channel_sizes:
+        for data_format in ('channels_last', 'channels_first'):
+            channel_axis = 2 if data_format == 'channels_last' else 0
+            img = np.stack([_get_image()] * c, axis=channel_axis)
 
-    img2d = np.random.rand(30, 30)
-    img3d = np.random.rand(10, 30, 30)
-    img4d = np.random.rand(10, 30, 30, 1)
+            resize_shape = (28, 28)
+            resized_img = utils.resize(img, resize_shape,
+                                       data_format=data_format)
 
-    # Wrong  input size
-    with pytest.raises(ValueError):
-        utils.rescale(img2d, 1, 1)
-
-    with pytest.raises(ValueError):
-        utils.rescale(img4d, 1, 1)
-
-    # Test high res to low res
-    out = utils.rescale(img3d, 0.5, 1)
-    assert out.shape == (10, img3d.shape[1] / 2, img3d.shape[2] / 2)
-
-    # Test low res to high res
-    out = utils.rescale(img3d, 1, 0.5)
-    assert out.shape == (10, img3d.shape[1] * 2, img3d.shape[2] * 2)
+            if data_format == 'channels_first':
+                assert resized_img.shape[1:] == resize_shape
+            else:
+                assert resized_img.shape[:-1] == resize_shape
