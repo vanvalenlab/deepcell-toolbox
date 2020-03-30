@@ -175,8 +175,8 @@ def test_rescale():
 
     # Test high res to low res
     out = utils.rescale(img3d, 0.5, 1)
-    assert out.shape() == (10, img3d.shape[1]/2, img3d.shape[2]/2)
+    assert out.shape == (10, img3d.shape[1] / 2, img3d.shape[2] / 2)
 
     # Test low res to high res
     out = utils.rescale(img3d, 1, 0.5)
-    assert out.shape() == (10, img3d.shape[1]*2, img3d.shape[2]*2)
+    assert out.shape == (10, img3d.shape[1] * 2, img3d.shape[2] * 2)
