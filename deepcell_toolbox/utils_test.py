@@ -158,3 +158,25 @@ def test_untile_image():
     untiled_int = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
                                      model_input_shape=model_input_shape, dtype='int16')
     np.testing.assert_equal(untiled_int.dtype, np.dtype('int16'))
+
+
+def test_rescale():
+
+    img2d = np.random.rand(30, 30)
+    img3d = np.random.rand(10, 30, 30)
+    img4d = np.random.rand(10, 30, 30, 1)
+
+    # Wrong  input size
+    with pytest.raises(ValueError):
+        utils.rescale(img2d, 1, 1)
+
+    with pytest.raises(ValueError):
+        utils.rescale(img4d, 1, 1)
+
+    # Test high res to low res
+    out = utils.rescale(img3d, 0.5, 1)
+    assert out.shape() == (10, img3d.shape[1]/2, img3d.shape[2]/2)
+
+    # Test low res to high res
+    out = utils.rescale(img3d, 1, 0.5)
+    assert out.shape() == (10, img3d.shape[1]*2, img3d.shape[2]*2)

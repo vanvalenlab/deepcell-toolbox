@@ -261,23 +261,29 @@ def untile_image(tiles, tiles_info,
     return image
 
 
-def rescale(x, input_size, output_size):
+def rescale(x, input_size, output_size, **kwargs):
     """Rescales an input array x to match the desired output_size.
     Assumes a x is a 4D array with the last dimension as a single channel dimension
 
     Args:
-        x (np.array): Array with dimensions [batch, x, y, 1]
+        x (np.array): Array with dimensions [batch, x, y]
         input_size (float): Scale of the input image, usually microns per pixel
         output_size (float): Scale of the desired output image, usually microns per pixel
 
+    Raises:
+        ValueError: ndim != 3
+
     Returns:
-        np.array: Rescalled array with dimensions [batch, x', y', 1]
+        np.array: Rescalled array with dimensions [batch, x', y']
     """
+
+    if len(x.shape) != 3:
+        raise ValueError('Three dimensions required. Got {} dimensions.'.format(len(x.shape)))
 
     rscl = []
     for i in range(x.shape[0]):
-        rscl.append(transform.rescale(x[i, ..., 0], input_size / output_size))
+        rscl.append(transform.rescale(x[i], input_size / output_size, **kwargs))
 
-    out = np.expand_dims(np.array(rscl), -1)
+    out = np.array(rscl)
 
     return out
