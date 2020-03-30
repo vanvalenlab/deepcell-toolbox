@@ -29,6 +29,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import cv2
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
 from skimage.morphology import binary_erosion
@@ -261,29 +262,35 @@ def untile_image(tiles, tiles_info,
     return image
 
 
-def rescale(x, input_size, output_size, **kwargs):
-    """Rescales an input array x to match the desired output_size.
-    Assumes a x is a 4D array with the last dimension as a single channel dimension
-
+def resize(data, shape, data_format='channels_last'):
+    """Resize the data to the given shape.
+    Uses openCV to resize the data if the data is a single channel, as it
+    is very fast. However, openCV does not support multi-channel resizing,
+    so if the data has multiple channels, use skimage.
     Args:
-        x (np.array): Array with dimensions [batch, x, y]
-        input_size (float): Scale of the input image, usually microns per pixel
-        output_size (float): Scale of the desired output image, usually microns per pixel
-
-    Raises:
-        ValueError: ndim != 3
-
+        data (np.array): data to be reshaped.
+        shape (tuple): shape of the output data.
+        data_format (str): determines the order of the channel axis,
+            one of 'channels_first' and 'channels_last'.
     Returns:
-        np.array: Rescalled array with dimensions [batch, x', y']
+        numpy.array: data reshaped to new shape.
     """
+    # cv2 resize is faster but does not support multi-channel data
+    # If the data is multi-channel, use skimage.transform.resize
+    channel_axis = 0 if data_format == 'channels_first' else -1
 
-    if len(x.shape) != 3:
-        raise ValueError('Three dimensions required. Got {} dimensions.'.format(len(x.shape)))
+    if data.shape[channel_axis] > 1:  # multichannel data, use skimage
+        # resize with skimage
+        if data_format == 'channels_first':
+            shape = tuple([data.shape[channel_axis]] + list(shape))
+        else:
+            shape = tuple(list(shape) + [data.shape[channel_axis]])
+        resized = transform.resize(data, shape,
+                                   mode='constant',
+                                   preserve_range=True)
 
-    rscl = []
-    for i in range(x.shape[0]):
-        rscl.append(transform.rescale(x[i], input_size / output_size, **kwargs))
+    else:  # single channel image, resize with cv2
+        resized = cv2.resize(np.squeeze(data), shape)  # pylint: disable=E1101
+        resized = np.expand_dims(resized, axis=channel_axis)
 
-    out = np.array(rscl)
-
-    return out
+    return resized
