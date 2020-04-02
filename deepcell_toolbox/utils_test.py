@@ -192,3 +192,15 @@ def test_resize():
             out_shape = tuple(out + [c])
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
             assert out_shape == rs.shape
+
+    # Wrong data size
+    with pytest.raises(ValueError):
+        im = np.random.rand(20, 20)
+        out_shape = (10, 10)
+        rs = utils.resize(im, out_shape)
+
+    # Wrong shape
+    with pytest.raises(ValueError):
+        im = np.random.rand(20, 20, 1)
+        out_shape = (10, 10, 1)
+        rs = utils.resize(im, out_shape, data_format='channels_last')
