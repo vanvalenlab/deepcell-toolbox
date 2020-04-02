@@ -267,30 +267,69 @@ def resize(data, shape, data_format='channels_last'):
     Uses openCV to resize the data if the data is a single channel, as it
     is very fast. However, openCV does not support multi-channel resizing,
     so if the data has multiple channels, use skimage.
+
     Args:
-        data (np.array): data to be reshaped.
-        shape (tuple): shape of the output data.
+        data (np.array): data to be reshaped. Must have a channel dimension
+        shape (tuple): shape of the output data in the form (x,y).
+            Batch and channel dimensions are handled automatically and preserved.
         data_format (str): determines the order of the channel axis,
             one of 'channels_first' and 'channels_last'.
+
+    Raises:
+        ValueError: ndim of data not 3 or 4
+
     Returns:
         numpy.array: data reshaped to new shape.
     """
+    if len(data.shape) not in {3, 4}:
+        raise ValueError('Data must have 3 or 4 dimensions, e.g. [batch, x, y], [x, y, channel]'
+                         'or [batch, x, y, channel]. Input data only has {} dimensions.'.format(
+                             str(len(data.shape))))
+
     # cv2 resize is faster but does not support multi-channel data
     # If the data is multi-channel, use skimage.transform.resize
     channel_axis = 0 if data_format == 'channels_first' else -1
+    batch_axis = -1 if data_format == 'channels_first' else 0
 
-    if data.shape[channel_axis] > 1:  # multichannel data, use skimage
-        # resize with skimage
+    print('input', data.shape)
+
+    # multichannel data, use skimage
+    if data.shape[channel_axis] > 1:
+        # Adjust output shape to account for channel axis
         if data_format == 'channels_first':
             shape = tuple([data.shape[channel_axis]] + list(shape))
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
-        resized = transform.resize(data, shape,
-                                   mode='constant',
-                                   preserve_range=True)
 
-    else:  # single channel image, resize with cv2
-        resized = cv2.resize(np.squeeze(data), shape)  # pylint: disable=E1101
+        print('skimage shape', shape)
+
+        # Check for batch dimension to loop over
+        if len(data.shape) == 4:
+            batch = []
+            for i in range(data.shape[batch_axis]):
+                d = data[i] if batch_axis == 0 else data[..., i]
+                rsz = transform.resize(d, shape, mode='constant', preserve_range=True)
+                batch.append(rsz)
+            resized = np.stack(batch, axis=batch_axis)
+        else:
+            resized = transform.resize(data, shape, mode='constant', preserve_range=True)
+
+    # single channel image, resize with cv2
+    else:
+        shape = tuple(shape)
+        print('cv2 shape', shape)
+        # Check for batch dimension to loop over
+        if len(data.shape) == 4:
+            batch = []
+            for i in range(data.shape[batch_axis]):
+                d = data[i] if batch_axis == 0 else data[..., i]
+                rsz = cv2.resize(np.squeeze(d), shape)  # pylint: disable=E1101
+                batch.append(rsz)
+            resized = np.stack(batch, axis=batch_axis)
+        else:
+            resized = cv2.resize(np.squeeze(data), shape)  # pylint: disable=E1101
+
+        # Restore channel dimension
         resized = np.expand_dims(resized, axis=channel_axis)
 
     return resized

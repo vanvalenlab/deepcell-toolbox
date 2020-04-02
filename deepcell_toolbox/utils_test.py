@@ -161,17 +161,34 @@ def test_untile_image():
 
 
 def test_resize():
-    channel_sizes = (3, 1)  # skimage used for multi-channel, cv2 otherwise
-    for c in channel_sizes:
-        for data_format in ('channels_last', 'channels_first'):
-            channel_axis = 2 if data_format == 'channels_last' else 0
-            img = np.stack([_get_image()] * c, axis=channel_axis)
 
-            resize_shape = (28, 28)
-            resized_img = utils.resize(img, resize_shape,
-                                       data_format=data_format)
+    base_shape = [30, 30]
+    out_shapes = [[50, 50], [10, 10]]
+    channel_sizes = (1, 3)
 
-            if data_format == 'channels_first':
-                assert resized_img.shape[1:] == resize_shape
-            else:
-                assert resized_img.shape[:-1] == resize_shape
+    for out in out_shapes:
+        for c in channel_sizes:
+
+            # batch, channel first
+            in_shape = [c] + base_shape + [4]
+            out_shape = tuple([c] + out + [4])
+            rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_first')
+            assert out_shape == rs.shape
+
+            # batch, channel last
+            in_shape = [4] + base_shape + [c]
+            out_shape = tuple([4] + out + [c])
+            rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
+            assert out_shape == rs.shape
+
+            # no batch, channel first
+            in_shape = [c] + base_shape
+            out_shape = tuple([c] + out)
+            rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_first')
+            assert out_shape == rs.shape
+
+            # no batch, channel last
+            in_shape = base_shape + [c]
+            out_shape = tuple(out + [c])
+            rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
+            assert out_shape == rs.shape
