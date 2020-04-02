@@ -296,7 +296,7 @@ def resize(data, shape, data_format='channels_last'):
     channel_axis = 0 if data_format == 'channels_first' else -1
     batch_axis = -1 if data_format == 'channels_first' else 0
 
-    # multichannel data, use skimage
+    # Use skimage for multichannel data
     if data.shape[channel_axis] > 1:
         # Adjust output shape to account for channel axis
         if data_format == 'channels_first':
@@ -304,32 +304,20 @@ def resize(data, shape, data_format='channels_last'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        # Check for batch dimension to loop over
-        if len(data.shape) == 4:
-            batch = []
-            for i in range(data.shape[batch_axis]):
-                d = data[i] if batch_axis == 0 else data[..., i]
-                rsz = transform.resize(d, shape, mode='constant', preserve_range=True)
-                batch.append(rsz)
-            resized = np.stack(batch, axis=batch_axis)
-        else:
-            resized = transform.resize(data, shape, mode='constant', preserve_range=True)
-
+        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True)
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
-        # Check for batch dimension to loop over
-        if len(data.shape) == 4:
-            batch = []
-            for i in range(data.shape[batch_axis]):
-                d = data[i] if batch_axis == 0 else data[..., i]
-                rsz = cv2.resize(np.squeeze(d), shape)  # pylint: disable=E1101
-                batch.append(rsz)
-            resized = np.stack(batch, axis=batch_axis)
-        else:
-            resized = cv2.resize(np.squeeze(data), shape)  # pylint: disable=E1101
+        _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape), axis=channel_axis)
 
-        # Restore channel dimension
-        resized = np.expand_dims(resized, axis=channel_axis)
+    # Check for batch dimension to loop over
+    if len(data.shape) == 4:
+        batch = []
+        for i in range(data.shape[batch_axis]):
+            d = data[i] if batch_axis == 0 else data[..., i]
+            batch.append(_resize(d))
+        resized = np.stack(batch, axis=batch_axis)
+    else:
+        resized = _resize(data)
 
     return resized
