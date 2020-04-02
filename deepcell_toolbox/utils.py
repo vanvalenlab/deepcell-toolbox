@@ -296,8 +296,6 @@ def resize(data, shape, data_format='channels_last'):
     channel_axis = 0 if data_format == 'channels_first' else -1
     batch_axis = -1 if data_format == 'channels_first' else 0
 
-    print('input', data.shape)
-
     # multichannel data, use skimage
     if data.shape[channel_axis] > 1:
         # Adjust output shape to account for channel axis
@@ -305,8 +303,6 @@ def resize(data, shape, data_format='channels_last'):
             shape = tuple([data.shape[channel_axis]] + list(shape))
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
-
-        print('skimage shape', shape)
 
         # Check for batch dimension to loop over
         if len(data.shape) == 4:
@@ -322,7 +318,6 @@ def resize(data, shape, data_format='channels_last'):
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
-        print('cv2 shape', shape)
         # Check for batch dimension to loop over
         if len(data.shape) == 4:
             batch = []
