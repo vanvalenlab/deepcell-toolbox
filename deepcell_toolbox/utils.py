@@ -304,11 +304,19 @@ def resize(data, shape, data_format='channels_last'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
+<<<<<<< HEAD
         _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True)
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
         _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape), axis=channel_axis)
+=======
+        def _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True)
+    # single channel image, resize with cv2
+    else:
+        shape = tuple(shape)
+        def _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape), axis=channel_axis)
+>>>>>>> 95ff3a5fe13e834255dadca4177f4c2e3f9afd42
 
     # Check for batch dimension to loop over
     if len(data.shape) == 4:
