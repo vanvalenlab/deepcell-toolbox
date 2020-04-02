@@ -277,6 +277,7 @@ def resize(data, shape, data_format='channels_last'):
 
     Raises:
         ValueError: ndim of data not 3 or 4
+        ValueError: Shape for resize can only have length of 2, e.g. (x,y)
 
     Returns:
         numpy.array: data reshaped to new shape.
@@ -285,6 +286,10 @@ def resize(data, shape, data_format='channels_last'):
         raise ValueError('Data must have 3 or 4 dimensions, e.g. [batch, x, y], [x, y, channel]'
                          'or [batch, x, y, channel]. Input data only has {} dimensions.'.format(
                              str(len(data.shape))))
+
+    if len(shape) != 2:
+        raise ValueError('Shape for resize can only have length of 2, e.g. (x,y).'
+                         'Input shape has {} dimensions.'.format(str(len(shape))))
 
     # cv2 resize is faster but does not support multi-channel data
     # If the data is multi-channel, use skimage.transform.resize
