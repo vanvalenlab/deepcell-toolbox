@@ -58,9 +58,9 @@ from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
-from tensorflow.python.platform import tf_logging as logging
+import logging
 
-from deepcell.utils.compute_overlap import compute_overlap
+from keras_retinanet.utils import compute_overlap
 from deepcell_toolbox import erode_edges
 
 

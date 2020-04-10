@@ -39,9 +39,8 @@ from skimage.measure import label
 from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
 
-from tensorflow.python.platform import test
 
-from deepcell import metrics
+from deepcell_toolbox import metrics
 from deepcell_toolbox import erode_edges
 
 
