@@ -29,6 +29,8 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import scipy.ndimage as nd
+
 from skimage.feature import peak_local_max
 from skimage.measure import label
 from skimage.morphology import watershed, remove_small_objects
@@ -86,6 +88,70 @@ def deep_watershed(outputs,
                                 markers,
                                 mask=outer_distance > distance_threshold)
         label_image = erode_edges(label_image, 1)
+
+        # Remove small objects
+        label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
+
+        # Relabel the label image
+        label_image, _, _ = relabel_sequential(label_image)
+
+        label_images.append(label_image)
+
+    label_images = np.stack(label_images, axis=0)
+
+    return label_images
+
+
+def deep_watershed_mibi(outputs,
+                        min_distance=10,
+                        detection_threshold=0.1,
+                        distance_threshold=0.25,
+                        exclude_border=False,
+                        small_objects_threshold=0):
+    """Postprocessing function for multiplexed deep watershed models. Thresholds the inner
+    distance prediction to find cell centroids, which are used to seed a marker
+    based watershed of the pixelwise interior prediction.
+
+    Args:
+        outputs (list): DeepWatershed model output. A list of
+            [inner_distance, outer_distance, fgbg, pixelwise].
+
+            - inner_distance: Prediction for the inner distance transform.
+            - outer_distance: Prediction for the outer distance transform.
+            - fgbg: Prediction for the foregound/background transform.
+            - pixelwise: Prediction for the interior/border/background transform.
+
+        min_distance (int): Minimum allowable distance between two cells.
+        detection_threshold (float): Threshold for the inner distance.
+        distance_threshold (float): Threshold for the outer distance.
+        exclude_border (bool): Whether to include centroid detections
+            at the border.
+        small_objects_threshold (int): Removes objects smaller than this size.
+
+    Returns:
+        numpy.array: Uniquely labeled mask.
+    """
+    inner_distance_batch = outputs[0][:, ..., 0]
+    pixel_interior_batch = outputs[3][:, ..., 1]
+
+    label_images = []
+    for batch in range(inner_distance_batch.shape[0]):
+        inner_distance = inner_distance_batch[batch]
+        inner_distance = nd.gaussian_filter(inner_distance, 3)
+        pixel_interior = pixel_interior_batch[batch]
+        pixel_interior = nd.gaussian_filter(pixel_interior, 2)
+
+        markers = peak_local_max(inner_distance,
+                                 min_distance=min_distance,
+                                 threshold_abs=detection_threshold,
+                                 exclude_border=exclude_border,
+                                 indices=False)
+        markers = label(markers)
+
+        label_image = watershed(-pixel_interior,
+                                markers,
+                                mask=pixel_interior > distance_threshold,
+                                watershed_line=0)
 
         # Remove small objects
         label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
