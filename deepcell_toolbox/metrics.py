@@ -60,7 +60,7 @@ from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
 import logging
 
-from keras_retinanet.utils import compute_overlap
+from keras_retinanet.utils.compute_overlap import compute_overlap
 from deepcell_toolbox import erode_edges
 
 

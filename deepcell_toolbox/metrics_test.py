@@ -255,22 +255,22 @@ class MetricFunctionsTest():
         arr = np.ones((10, 100, 100, 1))
         out = metrics.split_stack(arr, True, 10, 1, 10, 2)
         outshape = (10 * 10 * 10, 100 / 10, 100 / 10, 1)
-        testing.assertEqual(outshape, out.shape)
+        testing.assert_equal(outshape, out.shape)
 
         # Test batch False condition
         arr = np.ones((100, 100, 1))
         out = metrics.split_stack(arr, False, 10, 0, 10, 1)
         outshape = (10 * 10, 100 / 10, 100 / 10, 1)
-        testing.assertEqual(outshape, out.shape)
+        testing.assert_equal(outshape, out.shape)
 
         # Test splitting in only one axis
         out = metrics.split_stack(arr, False, 10, 0, 1, 1)
         outshape = (10 * 1, 100 / 10, 100 / 1, 1)
-        testing.assertEqual(outshape, out.shape)
+        testing.assert_equal(outshape, out.shape)
 
         out = metrics.split_stack(arr, False, 1, 0, 10, 1)
         outshape = (10 * 1, 100 / 1, 100 / 10, 1)
-        testing.assertEqual(outshape, out.shape)
+        testing.assert_equal(outshape, out.shape)
 
         # Raise errors for uneven division
         with pytest.raises(ValueError):
@@ -363,7 +363,7 @@ class TestMetricsObject():
 
             # Check data types from loaded data
             assert isinstance(data, dict)
-            assert np.array_equal(list(data.keys()), ['metrics', 'metadata'])
+            assert np.array_equal(list(data.keys()), ['metadata', 'metrics'])
             assert isinstance(data['metrics'], list)
             assert isinstance(data['metadata'], dict)
 
@@ -387,7 +387,7 @@ class TestMetricsObject():
             # Check output file
             todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
             outname = os.path.join(outdir, name + '_' + todays_date + '.json')
-            testing.assertEqual(os.path.isfile(outname), True)
+            testing.assert_equal(os.path.isfile(outname), True)
 
 
 class TestObjectAccuracy():
@@ -669,18 +669,20 @@ class TestObjectAccuracy():
         df = o.save_to_dataframe()
         assert isinstance(df, pd.DataFrame)
 
-        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'jaccard',
-                   'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
-                   'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe', 'gained_detections']
+        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
+                   'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
+                   'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
+                   'catastrophe', 'jaccard']
         assert np.array_equal(columns, list(df.columns))
 
         # Check seg True case
         o = metrics.ObjectAccuracy(y_true, y_pred, seg=True)
         o.print_report()
         df = o.save_to_dataframe()
-        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'seg', 'jaccard',
-                   'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
-                   'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe', 'gained_detections']
+        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
+                   'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
+                   'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
+                   'catastrophe', 'seg', 'jaccard']
         assert np.array_equal(columns, list(df.columns))
 
     def test_assign_plot_values(self):
