@@ -31,10 +31,15 @@ from __future__ import print_function
 import os
 import json
 import datetime
+import pytest
+import tempfile
+
 from random import sample
 
 import numpy as np
 import pandas as pd
+
+from numpy import testing
 from skimage.measure import label
 from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
@@ -232,52 +237,54 @@ def _sample4_loner(w, h, imw, imh, gain):
         return im.astype('int'), pred.astype('int')
 
 
-class MetricFunctionsTest(test.TestCase):
+class MetricFunctionsTest():
 
     def test_pixelstats_output(self):
         y_true = _get_image()
         y_pred = _get_image()
 
         out2 = metrics.stats_pixelbased(y_true, y_pred)
-        self.assertIsInstance(out2, dict)
+        assert isinstance(out2, dict)
 
         # Test mistmatch size error
-        self.assertRaises(ValueError, metrics.stats_pixelbased,
-                          np.ones((10, 10)), np.ones((20, 20)))
+        with pytest.raises(ValueError):
+            metrics.stats_pixelbased(np.ones((10, 10)), np.ones((20, 20)))
 
     def test_split_stack(self):
         # Test batch True condition
         arr = np.ones((10, 100, 100, 1))
         out = metrics.split_stack(arr, True, 10, 1, 10, 2)
         outshape = (10 * 10 * 10, 100 / 10, 100 / 10, 1)
-        self.assertEqual(outshape, out.shape)
+        testing.assertEqual(outshape, out.shape)
 
         # Test batch False condition
         arr = np.ones((100, 100, 1))
         out = metrics.split_stack(arr, False, 10, 0, 10, 1)
         outshape = (10 * 10, 100 / 10, 100 / 10, 1)
-        self.assertEqual(outshape, out.shape)
+        testing.assertEqual(outshape, out.shape)
 
         # Test splitting in only one axis
         out = metrics.split_stack(arr, False, 10, 0, 1, 1)
         outshape = (10 * 1, 100 / 10, 100 / 1, 1)
-        self.assertEqual(outshape, out.shape)
+        testing.assertEqual(outshape, out.shape)
 
         out = metrics.split_stack(arr, False, 1, 0, 10, 1)
         outshape = (10 * 1, 100 / 1, 100 / 10, 1)
-        self.assertEqual(outshape, out.shape)
+        testing.assertEqual(outshape, out.shape)
 
         # Raise errors for uneven division
-        self.assertRaises(ValueError, metrics.split_stack, arr, False, 11, 0, 10, 1)
-        self.assertRaises(ValueError, metrics.split_stack, arr, False, 10, 0, 11, 1)
+        with pytest.raises(ValueError):
+            metrics.split_stack(arr, False, 11, 0, 10, 1)
+        with pytest.raises(ValueError):
+            metrics.split_stack(arr, False, 10, 0, 11, 1)
 
 
-class TestMetricsObject(test.TestCase):
+class TestMetricsObject():
 
     def test_Metrics_init(self):
         m = metrics.Metrics('test')
 
-        self.assertEqual(hasattr(m, 'output'), True)
+        testing.assert_equal(hasattr(m, 'output'), True)
 
     def test_all_pixel_stats(self):
         m = metrics.Metrics('test')
@@ -290,10 +297,10 @@ class TestMetricsObject(test.TestCase):
         m.all_pixel_stats(y_true, y_pred)
 
         # Check that items were added to output
-        self.assertNotEqual(before, len(m.output))
+        assert before != len(m.output)
 
         # Check mismatch error
-        self.assertRaises(ValueError, m.all_pixel_stats, np.ones(
+        testing.assert_raises(ValueError, m.all_pixel_stats, np.ones(
             (10, 10, 10, 1)), np.ones((5, 5, 5, 1)))
 
     def test_df_to_dict(self):
@@ -303,9 +310,9 @@ class TestMetricsObject(test.TestCase):
         L = m.pixel_df_to_dict(df)
 
         # Check output types
-        self.assertNotEqual(len(L), 0)
-        self.assertIsInstance(L, list)
-        self.assertIsInstance(L[0], dict)
+        assert len(L) != 0
+        assert isinstance(L, list)
+        assert isinstance(L[0], dict)
 
     def test_confusion_matrix(self):
         y_true = _generate_stack_4d()
@@ -314,7 +321,7 @@ class TestMetricsObject(test.TestCase):
         m = metrics.Metrics('test')
 
         cm = m.calc_pixel_confusion_matrix(y_true, y_pred)
-        self.assertEqual(cm.shape[0], y_true.shape[-1])
+        testing.assert_equal(cm.shape[0], y_true.shape[-1])
 
     def test_metric_object_stats(self):
         y_true = label(_generate_stack_3d())
@@ -326,39 +333,39 @@ class TestMetricsObject(test.TestCase):
         m.calc_object_stats(y_true, y_pred)
 
         # Check data added to output
-        self.assertNotEqual(before, len(m.output))
+        assert before != len(m.output)
 
     def test_save_to_json(self):
         name = 'test'
-        outdir = self.get_temp_dir()
-        m = metrics.Metrics(name, outdir=outdir)
+        with tempfile.TemporaryDirectory() as outdir:
+            m = metrics.Metrics(name, outdir=outdir)
 
-        # Create test list to save
-        L = []
-        for i in range(10):
-            L.append(dict(
-                name=i,
-                value=i,
-                feature='test',
-                stat_type='output'
-            ))
+            # Create test list to save
+            L = []
+            for i in range(10):
+                L.append(dict(
+                    name=i,
+                    value=i,
+                    feature='test',
+                    stat_type='output'
+                ))
 
-        m.save_to_json(L)
-        todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        outfilename = os.path.join(outdir, name + '_' + todays_date + '.json')
+            m.save_to_json(L)
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+            outfilename = os.path.join(outdir, name + '_' + todays_date + '.json')
 
-        # Check that file exists
-        self.assertEqual(os.path.isfile(outfilename), True)
+            # Check that file exists
+            testing.assert_equal(os.path.isfile(outfilename), True)
 
-        # Check that it can be opened
-        with open(outfilename) as json_file:
-            data = json.load(json_file)
+            # Check that it can be opened
+            with open(outfilename) as json_file:
+                data = json.load(json_file)
 
-        # Check data types from loaded data
-        self.assertIsInstance(data, dict)
-        self.assertItemsEqual(list(data.keys()), ['metrics', 'metadata'])
-        self.assertIsInstance(data['metrics'], list)
-        self.assertIsInstance(data['metadata'], dict)
+            # Check data types from loaded data
+            assert isinstance(data, dict)
+            assert np.array_equal(list(data.keys()), ['metrics', 'metadata'])
+            assert isinstance(data['metrics'], list)
+            assert isinstance(data['metadata'], dict)
 
     def test_run_all(self):
         y_true_lbl = label(_generate_stack_3d())
@@ -367,23 +374,23 @@ class TestMetricsObject(test.TestCase):
         y_pred_unlbl = _generate_stack_4d()
 
         name = 'test'
-        outdir = self.get_temp_dir()
-        m = metrics.Metrics(name, outdir=outdir)
+        with tempfile.TemporaryDirectory() as outdir:
+            m = metrics.Metrics(name, outdir=outdir)
 
-        before = len(m.output)
+            before = len(m.output)
 
-        m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
+            m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
 
-        # Assert that data was added to output
-        self.assertNotEqual(len(m.output), before)
+            # Assert that data was added to output
+            assert len(m.output) != before
 
-        # Check output file
-        todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        outname = os.path.join(outdir, name + '_' + todays_date + '.json')
-        self.assertEqual(os.path.isfile(outname), True)
+            # Check output file
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+            outname = os.path.join(outdir, name + '_' + todays_date + '.json')
+            testing.assertEqual(os.path.isfile(outname), True)
 
 
-class TestObjectAccuracy(test.TestCase):
+class TestObjectAccuracy():
 
     def test_init(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
@@ -392,16 +399,16 @@ class TestObjectAccuracy(test.TestCase):
         o = metrics.ObjectAccuracy(y_true, y_true, test=True)
 
         # Check that object numbers are integers
-        self.assertIsInstance(o.n_true, int)
-        self.assertIsInstance(o.n_pred, int)
+        assert isinstance(o.n_true, int)
+        assert isinstance(o.n_pred, int)
 
-        self.assertEqual(o.empty_frame, False)
+        testing.assert_equal(o.empty_frame, False)
 
     def test_init_wrongsize(self):
         # Test mismatched input size
         y_true = label(_get_image())
         y_wrong = label(_get_image(img_h=200, img_w=200))
-        self.assertRaises(ValueError, metrics.ObjectAccuracy, y_true, y_wrong)
+        testing.assert_raises(ValueError, metrics.ObjectAccuracy, y_true, y_wrong)
 
     def test_init_emptyframe(self):
         y_true, y_empty = _sample1(10, 10, 30, 30, True)
@@ -411,9 +418,9 @@ class TestObjectAccuracy(test.TestCase):
         y_empty = y_empty.astype('int')
 
         oempty = metrics.ObjectAccuracy(y_true, y_empty)
-        self.assertEqual(oempty.empty_frame, 'n_pred')
+        testing.assert_equal(oempty.empty_frame, 'n_pred')
         oempty = metrics.ObjectAccuracy(y_empty, y_true)
-        self.assertEqual(oempty.empty_frame, 'n_true')
+        testing.assert_equal(oempty.empty_frame, 'n_true')
 
     def test_calc_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -422,16 +429,16 @@ class TestObjectAccuracy(test.TestCase):
         o._calc_iou()
 
         # Check that iou was created
-        self.assertTrue(hasattr(o, 'iou'))
+        assert hasattr(o, 'iou')
 
         # Check that it is not equal to initial value
-        self.assertNotEqual(np.count_nonzero(o.iou), 0)
+        assert np.count_nonzero(o.iou) != 0
 
         # Test seg_thresh creation
         o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
         o._calc_iou()
 
-        self.assertTrue(hasattr(o, 'seg_thresh'))
+        assert hasattr(o, 'seg_thresh')
 
     def test_modify_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -441,7 +448,7 @@ class TestObjectAccuracy(test.TestCase):
         o._modify_iou(force_event_links=False)
 
         # Check that modified_iou was created
-        self.assertTrue(hasattr(o, 'iou_modified'))
+        assert hasattr(o, 'iou_modified')
 
     def test_make_matrix(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -451,9 +458,9 @@ class TestObjectAccuracy(test.TestCase):
 
         o._make_matrix()
 
-        self.assertTrue(hasattr(o, 'cm'))
+        assert hasattr(o, 'cm')
 
-        self.assertNotEqual(np.count_nonzero(o.cm), 0)
+        assert np.count_nonzero(o.cm) != 0
 
     def test_linear_assignment(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -469,7 +476,7 @@ class TestObjectAccuracy(test.TestCase):
                 'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe']
 
         for obj in cols:
-            self.assertTrue(hasattr(o, obj))
+            assert hasattr(o, obj)
 
         # Test condition where seg = True
         o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
@@ -479,7 +486,7 @@ class TestObjectAccuracy(test.TestCase):
         o._linear_assignment()
 
         for obj in ['results', 'cm_res', 'seg_score']:
-            self.assertTrue(hasattr(o, obj))
+            assert hasattr(o, obj)
 
     def test_assign_loners(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -490,7 +497,7 @@ class TestObjectAccuracy(test.TestCase):
         o._linear_assignment()
 
         o._assign_loners()
-        self.assertTrue(hasattr(o, 'cost_l_bin'))
+        assert hasattr(o, 'cost_l_bin')
 
     def test_array_to_graph(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -502,7 +509,7 @@ class TestObjectAccuracy(test.TestCase):
         o._assign_loners()
 
         o._array_to_graph()
-        self.assertTrue(hasattr(o, 'G'))
+        assert hasattr(o, 'G')
 
     def test_classify_graph(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
@@ -660,12 +667,12 @@ class TestObjectAccuracy(test.TestCase):
         o.print_report()
 
         df = o.save_to_dataframe()
-        self.assertIsInstance(df, pd.DataFrame)
+        assert isinstance(df, pd.DataFrame)
 
         columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'jaccard',
                    'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
                    'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe', 'gained_detections']
-        self.assertItemsEqual(columns, list(df.columns))
+        assert np.array_equal(columns, list(df.columns))
 
         # Check seg True case
         o = metrics.ObjectAccuracy(y_true, y_pred, seg=True)
@@ -674,7 +681,7 @@ class TestObjectAccuracy(test.TestCase):
         columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'seg', 'jaccard',
                    'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
                    'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe', 'gained_detections']
-        self.assertItemsEqual(columns, list(df.columns))
+        assert np.array_equal(columns, list(df.columns))
 
     def test_assign_plot_values(self):
         y_true, _ = random_shapes(image_shape=(200, 200), max_shapes=30, min_shapes=15,
