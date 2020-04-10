@@ -58,3 +58,22 @@ def test_deep_watershed():
                                                   small_objects_threshold=1,
                                                   exclude_border=True)
     np.testing.assert_equal(watershed_img.shape, shape[:-1])
+
+
+def test_deep_watershed_mibi():
+    shape = (5, 21, 21, 1)
+    inner_distance = np.random.random(shape) * 100
+    outer_distance = np.random.random(shape) * 100
+    fgbg = np.random.randint(0, 1, size=shape)
+    pixelwise = np.random.random(shape[:-1] + (3, ))
+    inputs = [inner_distance, outer_distance, fgbg, pixelwise]
+
+    # basic tests
+    watershed_img = deep_watershed.deep_watershed_mibi(inputs)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
+
+    # turn some knobs
+    watershed_img = deep_watershed.deep_watershed_mibi(inputs,
+                                                       small_objects_threshold=1,
+                                                       exclude_border=True)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
