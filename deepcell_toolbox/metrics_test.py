@@ -363,7 +363,7 @@ class TestMetricsObject():
 
             # Check data types from loaded data
             assert isinstance(data, dict)
-            assert np.array_equal(list(data.keys()), ['metadata', 'metrics'])
+            assert np.array_equal(sorted(list(data.keys())), ['metadata', 'metrics'])
             assert isinstance(data['metrics'], list)
             assert isinstance(data['metadata'], dict)
 
@@ -574,7 +574,7 @@ class TestObjectAccuracy():
         assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
 
         # The tests below are more stochastic, and should be run multiple times
-        for _ in range(10):
+        for _ in range(1000):
 
             # 3 cells merged together, with forced event links to ensure accurate assignment
             y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
@@ -673,7 +673,7 @@ class TestObjectAccuracy():
                    'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
                    'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
                    'catastrophe', 'jaccard']
-        assert np.array_equal(columns, list(df.columns))
+        assert np.array_equal(sorted(columns), sorted(list(df.columns)))
 
         # Check seg True case
         o = metrics.ObjectAccuracy(y_true, y_pred, seg=True)
@@ -683,7 +683,7 @@ class TestObjectAccuracy():
                    'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
                    'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
                    'catastrophe', 'seg', 'jaccard']
-        assert np.array_equal(columns, list(df.columns))
+        assert np.array_equal(sorted(columns), sorted(list(df.columns)))
 
     def test_assign_plot_values(self):
         y_true, _ = random_shapes(image_shape=(200, 200), max_shapes=30, min_shapes=15,
