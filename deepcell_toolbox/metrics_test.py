@@ -32,7 +32,6 @@ import os
 import json
 import datetime
 import pytest
-import tempfile
 
 from random import sample
 
@@ -45,8 +44,7 @@ from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
 
 
-from deepcell_toolbox import metrics
-from deepcell_toolbox import erode_edges
+from deepcell_toolbox import metrics, erode_edges, utils
 
 
 def _get_image(img_h=300, img_w=300):
@@ -337,7 +335,7 @@ class TestMetricsObject():
 
     def test_save_to_json(self):
         name = 'test'
-        with tempfile.TemporaryDirectory() as outdir:
+        with utils.get_tempdir() as outdir:
             m = metrics.Metrics(name, outdir=outdir)
 
             # Create test list to save
@@ -374,7 +372,7 @@ class TestMetricsObject():
         y_pred_unlbl = _generate_stack_4d()
 
         name = 'test'
-        with tempfile.TemporaryDirectory() as outdir:
+        with utils.get_tempdir() as outdir:
             m = metrics.Metrics(name, outdir=outdir)
 
             before = len(m.output)
@@ -574,7 +572,7 @@ class TestObjectAccuracy():
         assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
 
         # The tests below are more stochastic, and should be run multiple times
-        for _ in range(1000):
+        for _ in range(10):
 
             # 3 cells merged together, with forced event links to ensure accurate assignment
             y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
