@@ -335,10 +335,10 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                 # swallowed up the small cell so that it doesn't directly match a different cell
                 if force_event_links:
                     if true_in_pred > 0.5:
-                        fix_idx = np.where(self.iou[:, pred_label - 1] > 1 - self.cutoff1)
+                        fix_idx = np.where(self.iou[:, pred_label - 1] >= 1 - self.cutoff1)
                         self.iou_modified[fix_idx, pred_label - 1] = 1 - self.cutoff1 - 0.01
                     elif pred_in_true > 0.5:
-                        fix_idx = np.where(self.iou[true_label - 1, :] > 1 - self.cutoff1)
+                        fix_idx = np.where(self.iou[true_label - 1, :] >= 1 - self.cutoff1)
                         self.iou_modified[true_label - 1, fix_idx] = 1 - self.cutoff1 - 0.01
 
     def _make_matrix(self):

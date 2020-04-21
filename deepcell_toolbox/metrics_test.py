@@ -611,91 +611,91 @@ class TestObjectAccuracy():
         assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
 
         # The tests below are more stochastic, and should be run multiple times
-        # for _ in range(10):
-        #
-        #     # 3 cells merged together, with forced event links to ensure accurate assignment
-        #     y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=True,
-        #                                cutoff1=0.2, cutoff2=0.1)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert label_dict['correct']['y_true'] == [1]
-        #     assert label_dict['correct']['y_pred'] == [1]
-        #     assert set(label_dict['merges']['y_true']) == {2, 3, 4}
-        #     assert label_dict['merges']['y_pred'] == [2]
-        #
-        #     # 3 cells merged together, without forced event links. Cells must be similar size
-        #     y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=True)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=False,
-        #                                cutoff1=0.2, cutoff2=0.1)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert label_dict['correct']['y_true'] == [1]
-        #     assert label_dict['correct']['y_pred'] == [1]
-        #     assert set(label_dict['merges']['y_true']) == {2, 3, 4}
-        #     assert label_dict['merges']['y_pred'] == [2]
-        #
-        #      2 of 3 cells merged together, with forced event links to ensure accurate assignment
-        #     y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
-        #         _sample2_2(10, 10, 30, 30, similar_size=False)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=True)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert set(label_dict['correct']['y_true']) == y_true_correct
-        #     assert set(label_dict['correct']['y_pred']) == y_pred_correct
-        #     assert set(label_dict['merges']['y_true']) == y_true_merge
-        #     assert set(label_dict['merges']['y_pred']) == y_pred_merge
-        #
-        #    # 2 of 3 cells merged together, without forced event links. Cells must be similar size
-        #     y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
-        #         _sample2_2(10, 10, 30, 30, similar_size=True)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=False)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert set(label_dict['correct']['y_true']) == y_true_correct
-        #     assert set(label_dict['correct']['y_pred']) == y_pred_correct
-        #     assert set(label_dict['merges']['y_true']) == y_true_merge
-        #     assert set(label_dict['merges']['y_pred']) == y_pred_merge
-        #
-        #   # 1 cell split into three pieces, with forced event links to ensure accurate assignment
-        #     y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=False)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=True)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert label_dict['correct']['y_true'] == [1]
-        #     assert label_dict['correct']['y_pred'] == [1]
-        #     assert label_dict['splits']['y_true'] == [2]
-        #     assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
-        #
-        #   # 1 cell split in three pieces, without forced event links. Cells must be similar size
-        #     y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=True)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=False)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert label_dict['correct']['y_true'] == [1]
-        #     assert label_dict['correct']['y_pred'] == [1]
-        #     assert label_dict['splits']['y_true'] == [2]
-        #     assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
-        #
-        #     # 1 cell split into two pieces, one small accurate cell, with forced event links
-        #     y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
-        #         _sample2_2(10, 10, 30, 30, merge=False, similar_size=False)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=True)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert set(label_dict['correct']['y_true']) == y_true_correct
-        #     assert set(label_dict['correct']['y_pred']) == y_pred_correct
-        #     assert set(label_dict['splits']['y_true']) == y_true_split
-        #     assert set(label_dict['splits']['y_pred']) == y_pred_split
-        #
-        #     # 1 cell split into two pieces, one small accurate cell, without forced event links
-        #     y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
-        #         _sample2_2(10, 10, 30, 30, merge=False, similar_size=True)
-        #     o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-        #                                force_event_links=False)
-        #     label_dict, _, _ = o.save_error_ids()
-        #     assert set(label_dict['correct']['y_true']) == y_true_correct
-        #     assert set(label_dict['correct']['y_pred']) == y_pred_correct
-        #     assert set(label_dict['splits']['y_true']) == y_true_split
-        #     assert set(label_dict['splits']['y_pred']) == y_pred_split
+        for _ in range(100):
+
+            # 3 cells merged together, with forced event links to ensure accurate assignment
+            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
+            o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=True,
+                                       cutoff1=0.2, cutoff2=0.1)
+            label_dict, _, _ = o.save_error_ids()
+            assert label_dict['correct']['y_true'] == [1]
+            assert label_dict['correct']['y_pred'] == [1]
+            assert set(label_dict['merges']['y_true']) == {2, 3, 4}
+            assert label_dict['merges']['y_pred'] == [2]
+
+            # 3 cells merged together, without forced event links. Cells must be similar size
+            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=True)
+            o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=False,
+                                       cutoff1=0.2, cutoff2=0.1)
+            label_dict, _, _ = o.save_error_ids()
+            assert label_dict['correct']['y_true'] == [1]
+            assert label_dict['correct']['y_pred'] == [1]
+            assert set(label_dict['merges']['y_true']) == {2, 3, 4}
+            assert label_dict['merges']['y_pred'] == [2]
+
+            # 2 of 3 cells merged together, with forced event links to ensure accurate assignment
+            y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
+                _sample2_2(10, 10, 30, 30, similar_size=False)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=True)
+            label_dict, _, _ = o.save_error_ids()
+            assert set(label_dict['correct']['y_true']) == y_true_correct
+            assert set(label_dict['correct']['y_pred']) == y_pred_correct
+            assert set(label_dict['merges']['y_true']) == y_true_merge
+            assert set(label_dict['merges']['y_pred']) == y_pred_merge
+
+            # 2 of 3 cells merged together, without forced event links. Cells must be similar size
+            y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
+                _sample2_2(10, 10, 30, 30, similar_size=True)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=False)
+            label_dict, _, _ = o.save_error_ids()
+            assert set(label_dict['correct']['y_true']) == y_true_correct
+            assert set(label_dict['correct']['y_pred']) == y_pred_correct
+            assert set(label_dict['merges']['y_true']) == y_true_merge
+            assert set(label_dict['merges']['y_pred']) == y_pred_merge
+
+            # 1 cell split into three pieces, with forced event links to ensure accurate assignment
+            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=False)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=True)
+            label_dict, _, _ = o.save_error_ids()
+            assert label_dict['correct']['y_true'] == [1]
+            assert label_dict['correct']['y_pred'] == [1]
+            assert label_dict['splits']['y_true'] == [2]
+            assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
+
+            # 1 cell split in three pieces, without forced event links. Cells must be similar size
+            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=True)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=False)
+            label_dict, _, _ = o.save_error_ids()
+            assert label_dict['correct']['y_true'] == [1]
+            assert label_dict['correct']['y_pred'] == [1]
+            assert label_dict['splits']['y_true'] == [2]
+            assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
+
+            # 1 cell split into two pieces, one small accurate cell, with forced event links
+            y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
+                _sample2_2(10, 10, 30, 30, merge=False, similar_size=False)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=True)
+            label_dict, _, _ = o.save_error_ids()
+            assert set(label_dict['correct']['y_true']) == y_true_correct
+            assert set(label_dict['correct']['y_pred']) == y_pred_correct
+            assert set(label_dict['splits']['y_true']) == y_true_split
+            assert set(label_dict['splits']['y_pred']) == y_pred_split
+
+            # 1 cell split into two pieces, one small accurate cell, without forced event links
+            y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
+                _sample2_2(10, 10, 30, 30, merge=False, similar_size=True)
+            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
+                                       force_event_links=False)
+            label_dict, _, _ = o.save_error_ids()
+            assert set(label_dict['correct']['y_true']) == y_true_correct
+            assert set(label_dict['correct']['y_pred']) == y_pred_correct
+            assert set(label_dict['splits']['y_true']) == y_true_split
+            assert set(label_dict['splits']['y_pred']) == y_pred_split
 
     def test_optional_outputs(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
