@@ -235,7 +235,7 @@ def _sample4_loner(w, h, imw, imh, gain):
         return im.astype('int'), pred.astype('int')
 
 
-class MetricFunctionsTest():
+class TestMetricFunctions():
 
     def test_pixelstats_output(self):
         y_true = _get_image()
@@ -333,6 +333,10 @@ class TestMetricsObject():
         # Check data added to output
         assert before != len(m.output)
 
+        # Raise input size error
+        with testing.assert_raises(ValueError):
+            m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10, 10))
+
     def test_save_to_json(self):
         name = 'test'
         with utils.get_tempdir() as outdir:
@@ -372,20 +376,21 @@ class TestMetricsObject():
         y_pred_unlbl = _generate_stack_4d()
 
         name = 'test'
-        with utils.get_tempdir() as outdir:
-            m = metrics.Metrics(name, outdir=outdir)
+        for seg in [True, False]:
+            with utils.get_tempdir() as outdir:
+                m = metrics.Metrics(name, outdir=outdir, seg=seg)
 
-            before = len(m.output)
+                before = len(m.output)
 
-            m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
+                m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
 
-            # Assert that data was added to output
-            assert len(m.output) != before
+                # Assert that data was added to output
+                assert len(m.output) != before
 
-            # Check output file
-            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-            outname = os.path.join(outdir, name + '_' + todays_date + '.json')
-            testing.assert_equal(os.path.isfile(outname), True)
+                # Check output file
+                todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+                outname = os.path.join(outdir, name + '_' + todays_date + '.json')
+                testing.assert_equal(os.path.isfile(outname), True)
 
 
 class TestObjectAccuracy():
@@ -419,6 +424,15 @@ class TestObjectAccuracy():
         testing.assert_equal(oempty.empty_frame, 'n_pred')
         oempty = metrics.ObjectAccuracy(y_empty, y_true)
         testing.assert_equal(oempty.empty_frame, 'n_true')
+
+    def test_init_noloners(self):
+        # Generate split error and use single cell in true for both pred/true
+        y_true, y_pred = _sample1(10, 10, 30, 30, False)
+
+        o = metrics.ObjectAccuracy(y_true, y_true)
+
+        # Look for creation of `self.n_pred2` which indicates assignloners ran inccorectly
+        testing.assert_equal(hasattr(o, 'n_pred2'), False)
 
     def test_calc_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
