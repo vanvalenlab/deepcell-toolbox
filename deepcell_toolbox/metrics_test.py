@@ -585,19 +585,6 @@ class TestObjectAccuracy():
         assert set(label_dict['catastrophes']['y_true']) == set(np.unique(y_true[y_true > 0]))
         assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
 
-        # testing with set input values to figure out where python 2.7 error is coming from
-        # 1 cell split into three pieces, with forced event links to ensure accurate assignment
-        y_true, y_pred = _sample2_3_set(10, 10, 30, 30, merge=False, similar_size=False)
-        o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                   force_event_links=True)
-        label_dict, _, _ = o.save_error_ids()
-
-        print(label_dict)
-        assert label_dict['correct']['y_true'] == [1]
-        assert label_dict['correct']['y_pred'] == [1]
-        assert label_dict['splits']['y_true'] == [2]
-        assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
-
         # The tests below are more stochastic, and should be run multiple times
         for _ in range(100):
 
