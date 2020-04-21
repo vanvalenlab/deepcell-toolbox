@@ -135,19 +135,6 @@ def _sample2(w, h, imw, imh, similar_size=False):
     return im
 
 
-def _sample2_set(w, h, imw, imh, similar_size=False, xs=2, ys=2):
-    """Merge of three cells"""
-    x = 5
-    y = 5
-    im = np.zeros((imw, imh))
-    im[0:2, 0:2] = 1
-    im[x:x + xs, y:y + ys] = 2
-    im[x + xs:x + w, y:y + ys] = 3
-    im[x:x + w, y + ys:y + h] = 4
-
-    return im
-
-
 def _sample2_2(w, h, imw, imh, merge=True, similar_size=False):
 
     im1 = _sample2(w, h, imw, imh, similar_size)
@@ -178,19 +165,6 @@ def _sample2_2(w, h, imw, imh, merge=True, similar_size=False):
 def _sample2_3(w, h, imw, imh, merge=True, similar_size=False):
 
     im1 = _sample2(w, h, imw, imh, similar_size)
-
-    im2 = im1.copy()
-    im2[im2 > 1] = 2
-
-    if merge:
-        return im1.astype('int'), im2.astype('int')
-    else:
-        return im2.astype('int'), im1.astype('int')
-
-
-def _sample2_3_set(w, h, imw, imh, merge=True, similar_size=False, xs=2, ys=2):
-
-    im1 = _sample2_set(w, h, imw, imh, similar_size, xs=xs, ys=ys)
 
     im2 = im1.copy()
     im2[im2 > 1] = 2
