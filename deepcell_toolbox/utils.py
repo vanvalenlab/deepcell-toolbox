@@ -30,6 +30,11 @@ from __future__ import print_function
 
 import numpy as np
 import cv2
+import contextlib
+import tempfile
+import os
+import shutil
+
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
 from skimage.morphology import binary_erosion
@@ -322,3 +327,27 @@ def resize(data, shape, data_format='channels_last'):
         resized = _resize(data)
 
     return resized
+
+# Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
+# These are unnecessary if not supporting python2
+
+
+@contextlib.contextmanager
+def cd(newdir, cleanup=lambda: True):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
+        cleanup()
+
+
+@contextlib.contextmanager
+def get_tempdir():
+    dirpath = tempfile.mkdtemp()
+
+    def cleanup():
+        return shutil.rmtree(dirpath)
+    with cd(dirpath, cleanup):
+        yield dirpath
