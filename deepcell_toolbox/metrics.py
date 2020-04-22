@@ -59,6 +59,7 @@ from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
 import logging
+import warnings
 
 from keras_retinanet.utils.compute_overlap import compute_overlap
 from deepcell_toolbox import erode_edges
@@ -100,8 +101,8 @@ def stats_pixelbased(y_true, y_pred):
     truth = y_true
 
     if pred.sum() == 0 and truth.sum() == 0:
-        logging.warning('DICE score is technically 1.0, '
-                        'but prediction and truth arrays are empty. ')
+        warnings.warn('DICE score is technically 1.0, '
+                      'but prediction and truth arrays are empty. ')
 
     # Calculations for IOU
     intersection = np.logical_and(pred, truth)

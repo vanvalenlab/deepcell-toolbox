@@ -248,6 +248,13 @@ class TestMetricFunctions():
         with pytest.raises(ValueError):
             metrics.stats_pixelbased(np.ones((10, 10)), np.ones((20, 20)))
 
+        # Test empty input arguments
+        y_true = np.zeros_like(y_true)
+        y_pred = np.zeros_like(y_pred)
+
+        with pytest.warns(UserWarning):
+            out3 = metrics.stats_pixelbased(y_true, y_pred)
+
     def test_split_stack(self):
         # Test batch True condition
         arr = np.ones((10, 100, 100, 1))
