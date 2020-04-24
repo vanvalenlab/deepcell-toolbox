@@ -311,10 +311,27 @@ def resize(data, shape, data_format='channels_last', data_type='X'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
-        order = 1 if data_type == 'X' else 0
-        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
-                                             order=order)
+        # linear interpolation (order 1) for image data
+        if data_type == 'X':
+            _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
+                                                 order=1)
+
+        # nearest neighbors (order 0) for labels data, but have to use cv2 to avoid floats
+        else:
+            def _resize(d):
+                resized_labels = []
+                for i in range(data.shape[channel_axis]):
+                    if data_format == 'channels_first':
+                        resized_label = cv2.resize(d[i, ...], shape[1:],
+                                                   interpolation=cv2.INTER_NEAREST)
+                    else:
+                        resized_label = cv2.resize(d[..., i], shape[:-1],
+                                                   interpolation=cv2.INTER_NEAREST)
+                    resized_labels.append(resized_label)
+
+                resized_labels = np.stack(resized_labels, axis=channel_axis)
+                return resized_labels
+
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)

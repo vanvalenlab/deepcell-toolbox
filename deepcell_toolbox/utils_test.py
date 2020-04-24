@@ -168,7 +168,6 @@ def test_resize():
 
     for out in out_shapes:
         for c in channel_sizes:
-
             # batch, channel first
             in_shape = [c] + base_shape + [4]
             out_shape = tuple([c] + out + [4])
