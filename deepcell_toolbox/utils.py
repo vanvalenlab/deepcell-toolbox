@@ -267,7 +267,7 @@ def untile_image(tiles, tiles_info,
     return image
 
 
-def resize(data, shape, data_format='channels_last'):
+def resize(data, shape, data_format='channels_last', data_type='X'):
     """Resize the data to the given shape.
     Uses openCV to resize the data if the data is a single channel, as it
     is very fast. However, openCV does not support multi-channel resizing,
@@ -279,6 +279,8 @@ def resize(data, shape, data_format='channels_last'):
             Batch and channel dimensions are handled automatically and preserved.
         data_format (str): determines the order of the channel axis,
             one of 'channels_first' and 'channels_last'.
+        data_type (str): determines whether resizing raw data or labels
+            one of 'X' or 'y'
 
     Raises:
         ValueError: ndim of data not 3 or 4
@@ -309,12 +311,20 @@ def resize(data, shape, data_format='channels_last'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True)
+        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
+        order = 1 if data_type == 'X' else 0
+        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
+                                             order=order)
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
 
-        _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape), axis=channel_axis)
+        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
+        interpolation = cv2.INTER_LINEAR if data_type == 'X' else cv2.INTER_NEAREST
+
+        _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape,
+                                                      interpolation=interpolation),
+                                           axis=channel_axis)
 
     # Check for batch dimension to loop over
     if len(data.shape) == 4:

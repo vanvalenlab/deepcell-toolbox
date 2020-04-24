@@ -193,6 +193,14 @@ def test_resize():
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
             assert out_shape == rs.shape
 
+            # make sure label data is not linearly interpolated and returns only ints
+            in_shape = base_shape + [c]
+            out_shape = tuple(out + [c])
+            in_data = np.random.randint(low=0, high=20, size=in_shape).astype('float32')
+            rs = utils.resize(in_data, out, data_format='channels_last', data_type='y')
+            assert out_shape == rs.shape
+            assert np.all(rs == np.floor(rs))
+
     # Wrong data size
     with pytest.raises(ValueError):
         im = np.random.rand(20, 20)
