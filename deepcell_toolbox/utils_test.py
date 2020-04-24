@@ -193,10 +193,20 @@ def test_resize():
             assert out_shape == rs.shape
 
             # make sure label data is not linearly interpolated and returns only ints
+
+            # no batch, channel last
             in_shape = base_shape + [c]
             out_shape = tuple(out + [c])
             in_data = np.random.randint(low=0, high=20, size=in_shape).astype('float32')
             rs = utils.resize(in_data, out, data_format='channels_last', data_type='y')
+            assert out_shape == rs.shape
+            assert np.all(rs == np.floor(rs))
+
+            # batch, channel first
+            in_shape = [c] + base_shape + [4]
+            out_shape = tuple([c] + out + [4])
+            in_data = np.random.randint(low=0, high=20, size=in_shape).astype('float32')
+            rs = utils.resize(in_data, out, data_format='channels_first', data_type='y')
             assert out_shape == rs.shape
             assert np.all(rs == np.floor(rs))
 
