@@ -311,32 +311,19 @@ def resize(data, shape, data_format='channels_last', data_type='X'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        # linear interpolation (order 1) for image data
-        if data_type == 'X':
-            _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
-                                                 order=1)
+        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
+        order = 1 if data_type == 'X' else 0
 
-        # nearest neighbors (order 0) for labels data, but have to use cv2 to avoid floats
-        else:
-            def _resize(d):
-                resized_labels = []
-                for i in range(data.shape[channel_axis]):
-                    if data_format == 'channels_first':
-                        resized_label = cv2.resize(d[i, ...], shape[1:],
-                                                   interpolation=cv2.INTER_NEAREST)
-                    else:
-                        resized_label = cv2.resize(d[..., i], shape[:-1],
-                                                   interpolation=cv2.INTER_NEAREST)
-                    resized_labels.append(resized_label)
+        # anti_aliasing introduces spurious labels, include only for image data
+        anti_aliasing = data_type == 'X'
 
-                resized_labels = np.stack(resized_labels, axis=channel_axis)
-                return resized_labels
-
+        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
+                                             order=order, anti_aliasing=anti_aliasing)
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
 
-        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
+        # linear interpolation for image data, nearest neighbor for labels
         interpolation = cv2.INTER_LINEAR if data_type == 'X' else cv2.INTER_NEAREST
 
         _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape,
