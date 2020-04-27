@@ -298,6 +298,8 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
         raise ValueError('Shape for resize can only have length of 2, e.g. (x,y).'
                          'Input shape has {} dimensions.'.format(str(len(shape))))
 
+    original_dtype = data.dtype
+
     # cv2 resize is faster but does not support multi-channel data
     # If the data is multi-channel, use skimage.transform.resize
     channel_axis = 0 if data_format == 'channels_first' else -1
@@ -344,7 +346,7 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
     else:
         resized = _resize(data)
 
-    return resized
+    return resized.astype(original_dtype)
 
 # Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
 # These are unnecessary if not supporting python2
