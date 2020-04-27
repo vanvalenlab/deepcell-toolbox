@@ -317,7 +317,7 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
             order = 0
             anti_aliasing = False
         else:
-            order = 0
+            order = 1
             anti_aliasing = True
 
         _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
