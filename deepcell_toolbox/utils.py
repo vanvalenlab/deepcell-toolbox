@@ -313,12 +313,8 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
 
         # linear interpolation (order 1) for image data, nearest neighbor (order 0) for labels
         # anti_aliasing introduces spurious labels, include only for image data
-        if labeled_image:
-            order = 0
-            anti_aliasing = False
-        else:
-            order = 1
-            anti_aliasing = True
+        order = 0 if labeled_image else 1
+        anti_aliasing = not labeled_image
 
         _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
                                              order=order, anti_aliasing=anti_aliasing)
