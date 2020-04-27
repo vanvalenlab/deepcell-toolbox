@@ -267,7 +267,7 @@ def untile_image(tiles, tiles_info,
     return image
 
 
-def resize(data, shape, data_format='channels_last', data_type='X'):
+def resize(data, shape, data_format='channels_last', labeled_image=False):
     """Resize the data to the given shape.
     Uses openCV to resize the data if the data is a single channel, as it
     is very fast. However, openCV does not support multi-channel resizing,
@@ -279,8 +279,8 @@ def resize(data, shape, data_format='channels_last', data_type='X'):
             Batch and channel dimensions are handled automatically and preserved.
         data_format (str): determines the order of the channel axis,
             one of 'channels_first' and 'channels_last'.
-        data_type (str): determines whether resizing raw data or labels
-            one of 'X' or 'y'
+        labeled_image (bool): flag to determine how interpolation and floats are handled based
+         on whether the data represents raw images or annotations
 
     Raises:
         ValueError: ndim of data not 3 or 4
@@ -311,11 +311,14 @@ def resize(data, shape, data_format='channels_last', data_type='X'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        # linear interpolation (order 1) for image data, near neighbor (order 0) for labels
-        order = 1 if data_type == 'X' else 0
-
+        # linear interpolation (order 1) for image data, nearest neighbor (order 0) for labels
         # anti_aliasing introduces spurious labels, include only for image data
-        anti_aliasing = data_type == 'X'
+        if labeled_image:
+            order = 0
+            anti_aliasing = False
+        else:
+            order = 0
+            anti_aliasing = True
 
         _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
                                              order=order, anti_aliasing=anti_aliasing)
@@ -324,7 +327,12 @@ def resize(data, shape, data_format='channels_last', data_type='X'):
         shape = tuple(shape)
 
         # linear interpolation for image data, nearest neighbor for labels
-        interpolation = cv2.INTER_LINEAR if data_type == 'X' else cv2.INTER_NEAREST
+        # CV2 doesn't support ints for linear interpolation, set to float for image data
+        if labeled_image:
+            interpolation = cv2.INTER_NEAREST
+        else:
+            interpolation = cv2.INTER_LINEAR
+            data = data.astype('float32')
 
         _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape,
                                                       interpolation=interpolation),

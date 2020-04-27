@@ -198,7 +198,7 @@ def test_resize():
             in_shape = base_shape + [c]
             out_shape = tuple(out + [c])
             in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
-            rs = utils.resize(in_data, out, data_format='channels_last', data_type='y')
+            rs = utils.resize(in_data, out, data_format='channels_last', labeled_image=True)
             assert out_shape == rs.shape
             assert np.all(rs == np.floor(rs))
             assert np.all(np.unique(rs) == [0, 1, 9, 20])
@@ -207,7 +207,7 @@ def test_resize():
             in_shape = [c] + base_shape + [4]
             out_shape = tuple([c] + out + [4])
             in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
-            rs = utils.resize(in_data, out, data_format='channels_first', data_type='y')
+            rs = utils.resize(in_data, out, data_format='channels_first', labeled_image=True)
             assert out_shape == rs.shape
             assert np.all(rs == np.floor(rs))
             assert np.all(np.unique(rs) == [0, 1, 9, 20])
