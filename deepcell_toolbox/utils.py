@@ -267,7 +267,7 @@ def untile_image(tiles, tiles_info,
     return image
 
 
-def resize(data, shape, data_format='channels_last'):
+def resize(data, shape, data_format='channels_last', labeled_image=False):
     """Resize the data to the given shape.
     Uses openCV to resize the data if the data is a single channel, as it
     is very fast. However, openCV does not support multi-channel resizing,
@@ -279,6 +279,8 @@ def resize(data, shape, data_format='channels_last'):
             Batch and channel dimensions are handled automatically and preserved.
         data_format (str): determines the order of the channel axis,
             one of 'channels_first' and 'channels_last'.
+        labeled_image (bool): flag to determine how interpolation and floats are handled based
+         on whether the data represents raw images or annotations
 
     Raises:
         ValueError: ndim of data not 3 or 4
@@ -296,6 +298,8 @@ def resize(data, shape, data_format='channels_last'):
         raise ValueError('Shape for resize can only have length of 2, e.g. (x,y).'
                          'Input shape has {} dimensions.'.format(str(len(shape))))
 
+    original_dtype = data.dtype
+
     # cv2 resize is faster but does not support multi-channel data
     # If the data is multi-channel, use skimage.transform.resize
     channel_axis = 0 if data_format == 'channels_first' else -1
@@ -309,12 +313,28 @@ def resize(data, shape, data_format='channels_last'):
         else:
             shape = tuple(list(shape) + [data.shape[channel_axis]])
 
-        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True)
+        # linear interpolation (order 1) for image data, nearest neighbor (order 0) for labels
+        # anti_aliasing introduces spurious labels, include only for image data
+        order = 0 if labeled_image else 1
+        anti_aliasing = not labeled_image
+
+        _resize = lambda d: transform.resize(d, shape, mode='constant', preserve_range=True,
+                                             order=order, anti_aliasing=anti_aliasing)
     # single channel image, resize with cv2
     else:
         shape = tuple(shape)
 
-        _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape), axis=channel_axis)
+        # linear interpolation for image data, nearest neighbor for labels
+        # CV2 doesn't support ints for linear interpolation, set to float for image data
+        if labeled_image:
+            interpolation = cv2.INTER_NEAREST
+        else:
+            interpolation = cv2.INTER_LINEAR
+            data = data.astype('float32')
+
+        _resize = lambda d: np.expand_dims(cv2.resize(np.squeeze(d), shape,
+                                                      interpolation=interpolation),
+                                           axis=channel_axis)
 
     # Check for batch dimension to loop over
     if len(data.shape) == 4:
@@ -326,7 +346,7 @@ def resize(data, shape, data_format='channels_last'):
     else:
         resized = _resize(data)
 
-    return resized
+    return resized.astype(original_dtype)
 
 # Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
 # These are unnecessary if not supporting python2

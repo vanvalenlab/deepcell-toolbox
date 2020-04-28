@@ -168,7 +168,6 @@ def test_resize():
 
     for out in out_shapes:
         for c in channel_sizes:
-
             # batch, channel first
             in_shape = [c] + base_shape + [4]
             out_shape = tuple([c] + out + [4])
@@ -192,6 +191,26 @@ def test_resize():
             out_shape = tuple(out + [c])
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
             assert out_shape == rs.shape
+
+            # make sure label data is not linearly interpolated and returns only the same ints
+
+            # no batch, channel last
+            in_shape = base_shape + [c]
+            out_shape = tuple(out + [c])
+            in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
+            rs = utils.resize(in_data, out, data_format='channels_last', labeled_image=True)
+            assert out_shape == rs.shape
+            assert np.all(rs == np.floor(rs))
+            assert np.all(np.unique(rs) == [0, 1, 9, 20])
+
+            # batch, channel first
+            in_shape = [c] + base_shape + [4]
+            out_shape = tuple([c] + out + [4])
+            in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
+            rs = utils.resize(in_data, out, data_format='channels_first', labeled_image=True)
+            assert out_shape == rs.shape
+            assert np.all(rs == np.floor(rs))
+            assert np.all(np.unique(rs) == [0, 1, 9, 20])
 
     # Wrong data size
     with pytest.raises(ValueError):
