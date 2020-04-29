@@ -69,7 +69,6 @@ def deep_watershed(outputs,
     """
     inner_distance_batch = outputs[0][:, ..., 0]
     outer_distance_batch = outputs[1][:, ..., 0]
-    fgbg_batch = outputs[2]
 
     label_images = []
     for batch in range(inner_distance_batch.shape[0]):
