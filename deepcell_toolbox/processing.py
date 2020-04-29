@@ -178,25 +178,33 @@ def watershed(image, min_distance=10, threshold_abs=0.05):
     return results
 
 
-def pixelwise(prediction, threshold=.8):
+def pixelwise(prediction, threshold=.8, min_size=50):
     """Post-processing for pixelwise transform predictions.
     Uses the interior predictions to uniquely label every instance.
 
     Args:
-        prediction: pixelwise transform prediction
-        threshold: confidence threshold for interior predictions
+        prediction (numpy.array): pixelwise transform prediction
+        threshold (float): confidence threshold for interior predictions
+        min_size (int): removes small objects if smaller than min_size.
 
     Returns:
-        post-processed data with each cell uniquely annotated
+        numpy.array: post-processed data with each cell uniquely annotated
     """
-    if prediction.shape[0] == 1:
-        prediction = np.squeeze(prediction, axis=0)
-    interior = prediction[..., 2] > threshold
-    data = np.expand_dims(interior, axis=-1)
-    labeled = ndimage.label(data)[0]
-    labeled = morphology.remove_small_objects(
-        labeled, min_size=50, connectivity=1)
-    return labeled
+    # instantiate array to be returned
+    labeled_prediction = np.zeros(prediction.shape[:-1] + (1,))
+
+    for batch in range(prediction.shape[0]):
+
+        interior = prediction[[batch], ..., 2] > threshold
+
+        labeled = ndimage.label(interior)[0]
+
+        labeled = morphology.remove_small_objects(
+            labeled, min_size=min_size, connectivity=1)
+
+        labeled_prediction[batch] = labeled
+
+    return labeled_prediction
 
 
 def correct_drift(X, y=None):
