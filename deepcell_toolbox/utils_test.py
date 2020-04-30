@@ -197,7 +197,7 @@ def test_untile_image():
             model_input_shape=input_shape)
 
         assert untiled_image.dtype == dtype
-        assert untiled_image.shape == (shape)
+        assert untiled_image.shape == shape
         np.testing.assert_equal(untiled_image, big_image)
 
 
