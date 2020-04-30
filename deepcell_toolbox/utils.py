@@ -238,17 +238,17 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
         tile_y_end = tile_size_y
 
         if x_start != 0:
-            x_start += (tile_size_x - stride_x) / 2
-            tile_x_start += (tile_size_x - stride_x) / 2
+            x_start += (tile_size_x - stride_x) // 2
+            tile_x_start += (tile_size_x - stride_x) // 2
         if x_end != image_shape[_axis]:
-            x_end -= (tile_size_x - stride_x) / 2
-            tile_x_end -= (tile_size_x - stride_x) / 2
+            x_end -= (tile_size_x - stride_x) // 2
+            tile_x_end -= (tile_size_x - stride_x) // 2
         if y_start != 0:
-            y_start += (tile_size_y - stride_y) / 2
-            tile_y_start += (tile_size_y - stride_y) / 2
+            y_start += (tile_size_y - stride_y) // 2
+            tile_y_start += (tile_size_y - stride_y) // 2
         if y_end != image_shape[_axis]:
-            y_end -= (tile_size_y - stride_y) / 2
-            tile_y_end -= (tile_size_y - stride_y) / 2
+            y_end -= (tile_size_y - stride_y) // 2
+            tile_y_end -= (tile_size_y - stride_y) // 2
 
         x_start = np.int(x_start)
         x_end = np.int(x_end)
