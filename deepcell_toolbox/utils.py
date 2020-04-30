@@ -28,12 +28,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import cv2
 import contextlib
-import tempfile
 import os
 import shutil
+import tempfile
+
+import numpy as np
+import cv2
 
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
@@ -134,7 +135,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     Tile large image into many overlapping tiles of size "model_input_shape".
 
     Args:
-        image (numpy.array): The image to tile.
+        image (numpy.array): The image to tile, must be rank 4.
         model_input_shape (tuple): The input size of the model.
         stride_ratio (float): The ratio of overlap between stride
             and tile shape.
@@ -142,16 +143,25 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     Returns:
         tuple(numpy.array, dict): An tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
+
+    Raises:
+        ValueError: image is not rank 4.
     """
+    if image.ndim != 4:
+        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
+            image.ndim))
+
     image_size_x, image_size_y = image.shape[1:3]
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
-    stride_x = np.int(stride_ratio * tile_size_x)
-    stride_y = np.int(stride_ratio * tile_size_y)
+    ceil = lambda x: int(np.ceil(x))
 
-    rep_number_x = np.int(np.ceil((image_size_x - tile_size_x) / stride_x + 1))
-    rep_number_y = np.int(np.ceil((image_size_y - tile_size_y) / stride_y + 1))
+    stride_x = ceil(stride_ratio * tile_size_x)
+    stride_y = ceil(stride_ratio * tile_size_y)
+
+    rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
+    rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
     new_batch_size = image.shape[0] * rep_number_x * rep_number_y
 
     tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
@@ -200,15 +210,13 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     return tiles, tiles_info
 
 
-def untile_image(tiles, tiles_info,
-                 model_input_shape=(512, 512), dtype=None):
+def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
     """Untile a set of tiled images back to the original model shape.
 
     Args:
         tiles (numpy.array): The tiled images image to untile.
         tiles_info (dict): Details of how the image was tiled (from tile_image).
         model_input_shape (tuple): The input size of the model.
-        dtype (string): optional dtype for output image, defaults to input image dtype
 
     Returns:
         numpy.array: The untiled image.
@@ -222,14 +230,12 @@ def untile_image(tiles, tiles_info,
     y_ends = tiles_info['y_ends']
     stride_x = tiles_info['stride_x']
     stride_y = tiles_info['stride_y']
-    if dtype is None:
-        dtype = tiles_info['dtype']
 
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
     image_shape = tuple(list(image_shape[0:3]) + [tiles.shape[-1]])
-    image = np.zeros(image_shape, dtype=dtype)
+    image = np.zeros(image_shape, dtype=tiles.dtype)
 
     zipped = zip(tiles, batches, x_starts, x_ends, y_starts, y_ends)
     for tile, batch, x_start, x_end, y_start, y_end in zipped:
@@ -239,17 +245,17 @@ def untile_image(tiles, tiles_info,
         tile_y_end = tile_size_y
 
         if x_start != 0:
-            x_start += (tile_size_x - stride_x) / 2
-            tile_x_start += (tile_size_x - stride_x) / 2
+            x_start += (tile_size_x - stride_x) // 2
+            tile_x_start += (tile_size_x - stride_x) // 2
         if x_end != image_shape[_axis]:
-            x_end -= (tile_size_x - stride_x) / 2
-            tile_x_end -= (tile_size_x - stride_x) / 2
+            x_end -= (tile_size_x - stride_x) // 2
+            tile_x_end -= (tile_size_x - stride_x) // 2
         if y_start != 0:
-            y_start += (tile_size_y - stride_y) / 2
-            tile_y_start += (tile_size_y - stride_y) / 2
-        if y_end != image_shape[_axis]:
-            y_end -= (tile_size_y - stride_y) / 2
-            tile_y_end -= (tile_size_y - stride_y) / 2
+            y_start += (tile_size_y - stride_y) // 2
+            tile_y_start += (tile_size_y - stride_y) // 2
+        if y_end != image_shape[_axis + 1]:
+            y_end -= (tile_size_y - stride_y) // 2
+            tile_y_end -= (tile_size_y - stride_y) // 2
 
         x_start = np.int(x_start)
         x_end = np.int(x_end)
@@ -261,8 +267,8 @@ def untile_image(tiles, tiles_info,
         tile_y_start = np.int(tile_y_start)
         tile_y_end = np.int(tile_y_end)
 
-        image[batch, x_start:x_end, y_start:y_end, :] = \
-            tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
+        t = tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end]
+        image[batch, x_start:x_end, y_start:y_end] = t
 
     return image
 
