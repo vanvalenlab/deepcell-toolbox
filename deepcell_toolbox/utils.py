@@ -246,7 +246,7 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
         if y_start != 0:
             y_start += (tile_size_y - stride_y) // 2
             tile_y_start += (tile_size_y - stride_y) // 2
-        if y_end != image_shape[_axis]:
+        if y_end != image_shape[_axis + 1]:
             y_end -= (tile_size_y - stride_y) // 2
             tile_y_end -= (tile_size_y - stride_y) // 2
 

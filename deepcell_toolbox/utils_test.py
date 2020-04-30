@@ -169,8 +169,8 @@ def test_tile_image():
 def test_untile_image():
     shapes = [
         (4, 21, 21, 1),
-        # (4, 21, 31, 1),
-        # (4, 31, 21, 1),
+        (4, 21, 31, 1),
+        (4, 31, 21, 1),
     ]
     model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
 
