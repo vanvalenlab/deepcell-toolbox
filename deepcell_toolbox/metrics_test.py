@@ -593,7 +593,7 @@ class TestObjectAccuracy():
         assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
 
         # The tests below are more stochastic, and should be run multiple times
-        for _ in range(100):
+        for _ in range(10):
 
             # 3 cells merged together, with forced event links to ensure accurate assignment
             y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
