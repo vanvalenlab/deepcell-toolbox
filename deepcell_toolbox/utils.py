@@ -28,12 +28,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import cv2
 import contextlib
-import tempfile
 import os
 import shutil
+import tempfile
+
+import numpy as np
+import cv2
 
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
