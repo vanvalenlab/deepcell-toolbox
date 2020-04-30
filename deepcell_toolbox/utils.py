@@ -260,8 +260,9 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
         tile_y_start = np.int(tile_y_start)
         tile_y_end = np.int(tile_y_end)
 
-        image[batch, x_start:x_end, y_start:y_end, :] = \
-            tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
+        t = tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end]
+        image[batch, x_start:x_end, y_start:y_end] = t
+
 
     return image
 
