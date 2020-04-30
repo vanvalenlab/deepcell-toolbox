@@ -167,21 +167,33 @@ def test_tile_image():
 
 
 def test_untile_image():
-    shape = (4, 20, 20, 1)
-    big_image = np.random.random(shape)
-    model_input_shape = (5, 5)
-    stride_ratio = 0.75
-    tiles, tiles_info = utils.tile_image(big_image, model_input_shape,
-                                         stride_ratio=stride_ratio)
+    shapes = [
+        (4, 21, 21, 1),
+        # (4, 21, 31, 1),
+        # (4, 31, 21, 1),
+    ]
+    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
 
-    untiled_image = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
-                                       model_input_shape=model_input_shape, dtype=None)
-    np.testing.assert_equal(untiled_image, big_image)
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
 
-    untiled_int = utils.untile_image(tiles=tiles, tiles_info=tiles_info,
-                                     model_input_shape=model_input_shape, dtype='int16')
-    np.testing.assert_equal(untiled_int.dtype, np.dtype('int16'))
-    np.testing.assert_equal(big_image.astype('int16'), untiled_int.astype('int16'))
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    for shape, input_shape, stride_ratio, dtype in prod:
+        print(shape, input_shape, stride_ratio, dtype)
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image(
+            big_image, input_shape,
+            stride_ratio=stride_ratio)
+
+        untiled_image = utils.untile_image(
+            tiles=tiles, tiles_info=tiles_info,
+            model_input_shape=input_shape)
+
+        assert untiled_image.dtype == dtype
+        assert untiled_image.shape == (shape)
+        np.testing.assert_equal(untiled_image, big_image)
 
 
 def test_resize():
