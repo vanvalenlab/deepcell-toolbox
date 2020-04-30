@@ -28,6 +28,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from itertools import product
+
 import numpy as np
 from skimage.measure import label
 
@@ -128,19 +130,40 @@ def test_correct_drift():
 
 
 def test_tile_image():
-    shape = (4, 20, 20, 1)
-    big_image = np.random.random(shape)
-    model_input_shape = (5, 5)
-    stride_ratio = 0.8
-    tiles, tiles_info = utils.tile_image(big_image, model_input_shape,
-                                         stride_ratio=stride_ratio)
+    shapes = [
+        (4, 20, 20, 1),
+        (4, 20, 30, 2),
+        (4, 30, 20, 3),
+    ]
+    model_input_shapes = [(5, 5), (12, 12)]
 
-    assert tiles_info['image_shape'] == shape
+    stride_ratios = [0.5, 0.75, 1]
 
-    expected_batches = shape[0]
-    expected_batches *= (shape[1] // model_input_shape[0]) / stride_ratio
-    expected_batches *= (shape[2] // model_input_shape[1]) / stride_ratio
-    assert tiles.shape[0] == int(expected_batches)  # pylint: disable=E1136
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    for shape, input_shape, stride_ratio, dtype in prod:
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image(
+            big_image, input_shape,
+            stride_ratio=stride_ratio)
+
+        assert tiles_info['image_shape'] == shape
+        assert tiles.shape[1:] == input_shape + (shape[-1],)
+        assert tiles.dtype == big_image.dtype
+
+        x_diff = shape[1] - input_shape[0]
+        y_diff = shape[2] - input_shape[1]
+        x_ratio = int(stride_ratio * input_shape[0])
+        y_ratio = int(stride_ratio * input_shape[1])
+
+        expected_batches = shape[0]
+        expected_batches *= np.ceil(x_diff / x_ratio + 1)
+        expected_batches *= np.ceil(y_diff / y_ratio + 1)
+        expected_batches = int(expected_batches)
+        # pylint: disable=E1136
+        assert tiles.shape[0] == expected_batches
 
 
 def test_untile_image():
