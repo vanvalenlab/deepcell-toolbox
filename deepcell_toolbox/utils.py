@@ -148,11 +148,13 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
-    stride_x = np.int(stride_ratio * tile_size_x)
-    stride_y = np.int(stride_ratio * tile_size_y)
+    ceil = lambda x: int(np.ceil(x))
 
-    rep_number_x = np.int(np.ceil((image_size_x - tile_size_x) / stride_x + 1))
-    rep_number_y = np.int(np.ceil((image_size_y - tile_size_y) / stride_y + 1))
+    stride_x = ceil(stride_ratio * tile_size_x)
+    stride_y = ceil(stride_ratio * tile_size_y)
+
+    rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
+    rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
     new_batch_size = image.shape[0] * rep_number_x * rep_number_y
 
     tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])

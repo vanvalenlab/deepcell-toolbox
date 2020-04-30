@@ -131,13 +131,13 @@ def test_correct_drift():
 
 def test_tile_image():
     shapes = [
-        (4, 20, 20, 1),
-        (4, 20, 30, 2),
-        (4, 30, 20, 3),
+        (4, 21, 21, 1),
+        (4, 21, 31, 2),
+        (4, 31, 21, 3),
     ]
-    model_input_shapes = [(5, 5), (12, 12)]
+    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
 
-    stride_ratios = [0.5, 0.75, 1]
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
 
     dtypes = ['int32', 'float32', 'uint16', 'float16']
 
@@ -155,8 +155,8 @@ def test_tile_image():
 
         x_diff = shape[1] - input_shape[0]
         y_diff = shape[2] - input_shape[1]
-        x_ratio = int(stride_ratio * input_shape[0])
-        y_ratio = int(stride_ratio * input_shape[1])
+        x_ratio = np.ceil(stride_ratio * input_shape[0])
+        y_ratio = np.ceil(stride_ratio * input_shape[1])
 
         expected_batches = shape[0]
         expected_batches *= np.ceil(x_diff / x_ratio + 1)
