@@ -135,7 +135,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     Tile large image into many overlapping tiles of size "model_input_shape".
 
     Args:
-        image (numpy.array): The image to tile.
+        image (numpy.array): The image to tile, must be rank 4.
         model_input_shape (tuple): The input size of the model.
         stride_ratio (float): The ratio of overlap between stride
             and tile shape.
@@ -143,7 +143,14 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     Returns:
         tuple(numpy.array, dict): An tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
+
+    Raises:
+        ValueError: image is not rank 4.
     """
+    if image.ndim != 4:
+        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
+            image.ndim))
+
     image_size_x, image_size_y = image.shape[1:3]
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]

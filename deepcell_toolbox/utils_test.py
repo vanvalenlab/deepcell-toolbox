@@ -165,6 +165,12 @@ def test_tile_image():
         # pylint: disable=E1136
         assert tiles.shape[0] == expected_batches
 
+    # test bad input shape
+    bad_shape = (21, 21, 1)
+    bad_image = (np.random.random(bad_shape) * 100)
+    with pytest.raises(ValueError):
+        utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
+
 
 def test_untile_image():
     shapes = [
