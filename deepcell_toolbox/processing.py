@@ -60,8 +60,9 @@ def phase_preprocess(image, kernel_size=64):
         kernel_size (integer): Size of kernel for CLAHE.
 
     Returns:
-        numpy.array: Pre-processed phase image data.
+        numpy.array: Pre-processed phase image data with dtype float32.
     """
+    image = image.astype('float32')
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
