@@ -51,11 +51,18 @@ def test_normalize():
 
 
 def test_phase_preprocess():
-    height, width = 30, 30
+    height, width = 300, 300
     img = _get_image(height, width)
-    # TODO: bugfix for phase preprocessing
-    # preprocessed_img = processing.phase_preprocess(img)
-    # TODO assert correctness
+
+    # make rank 4 (batch, X, y, channel)
+    img = np.expand_dims(img, axis=0)
+    img = np.expand_dims(img, axis=-1)
+
+    preprocessed_img = processing.phase_preprocess(img)
+    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+
+    preprocessed_img = processing.phase_preprocess(img.astype('uint16'))
+    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
 
 def test_mibi():
@@ -67,7 +74,7 @@ def test_mibi():
 
 def test_pixelwise():
     channels = 4
-    img = np.random.rand(300, 300, channels)
+    img = np.random.rand(1, 300, 300, channels)
     pixelwise_img = processing.pixelwise(img)
     np.testing.assert_equal(pixelwise_img.shape, (300, 300, 1))
 
