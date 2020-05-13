@@ -202,42 +202,50 @@ def test_untile_image():
 
 
 def test_resize():
-
-    base_shape = [30, 30]
-    out_shapes = [[50, 50], [10, 10]]
+    base_shape = (32, 32)
+    out_shapes = [
+        (40, 40),
+        (42, 40),
+        (40, 42),
+        (24, 24),
+        (16, 24),
+        (24, 16),
+        (17, 37),
+    ]
     channel_sizes = (1, 3)
 
     for out in out_shapes:
         for c in channel_sizes:
             # batch, channel first
-            in_shape = [c] + base_shape + [4]
-            out_shape = tuple([c] + out + [4])
+            c = tuple([c])
+            in_shape = c + base_shape + (4,)
+            out_shape = c + out + (4,)
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_first')
             assert out_shape == rs.shape
 
             # batch, channel last
-            in_shape = [4] + base_shape + [c]
-            out_shape = tuple([4] + out + [c])
+            in_shape = (4,) + base_shape + c
+            out_shape = (4,) + out + c
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
             assert out_shape == rs.shape
 
             # no batch, channel first
-            in_shape = [c] + base_shape
-            out_shape = tuple([c] + out)
+            in_shape = c + base_shape
+            out_shape = c + out
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_first')
             assert out_shape == rs.shape
 
             # no batch, channel last
-            in_shape = base_shape + [c]
-            out_shape = tuple(out + [c])
+            in_shape = base_shape + c
+            out_shape = out + c
             rs = utils.resize(np.random.rand(*in_shape), out, data_format='channels_last')
             assert out_shape == rs.shape
 
             # make sure label data is not linearly interpolated and returns only the same ints
 
             # no batch, channel last
-            in_shape = base_shape + [c]
-            out_shape = tuple(out + [c])
+            in_shape = base_shape + c
+            out_shape = out + c
             in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
             rs = utils.resize(in_data, out, data_format='channels_last', labeled_image=True)
             assert out_shape == rs.shape
@@ -245,8 +253,8 @@ def test_resize():
             assert np.all(np.unique(rs) == [0, 1, 9, 20])
 
             # batch, channel first
-            in_shape = [c] + base_shape + [4]
-            out_shape = tuple([c] + out + [4])
+            in_shape = c + base_shape + (4,)
+            out_shape = c + out + (4,)
             in_data = np.random.choice(a=[0, 1, 9, 20], size=in_shape, replace=True)
             rs = utils.resize(in_data, out, data_format='channels_first', labeled_image=True)
             assert out_shape == rs.shape
