@@ -328,7 +328,7 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
                                              order=order, anti_aliasing=anti_aliasing)
     # single channel image, resize with cv2
     else:
-        shape = tuple(shape)
+        shape = tuple(shape)[::-1]  # cv2 expects swapped axes.
 
         # linear interpolation for image data, nearest neighbor for labels
         # CV2 doesn't support ints for linear interpolation, set to float for image data
