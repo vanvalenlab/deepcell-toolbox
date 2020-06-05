@@ -192,7 +192,7 @@ def test_untile_image_deprecated():
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
-        untiled_image = utils.untile_image(
+        untiled_image = utils.untile_image_deprecated(
             tiles=tiles, tiles_info=tiles_info,
             model_input_shape=input_shape)
 
