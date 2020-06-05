@@ -171,7 +171,7 @@ def test_tile_image():
     with pytest.raises(ValueError):
         utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
 
-
+# this is the test for the old untile_image function
 def test_untile_image_deprecated():
     shapes = [
         (4, 21, 21, 1),
@@ -222,13 +222,27 @@ def test_untile_image():
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
-        untiled_image = untile_image_new(
+        untiled_image = untile_image(
             tiles=tiles, tiles_info=tiles_info,
             model_input_shape=input_shape, stride_fraction=stride_ratio)
         
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
-        
+       
+    # test stride_fraction of 0
+    with pytest.raises(ValueError):
+        untiled_image = untile_image(
+                tiles=tiles, tiles_info=tiles_info,
+                model_input_shape=input_shape, stride_fraction = 0)
+
+        # test stride_fraction of 1
+    with pytest.raises(ValueError):
+        untiled_image = untile_image(
+                tiles=tiles, tiles_info=tiles_info,
+                model_input_shape=input_shape, stride_fraction = 1)
+
+
+
         #np.testing.assert_equal(untiled_image, big_image)        # this (new) untile function does not return an equivalent array, so this assertion is not relevant
 
 
