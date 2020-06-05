@@ -35,7 +35,10 @@ from skimage.measure import label
 
 import pytest
 
-from deepcell_toolbox import utils
+try:
+    from deepcell_toolbox import utils
+except: 
+    import utils
 
 
 def _get_image(img_h=300, img_w=300):
@@ -171,7 +174,8 @@ def test_tile_image():
     with pytest.raises(ValueError):
         utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
 
-# this is the test for the old untile_image function
+
+# test for the old untile_image function
 def test_untile_image_deprecated():
     shapes = [
         (4, 21, 21, 1),
@@ -200,53 +204,50 @@ def test_untile_image_deprecated():
         assert untiled_image.shape == shape
         np.testing.assert_equal(untiled_image, big_image)
 
+
 def test_untile_image():
     shapes = [
         (4, 21, 21, 1),
         (4, 21, 31, 2),
         (4, 31, 21, 3),
     ]
-   
+
     model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12), (1028, 1028)]
-    
-    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8]         # removed stride ratio of 1 because untile does not work with it
+
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8]         # no stride ratio of 1 - breaks
 
     dtypes = ['int32', 'float32', 'uint16', 'float16']
-    
+
     prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
 
     for shape, input_shape, stride_ratio, dtype in prod:
-        
+
         big_image = (np.random.random(shape) * 100).astype(dtype)
         tiles, tiles_info = utils.tile_image(
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
         untiled_image = untile_image(
-            tiles=tiles, tiles_info=tiles_info,
-            model_input_shape=input_shape, stride_fraction=stride_ratio)
-        
+                tiles=tiles, tiles_info=tiles_info,
+                model_input_shape=input_shape, stride_fraction=stride_ratio)
+
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
-       
+
     # test stride_fraction of 0
     with pytest.raises(ValueError):
         untiled_image = untile_image(
-                tiles=tiles, tiles_info=tiles_info,
-                model_input_shape=input_shape, stride_fraction = 0)
+            tiles=tiles, tiles_info=tiles_info,
+            model_input_shape=input_shape, stride_fraction=0)
 
         # test stride_fraction of 1
     with pytest.raises(ValueError):
         untiled_image = untile_image(
-                tiles=tiles, tiles_info=tiles_info,
-                model_input_shape=input_shape, stride_fraction = 1)
+            tiles=tiles, tiles_info=tiles_info,
+            model_input_shape=input_shape, stride_fraction=1)
 
-
-
-        #np.testing.assert_equal(untiled_image, big_image)        # this (new) untile function does not return an equivalent array, so this assertion is not relevant
-
-
-
+        # np.testing.assert_equal(untiled_image, big_image)        
+        # this (new) untile function does not return an equivalent array - assertion irrelevant
 
 
 def test_resize():
