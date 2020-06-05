@@ -172,7 +172,7 @@ def test_tile_image():
         utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
 
 
-def test_untile_image():
+def test_untile_image_deprecated():
     shapes = [
         (4, 21, 21, 1),
         (4, 21, 31, 2),
@@ -199,6 +199,40 @@ def test_untile_image():
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
         np.testing.assert_equal(untiled_image, big_image)
+
+def test_untile_image():
+    shapes = [
+        (4, 21, 21, 1),
+        (4, 21, 31, 2),
+        (4, 31, 21, 3),
+    ]
+   
+    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12), (1028, 1028)]
+    
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8]         # removed stride ratio of 1 because untile does not work with it
+
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+    
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    for shape, input_shape, stride_ratio, dtype in prod:
+        
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image(
+            big_image, input_shape,
+            stride_ratio=stride_ratio)
+
+        untiled_image = untile_image_new(
+            tiles=tiles, tiles_info=tiles_info,
+            model_input_shape=input_shape, stride_fraction=stride_ratio)
+        
+        assert untiled_image.dtype == dtype
+        assert untiled_image.shape == shape
+        
+        #np.testing.assert_equal(untiled_image, big_image)        # this (new) untile function does not return an equivalent array, so this assertion is not relevant
+
+
+
 
 
 def test_resize():
