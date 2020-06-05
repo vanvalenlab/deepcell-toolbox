@@ -37,7 +37,7 @@ import pytest
 
 try:
     from deepcell_toolbox import utils
-except: 
+except:
     import utils
 
 
@@ -227,26 +227,26 @@ def test_untile_image():
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
-        untiled_image = untile_image(
-                tiles=tiles, tiles_info=tiles_info,
-                model_input_shape=input_shape, stride_fraction=stride_ratio)
+        untiled_image = utils.untile_image(
+            tiles=tiles, tiles_info=tiles_info,
+            model_input_shape=input_shape, stride_fraction=stride_ratio)
 
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
 
     # test stride_fraction of 0
     with pytest.raises(ValueError):
-        untiled_image = untile_image(
+        untiled_image = utils.untile_image(
             tiles=tiles, tiles_info=tiles_info,
             model_input_shape=input_shape, stride_fraction=0)
 
         # test stride_fraction of 1
     with pytest.raises(ValueError):
-        untiled_image = untile_image(
+        untiled_image = utils.untile_image(
             tiles=tiles, tiles_info=tiles_info,
             model_input_shape=input_shape, stride_fraction=1)
 
-        # np.testing.assert_equal(untiled_image, big_image)        
+        # np.testing.assert_equal(untiled_image, big_image)
         # this (new) untile function does not return an equivalent array - assertion irrelevant
 
 
