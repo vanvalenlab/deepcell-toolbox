@@ -130,7 +130,10 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
+def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.5): 
+    
+    print('In tile_image: image dtype = ', image.dtype, ', model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
+    
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
 
@@ -440,14 +443,18 @@ def window_2D(window_size, stride_fraction=0.5, power=2, edge_0=None, edge_1=Non
     wind = wind_0 * wind_1.transpose(1, 0, 2)
     return wind
 
-
 def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fraction=0.5):
+
+    from tensorflow.python.keras import backend as K
 
     if not (0 < stride_fraction < 1):
         raise ValueError('stride_fraction must be between 0 and 1 (not inclusive)')
 
+    if (tiles.dtype == 'float16'):
+        raise TypeError('dtype cannot be float16')
+
     _axis = 1
-    image_shape = tiles_info['image_shape']
+    image_shape = tiles_info['image_shape']    # image_shape is 
     batches = tiles_info['batches']
     x_starts = tiles_info['x_starts']
     x_ends = tiles_info['x_ends']
@@ -460,8 +467,8 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fractio
     tile_size_y = model_input_shape[1]
 
     image_shape = [image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1]]
-    # image = np.zeros(image_shape, dtype = K.floatx())
-    image = np.zeros(image_shape, dtype=tiles.dtype)
+    image = np.zeros(image_shape, dtype = K.floatx())
+    #image = np.zeros(image_shape, dtype=tiles.dtype)
     n_tiles = tiles.shape[0]
 
     for tile, batch, x_start, x_end, y_start, y_end in zip(
@@ -487,6 +494,10 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fractio
         win_dim = tile.shape[0]
         # window = window_2D(128, stride_fraction=stride_fraction, edge_0=edge_0, edge_1=edge_1)
         window = window_2D(win_dim, stride_fraction=stride_fraction, edge_0=edge_0, edge_1=edge_1)
-        window = window.astype(tiles.dtype)
+
+        #window = window.astype(tiles.dtype)
         image[batch, x_start:x_end, y_start:y_end, :] += tile * window
+        
+    image = image.astype(tiles.dtype)
+
     return image
