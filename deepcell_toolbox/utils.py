@@ -465,7 +465,7 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fractio
     tile_size_y = model_input_shape[1]
 
     image_shape = [image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1]]
-    image = np.zeros(image_shape, dtype = 'float32'
+    image = np.zeros(image_shape, dtype='float32')
     #image = np.zeros(image_shape, dtype=tiles.dtype)
     n_tiles = tiles.shape[0]
 
