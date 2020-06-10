@@ -445,8 +445,6 @@ def window_2D(window_size, stride_fraction=0.5, power=2, edge_0=None, edge_1=Non
 
 def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fraction=0.5):
 
-    from tensorflow.python.keras import backend as K
-
     if not (0 < stride_fraction < 1):
         raise ValueError('stride_fraction must be between 0 and 1 (not inclusive)')
 
@@ -467,7 +465,7 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fractio
     tile_size_y = model_input_shape[1]
 
     image_shape = [image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1]]
-    image = np.zeros(image_shape, dtype = K.floatx())
+    image = np.zeros(image_shape, dtype = 'float32'
     #image = np.zeros(image_shape, dtype=tiles.dtype)
     n_tiles = tiles.shape[0]
 
