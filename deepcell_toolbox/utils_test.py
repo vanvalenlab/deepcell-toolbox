@@ -207,14 +207,16 @@ def test_untile_image_deprecated():
 
 def test_untile_image():
     shapes = [
-        (4, 21, 21, 1),
-        (4, 21, 31, 2),
-        (4, 31, 21, 3),
+        (1, 256, 256, 1),
+        (4, 256, 256, 2),
+        (4, 512, 512, 3),
     ]
 
-    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12), (1028, 1028)]
+    acceptable_difference_threshold = 0.1
 
-    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8]         # no stride ratio of 1 - breaks
+    model_input_shapes = [(64, 64), (128, 128)]
+
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8]
 
     dtypes = ['int32', 'float32', 'uint16', 'float16']
 
@@ -223,16 +225,20 @@ def test_untile_image():
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image(
-            big_image, input_shape,
-            stride_ratio=stride_ratio)
+        tiles, tiles_info = utils.tile_image(big_image, model_input_shape=input_shape)
 
-        untiled_image = utils.untile_image(
-            tiles=tiles, tiles_info=tiles_info,
-            model_input_shape=input_shape, stride_fraction=stride_ratio)
+        untiled_image = utils.untile_image(tiles, tiles_info, model_input_shape=input_shape)
 
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
+
+        diff = big_image - untiled_image
+
+        avg_diff = np.average(diff)
+        avg_init = np.average(big_image)
+        rel_diff = np.absolute(avg_diff / avg_init)
+
+        assert rel_diff < acceptable_difference_threshold
 
     # test stride_fraction of 0
     with pytest.raises(ValueError):
@@ -245,9 +251,6 @@ def test_untile_image():
         untiled_image = utils.untile_image(
             tiles=tiles, tiles_info=tiles_info,
             model_input_shape=input_shape, stride_fraction=1)
-
-        # np.testing.assert_equal(untiled_image, big_image)
-        # this (new) untile function does not return an equivalent array - assertion irrelevant
 
 
 def test_resize():
