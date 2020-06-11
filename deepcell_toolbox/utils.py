@@ -130,9 +130,9 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.5): 
+def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75): 
     
-    print('In tile_image: image dtype = ', image.dtype, ', model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
+    print('tile_image: model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
     
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
@@ -384,13 +384,13 @@ def get_tempdir():
 
 
 # new untile code
-def spline_window(window_size, stride_fraction=0.5, power=2, half=0):
+def spline_window(window_size, stride_ratio=0.5, power=2, half=0):
     import scipy.signal
     """
     Squared spline (power=2) window function:
     https://www.wolframalpha.com/input/?i=y%3Dx**2,+y%3D-(x-2)**2+%2B2,+y%3D(x-4)**2,+from+y+%3D+0+to+2
     """
-    reduced_window_size = int(window_size * 2 * (1 - stride_fraction))
+    reduced_window_size = int(window_size * 2 * (1 - stride_ratio))
     intersection = int(reduced_window_size / 4)
     wind_outer = (abs(2 * (scipy.signal.triang(reduced_window_size))) ** power) / 2
     wind_outer[intersection:-intersection] = 0
@@ -402,7 +402,7 @@ def spline_window(window_size, stride_fraction=0.5, power=2, half=0):
     try:
         wind = wind / np.amax(wind)
     except ValueError:  # raised if `wind` is empty.
-        raise ValueError('Stride fraction of 1 is invalid')   # Stride fraction must be 0 < x < 1
+        raise ValueError('Stride ratio of 1 is invalid')   # Stride ratio must be 0 < x < 1
 
     new_wind = np.zeros((window_size,))
     new_wind[0:reduced_window_size // 2] = wind[0:reduced_window_size // 2]
@@ -418,7 +418,7 @@ def spline_window(window_size, stride_fraction=0.5, power=2, half=0):
     return new_wind
 
 
-def window_2D(window_size, stride_fraction=0.5, power=2, edge_0=None, edge_1=None):
+def window_2D(window_size, stride_ratio=0.5, power=2, edge_0=None, edge_1=None):
     """
     Make a 1D window function, then infer and return a 2D window function.
     Done with an augmentation, and self multiplication with its transpose.
@@ -430,26 +430,27 @@ def window_2D(window_size, stride_fraction=0.5, power=2, edge_0=None, edge_1=Non
         half_0 = -1
     elif edge_0 == 1:
         half_0 = 1
-    wind_0 = spline_window(window_size, power=power, stride_fraction=stride_fraction, half=half_0)
+    wind_0 = spline_window(window_size, power=power, stride_ratio=stride_ratio, half=half_0)
     if edge_1 is None:
         half_1 = 0
     elif edge_1 == -1:
         half_1 = -1
     elif edge_1 == 1:
         half_1 = 1
-    wind_1 = spline_window(window_size, power=power, stride_fraction=stride_fraction, half=half_1)
+    wind_1 = spline_window(window_size, power=power, stride_ratio=stride_ratio, half=half_1)
     wind_0 = np.expand_dims(np.expand_dims(wind_0, -1), -1)
     wind_1 = np.expand_dims(np.expand_dims(wind_1, -1), -1)
     wind = wind_0 * wind_1.transpose(1, 0, 2)
     return wind
 
-def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fraction=0.5):
+def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_ratio=0.5):
 
-    if not (0 < stride_fraction < 1):
-        raise ValueError('stride_fraction must be between 0 and 1 (not inclusive)')
+    # stride_ratio=0.1
+    # model_input_shape = (16, 16)
+    print('untile_image: model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
 
-    if (tiles.dtype == 'float16'):
-        raise TypeError('dtype cannot be float16')
+    if not (0 < stride_ratio < 1):
+        raise ValueError('stride_ratio must be between 0 and 1 (not inclusive)')
 
     _axis = 1
     image_shape = tiles_info['image_shape']    # image_shape is 
@@ -490,8 +491,8 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), stride_fractio
             edge_1 = None
 
         win_dim = tile.shape[0]
-        # window = window_2D(128, stride_fraction=stride_fraction, edge_0=edge_0, edge_1=edge_1)
-        window = window_2D(win_dim, stride_fraction=stride_fraction, edge_0=edge_0, edge_1=edge_1)
+        # window = window_2D(128, stride_ratio=stride_ratio, edge_0=edge_0, edge_1=edge_1)
+        window = window_2D(win_dim, stride_ratio=stride_ratio, edge_0=edge_0, edge_1=edge_1)
 
         #window = window.astype(tiles.dtype)
         image[batch, x_start:x_end, y_start:y_end, :] += tile * window
