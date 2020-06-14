@@ -180,11 +180,15 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
                 x_axis = 1
                 if i != rep_number_x - 1:  # not the last one
                     x_start, x_end = i * stride_x, i * stride_x + tile_size_x
+                elif i == 0:  # last tile is also the first, only one tile in this dimension
+                    x_start, x_end = 0, image_size_x
                 else:
                     x_start, x_end = -tile_size_x, image.shape[x_axis]
 
                 if j != rep_number_y - 1:  # not the last one
                     y_start, y_end = j * stride_y, j * stride_y + tile_size_y
+                elif j == 0:  # last tile is also the first, only one tile in this dimension
+                    y_start, y_end = 0, image_size_y
                 else:
                     y_start, y_end = -tile_size_y, image.shape[x_axis + 1]
 
@@ -230,6 +234,8 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
     y_ends = tiles_info['y_ends']
     stride_x = tiles_info['stride_x']
     stride_y = tiles_info['stride_y']
+
+    print("{}, {}, {}, {}".format(x_starts, x_ends, y_starts, y_ends))
 
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
