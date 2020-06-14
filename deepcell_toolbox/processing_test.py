@@ -50,7 +50,7 @@ def test_normalize():
     np.testing.assert_almost_equal(normalized_img.var(), 1)
 
 
-def test_phase_preprocess():
+def test_histogram_norm_preprocess():
     height, width = 300, 300
     img = _get_image(height, width)
 
@@ -58,18 +58,11 @@ def test_phase_preprocess():
     img = np.expand_dims(img, axis=0)
     img = np.expand_dims(img, axis=-1)
 
-    preprocessed_img = processing.phase_preprocess(img)
+    preprocessed_img = processing.histogram_norm_preprocess(img)
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
-    preprocessed_img = processing.phase_preprocess(img.astype('uint16'))
+    preprocessed_img = processing.histogram_norm_preprocess(img.astype('uint16'))
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
-
-
-def test_mibi():
-    channels = 3
-    img = np.random.rand(300, 300, channels)
-    mibi_img = processing.mibi(img)
-    np.testing.assert_equal(mibi_img.shape, (300, 300, 1))
 
 
 def test_pixelwise():
