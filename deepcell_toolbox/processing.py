@@ -51,8 +51,8 @@ def normalize(image):
     return normal_image
 
 
-def phase_preprocess(image, kernel_size=64):
-    """Pre-process phase cytoplasm images using Contrast Limited Adaptive
+def histogram_norm_preprocess(image, kernel_size=64):
+    """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
     Args:
@@ -60,9 +60,12 @@ def phase_preprocess(image, kernel_size=64):
         kernel_size (integer): Size of kernel for CLAHE.
 
     Returns:
-        numpy.array: Pre-processed phase image data with dtype float32.
+        numpy.array: Pre-processed image data with dtype float32.
     """
+    if not np.issubdtype(image.dtype, np.floating):
+        print('Converting image dtype to float')
     image = image.astype('float32')
+
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
@@ -70,79 +73,6 @@ def phase_preprocess(image, kernel_size=64):
             X = equalize_adapthist(X, kernel_size=(kernel_size, kernel_size))
             image[batch, ..., channel] = X
     return image
-
-
-def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
-    """Post-processing for MIBI data. Uniquely segments every cell by
-    repeatedly eroding and dilating the cell interior prediction  until a
-    boundary is reached.
-
-    Args:
-        prediction: output from a pixelwise transform (edge, interior, bg)
-        edge_threshold: confidence threshold to determine edge pixels
-        interior_threshold: confidence threshold to determine interior pixels
-
-    Returns:
-        transformed data where each cell is labeled uniquely
-    """
-
-    def dilate(array, mask, num_dilations):
-        copy = np.copy(array)
-        for _ in range(0, num_dilations):
-            dilated = morphology.dilation(copy)
-            # dilate if still in mask range not in another cell
-            copy = np.where((mask != 0) & (dilated != copy) & (copy == 0),
-                            dilated, copy)
-        return copy
-
-    def dilate_nomask(array, num_dilations):
-        copy = np.copy(array)
-        for _ in range(0, num_dilations):
-            dilated = morphology.dilation(copy)
-            # if one cell not eating another, dilate
-            copy = np.where((dilated != copy) & (copy == 0), dilated, copy)
-        return copy
-
-    def erode(array, num_erosions):
-        original = np.copy(array)
-        for _ in range(0, num_erosions):
-            eroded = morphology.erosion(np.copy(original))
-            original[original != eroded] = 0
-        return original
-
-    # edge = (prediction[..., 0] >= edge_threshold).astype('int')
-    edge = np.copy(prediction[..., 0])
-    edge[edge < edge_threshold] = 0
-    edge[edge >= edge_threshold] = 1
-
-    # interior = (prediction[..., 1] >= interior_threshold).astype('int')
-    interior = np.copy(prediction[..., 1])
-    interior[interior >= interior_threshold] = 1
-    interior[interior < interior_threshold] = 0
-
-    # define foreground as the interior bounded by edge
-    fg_thresh = np.logical_and(interior == 1, edge == 0)
-
-    # remove small objects from the foreground segmentation
-    fg_thresh = morphology.remove_small_objects(
-        fg_thresh, min_size=50, connectivity=1)
-
-    fg_thresh = np.expand_dims(fg_thresh, axis=-1)
-
-    segments = label(np.squeeze(fg_thresh), connectivity=2)
-
-    for _ in range(8):
-        segments = dilate(segments, interior, 2)
-        segments = erode(segments, 1)
-
-    segments = dilate(segments, interior, 2)
-
-    for _ in range(2):
-        segments = dilate_nomask(segments, 1)
-        segments = erode(segments, 2)
-
-    segments = np.expand_dims(segments, axis=-1)
-    return segments.astype('uint16')
 
 
 def watershed(image, min_distance=10, threshold_abs=0.05):
