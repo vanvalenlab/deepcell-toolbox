@@ -31,7 +31,9 @@ from deepcell_toolbox import processing
 from deepcell_toolbox import retinanet
 
 from deepcell_toolbox.processing import normalize
+from deepcell_toolbox.processing import phase_preprocess
 from deepcell_toolbox.processing import histogram_norm_preprocess
+from deepcell_toolbox.processing import mibi
 from deepcell_toolbox.processing import watershed
 from deepcell_toolbox.processing import pixelwise
 

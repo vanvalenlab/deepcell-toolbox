@@ -64,6 +64,10 @@ def test_histogram_norm_preprocess():
     preprocessed_img = processing.histogram_norm_preprocess(img.astype('uint16'))
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
+    # test legacy version
+    preprocessed_img = processing.phase_preprocess(img)
+    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+
 
 def test_pixelwise():
     channels = 4
