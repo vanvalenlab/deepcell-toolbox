@@ -77,19 +77,19 @@ def histogram_norm_preprocess(image, kernel_size=64):
 
 def phase_preprocess(image, kernel_size=64):
     """Maintained for backwards compatability"""
-    histogram_norm_preprocess(image=image, kernel_size=kernel_size)
+    return histogram_norm_preprocess(image=image, kernel_size=kernel_size)
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
-    """Post-processing for MIBI data. Uniquely segments every cell by	
-    repeatedly eroding and dilating the cell interior prediction  until a	
-    boundary is reached.	
-    Args:	
-        prediction: output from a pixelwise transform (edge, interior, bg)	
-        edge_threshold: confidence threshold to determine edge pixels	
-        interior_threshold: confidence threshold to determine interior pixels	
-    Returns:	
-        transformed data where each cell is labeled uniquely	
+    """Post-processing for MIBI data. Uniquely segments every cell by
+    repeatedly eroding and dilating the cell interior prediction  until a
+    boundary is reached.
+    Args:
+        prediction: output from a pixelwise transform (edge, interior, bg)
+        edge_threshold: confidence threshold to determine edge pixels
+        interior_threshold: confidence threshold to determine interior pixels
+    Returns:
+        transformed data where each cell is labeled uniquely
     """
 
     def dilate(array, mask, num_dilations):

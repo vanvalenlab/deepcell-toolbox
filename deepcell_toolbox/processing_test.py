@@ -69,6 +69,13 @@ def test_histogram_norm_preprocess():
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
 
+def test_mibi():
+    channels = 3
+    img = np.random.rand(300, 300, channels)
+    mibi_img = processing.mibi(img)
+    np.testing.assert_equal(mibi_img.shape, (300, 300, 1))
+
+
 def test_pixelwise():
     channels = 4
     img = np.random.rand(1, 300, 300, channels)
