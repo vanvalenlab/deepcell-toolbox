@@ -235,8 +235,6 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512)):
     stride_x = tiles_info['stride_x']
     stride_y = tiles_info['stride_y']
 
-    print("{}, {}, {}, {}".format(x_starts, x_ends, y_starts, y_ends))
-
     tile_size_x = model_input_shape[0]
     tile_size_y = model_input_shape[1]
 
