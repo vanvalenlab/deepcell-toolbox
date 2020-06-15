@@ -28,6 +28,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
+
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import fourier_shift
@@ -63,7 +65,7 @@ def histogram_norm_preprocess(image, kernel_size=64):
         numpy.array: Pre-processed image data with dtype float32.
     """
     if not np.issubdtype(image.dtype, np.floating):
-        print('Converting image dtype to float')
+        logging.info('Converting image dtype to float')
     image = image.astype('float32')
 
     for batch in range(image.shape[0]):
