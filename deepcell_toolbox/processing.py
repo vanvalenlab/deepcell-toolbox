@@ -53,7 +53,7 @@ def normalize(image):
     return normal_image
 
 
-def histogram_norm_preprocess(image, kernel_size=64):
+def histogram_normalization(image, kernel_size=64):
     """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
@@ -79,7 +79,7 @@ def histogram_norm_preprocess(image, kernel_size=64):
 
 def phase_preprocess(image, kernel_size=64):
     """Maintained for backwards compatability"""
-    return histogram_norm_preprocess(image=image, kernel_size=kernel_size)
+    return histogram_normalization(image=image, kernel_size=kernel_size)
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
