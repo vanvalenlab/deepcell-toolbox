@@ -62,7 +62,7 @@ from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
 
 from deepcell_toolbox import erode_edges
-from deepcell_toolbox.compute_overlap import compute_overlap
+from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
 
 
 def stats_pixelbased(y_true, y_pred):

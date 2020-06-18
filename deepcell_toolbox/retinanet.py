@@ -35,7 +35,7 @@ from skimage.morphology import remove_small_objects
 from skimage.segmentation import random_walker, relabel_sequential
 from skimage.transform import resize
 
-from deepcell_toolbox.compute_overlap import compute_overlap
+from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
 
 
 def compute_iou(boxes, mask_image):
