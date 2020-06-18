@@ -44,8 +44,10 @@ from __future__ import division
 import datetime
 import decimal
 import json
+import logging
 import operator
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -58,11 +60,9 @@ from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
-import logging
-import warnings
 
-from keras_retinanet.utils.compute_overlap import compute_overlap
 from deepcell_toolbox import erode_edges
+from deepcell_toolbox import compute_overlap
 
 
 def stats_pixelbased(y_true, y_pred):
