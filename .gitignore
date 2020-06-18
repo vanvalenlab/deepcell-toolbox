@@ -1,6 +1,8 @@
 # Application generated files
 deepcell_toolbox/compute_overlap.cypthon-*
 deepcell_toolbox/compute_overlap.c
+deepcell_toolbox/compute_overlap_3D.cypthon-*
+deepcell_toolbox/compute_overlap_3D.c
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
