@@ -560,7 +560,7 @@ def window_2D(window_size, overlap_x=(32, 32), overlap_y=(32, 32), power=2):
     return window
 
 
-def untile_image(tiles, tiles_info, power=2):
+def untile_image(tiles, tiles_info, model_input_shape=(512, 512), power=2):
 
     # Define mininally acceptable tile_size and stride_ratio for spline interpolation
     min_tile_size = 64
