@@ -130,7 +130,7 @@ def correct_drift(X, y=None):
     return X
 
 
-#def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.66): 
+def tile_image_deprecated(image, model_input_shape=(512, 512), stride_ratio=0.66): 
     
 #    print('tile_image: model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
     
@@ -150,7 +150,7 @@ def correct_drift(X, y=None):
     Raises:
         ValueError: image is not rank 4.
     """
-'''    if image.ndim != 4:
+    if image.ndim != 4:
         raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
             image.ndim))
 
@@ -177,21 +177,6 @@ def correct_drift(X, y=None):
     y_starts = []
     y_ends = []
 
-    ## Calculate overlap of last tile and pad image accordingly
-    overlap_x = (tile_size_x + stride_x * (rep_number_x - 1)) - image_size_x
-    overlap_y = (tile_size_y + stride_y * (rep_number_y - 1)) - image_size_y
-
-    pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
-    pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
-    pad_null = (0,0)
-    
-    padding = (pad_null, pad_y, pad_x, pad_null)
-
-    image = np.pad(image, padding, 'constant')
-
-
-    print('Image shape is: ', image.shape)
-
     for b in range(image.shape[0]):
         for i in range(rep_number_x):
             for j in range(rep_number_y):
@@ -215,6 +200,8 @@ def correct_drift(X, y=None):
                 counter += 1
 
     tiles_info = {}
+    tiles_info['tile_size_x'] = tile_size_x
+    tiles_info['tile_size_y'] = tile_size_y
     tiles_info['batches'] = batches
     tiles_info['x_starts'] = x_starts
     tiles_info['x_ends'] = x_ends
@@ -224,11 +211,9 @@ def correct_drift(X, y=None):
     tiles_info['stride_y'] = stride_y
     tiles_info['image_shape'] = image.shape
     tiles_info['dtype'] = image.dtype
-    tiles_info['pad_x'] = x_pad
-    tiles_info['y_pad'] = y_pad
 
     return tiles, tiles_info
-'''
+
 
 def untile_image_deprecated(tiles, tiles_info, model_input_shape=(512, 512)):
     """Untile a set of tiled images back to the original model shape.
@@ -444,7 +429,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0,0)
     padding = (pad_null, pad_y, pad_x, pad_null)
-    image = np.pad(image, padding, 'constant')
+    #image = np.pad(image, padding, 'constant')
     
     counter = 0
     batches = []

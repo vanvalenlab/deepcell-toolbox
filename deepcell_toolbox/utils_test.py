@@ -132,7 +132,7 @@ def test_correct_drift():
     assert len(res.shape) == 4
 
 
-def test_tile_image():
+def test_tile_image_deprecated():
     shapes = [
         (4, 21, 21, 1),
         (4, 21, 31, 2),
@@ -148,7 +148,7 @@ def test_tile_image():
 
     for shape, input_shape, stride_ratio, dtype in prod:
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image(
+        tiles, tiles_info = utils.tile_image_deprecated(
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
@@ -192,7 +192,7 @@ def test_untile_image_deprecated():
 
     for shape, input_shape, stride_ratio, dtype in prod:
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image(
+        tiles, tiles_info = utils.tile_image_deprecated(
             big_image, input_shape,
             stride_ratio=stride_ratio)
 
@@ -278,6 +278,52 @@ def test_resize():
         rs = utils.resize(im, out_shape, data_format='channels_last')
 
 
+def test_tile_image():
+    shapes = [
+        (4, 21, 21, 1),
+        (4, 21, 31, 2),
+        (4, 31, 21, 3),
+    ]
+    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
+
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
+
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    for shape, input_shape, stride_ratio, dtype in prod:
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image(
+            big_image, input_shape,
+            stride_ratio=stride_ratio)
+
+        assert tiles.shape[1:] == input_shape + (shape[-1],)
+        assert tiles.dtype == big_image.dtype
+
+        ceil = lambda x: int(np.ceil(x))
+        round_to_even = lambda x: int(np.ceil(x / 2.0) * 2)
+
+        image_size_x, image_size_y = big_image.shape[1:3]
+        tile_size_x = input_shape[0]
+        tile_size_y = input_shape[1]
+ 
+        stride_x = round_to_even(stride_ratio * tile_size_x)
+        stride_y = round_to_even(stride_ratio * tile_size_y)
+        rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
+        rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
+ 
+        expected_batches = big_image.shape[0] * rep_number_x * rep_number_y
+ 
+        assert tiles.shape[0] == expected_batches
+
+    # test bad input shape
+    bad_shape = (21, 21, 1)
+    bad_image = (np.random.random(bad_shape) * 100)
+    with pytest.raises(ValueError):
+        utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
+
+
 def test_untile_image():
     shapes = [
         (1, 256, 256, 1),
@@ -327,7 +373,7 @@ def test_untile_image():
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):
        
-        big_image_test = np.zeros(4,4).astype('int32')
+        big_image_test = np.zeros((4,4)).astype('int32')
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape = (2,2), 
                                             stride_ratio=0)
         untiled_image = utils.untile_image(tiles, tile_info)
