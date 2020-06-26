@@ -429,7 +429,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0,0)
     padding = (pad_null, pad_y, pad_x, pad_null)
-    #image = np.pad(image, padding, 'constant')
+    image = np.pad(image, padding, 'constant')
     
     counter = 0
     batches = []
