@@ -422,7 +422,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     overlap_x = (tile_size_x + stride_x * (rep_number_x - 1)) - image_size_x
     overlap_y = (tile_size_y + stride_y * (rep_number_y - 1)) - image_size_y
 
-    ## Calculate padding needed to account for overlap and pad image accordingly
+    # Calculate padding needed to account for overlap and pad image accordingly
     pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0, 0)
@@ -531,7 +531,7 @@ def spline_window(window_size, overlap_left, overlap_right, power=2):
 
     # Create the window for the right overlap
     if overlap_right > 0:
-        window_size_r = 2*overlap_right
+        window_size_r = 2 * overlap_right
         r_spline = _spline_window(window_size_r)[overlap_right:]
 
     # Put the two together
