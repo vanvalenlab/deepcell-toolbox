@@ -383,7 +383,6 @@ def get_tempdir():
         yield dirpath
 
 
-
 def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
