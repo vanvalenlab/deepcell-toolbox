@@ -35,6 +35,7 @@ import tempfile
 
 import numpy as np
 import cv2
+import scipy.signal
 
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
@@ -130,7 +131,7 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image_deprecated(image, model_input_shape=(512, 512), stride_ratio=0.66): 
+def tile_image_deprecated(image, model_input_shape=(512, 512), stride_ratio=0.75): 
     
 #    print('tile_image: model_input_shape = ', model_input_shape, ', stride_ratio = ', stride_ratio)
     
@@ -384,7 +385,6 @@ def get_tempdir():
     with cd(dirpath, cleanup):
         yield dirpath
 
-import scipy.signal
 
 def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75): 
     """
