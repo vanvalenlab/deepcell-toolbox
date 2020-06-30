@@ -410,6 +410,12 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     stride_x = round_to_even(stride_ratio * tile_size_x)
     stride_y = round_to_even(stride_ratio * tile_size_y)
 
+    if stride_x > tile_size_x:
+        stride_x = tile_size_x
+
+    if stride_y > tile_size_y:
+        stride_y = tile_size_y
+
     rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
     rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
     new_batch_size = image.shape[0] * rep_number_x * rep_number_y
