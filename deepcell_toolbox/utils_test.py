@@ -34,12 +34,7 @@ import numpy as np
 from skimage.measure import label
 
 import pytest
-
-try:
-    from deepcell_toolbox import utils
-except:
-    import utils
-
+from deepcell_toolbox import utils
 
 def _get_image(img_h=300, img_w=300):
     bias = np.random.rand(img_w, img_h) * 64
@@ -310,6 +305,12 @@ def test_tile_image():
 
         stride_x = round_to_even(stride_ratio * tile_size_x)
         stride_y = round_to_even(stride_ratio * tile_size_y)
+
+        if stride_x > tile_size_x:
+            stride_x = tile_size_x
+        if stride_y > tile_size_y:
+            stride_y = tile_size_y
+
         rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
         rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
 
