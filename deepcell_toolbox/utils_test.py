@@ -36,6 +36,7 @@ from skimage.measure import label
 import pytest
 from deepcell_toolbox import utils
 
+
 def _get_image(img_h=300, img_w=300):
     bias = np.random.rand(img_w, img_h) * 64
     variance = np.random.rand(img_w, img_h) * (255 - 64)
