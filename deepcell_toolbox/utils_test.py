@@ -330,12 +330,10 @@ def test_untile_image():
         (4, 300, 300, 2),
     ]
     rand_rel_diff_thresh = 1e-2
-    model_input_shapes = [(50, 50), (64, 64), (256, 256), (300, 300)]
+    model_input_shapes = [(51, 51), (64, 64), (256, 256), (300, 300)]
     stride_ratios = [0.33, 0.5, 0.66, 0.75, 1]
     dtypes = ['int32', 'float32', 'uint16', 'float16']
-    constants = [0, 1]
     prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
-    const_prod = product(shapes, model_input_shapes, stride_ratios, dtypes, constants)
 
     # Test that randomly generated arrays are unchanged within a moderate tolerance
     for shape, input_shape, stride_ratio, dtype in prod:
@@ -351,10 +349,10 @@ def test_untile_image():
 
         np.testing.assert_allclose(big_image, untiled_image, rand_rel_diff_thresh)
 
-    # Test that arrays of zeros and ones are unchanged by tile/untile
-    for shape, input_shape, stride_ratio, dtype, constant in prod:
+    # Test that arrays of zeros are unchanged by tile/untile
+    for shape, input_shape, stride_ratio, dtype in prod:
 
-        big_image_zeros = np.full(shape, constant).astype(dtype)
+        big_image_zeros = np.zeros(shape).astype(dtype)
         tiles, tiles_info = utils.tile_image(big_image_zeros, model_input_shape=input_shape,
                                              stride_ratio=stride_ratio)
         untiled_image_zeros = utils.untile_image(tiles, tiles_info)
