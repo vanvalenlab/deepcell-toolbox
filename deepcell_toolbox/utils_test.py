@@ -342,7 +342,8 @@ def test_untile_image():
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image(big_image, model_input_shape=input_shape,
+        tiles, tiles_info = utils.tile_image(big_image,
+                                             model_input_shape=input_shape,
                                              stride_ratio=stride_ratio)
 
         untiled_image = utils.untile_image(tiles, tiles_info)
