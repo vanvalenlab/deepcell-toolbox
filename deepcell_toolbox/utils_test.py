@@ -363,7 +363,7 @@ def test_untile_image():
         untiled_image_zeros = utils.untile_image(tiles, tiles_info)
         assert untiled_image_zeros.dtype == dtype
         assert untiled_image_zeros.shape == shape
-        assert big_image_zeros == untiled_image_zeros
+        assert np.testing.assert_equal(big_image_zeros, untiled_image_zeros)
 
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):
