@@ -356,7 +356,8 @@ def test_untile_image():
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image_zeros = np.zeros(shape).astype(dtype)
-        tiles, tiles_info = utils.tile_image(big_image_zeros, model_input_shape=input_shape,
+        tiles, tiles_info = utils.tile_image(big_image_zeros,
+                                             model_input_shape=input_shape,
                                              stride_ratio=stride_ratio)
         untiled_image_zeros = utils.untile_image(tiles, tiles_info)
         assert untiled_image_zeros.dtype == dtype
