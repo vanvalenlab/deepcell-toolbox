@@ -34,6 +34,7 @@ import numpy as np
 from skimage.measure import label
 
 import pytest
+
 from deepcell_toolbox import utils
 
 
@@ -178,7 +179,7 @@ def test_untile_image_deprecated():
         (4, 21, 31, 2),
         (4, 31, 21, 3),
     ]
-    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
+    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12), (21, 21)]
 
     stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
 
