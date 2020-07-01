@@ -329,11 +329,11 @@ def test_tile_image():
 
 def test_untile_image():
     shapes = [
-        (1, 256, 256, 1),
-        (4, 300, 300, 2),
+        (2, 60, 60, 1),
+        (1, 128, 128, 21),
     ]
     rand_rel_diff_thresh = 1e-2
-    model_input_shapes = [(51, 51), (64, 64), (256, 256), (300, 300)]
+    model_input_shapes = [(22, 22), (51, 51), (64, 64)]
     stride_ratios = [0.33, 0.5, 0.66, 0.75, 1]
     dtypes = ['int32', 'float32', 'uint16', 'float16']
     prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
