@@ -351,7 +351,8 @@ def test_untile_image():
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
 
-        np.testing.assert_allclose(big_image, untiled_image, rand_rel_diff_thresh)
+        np.testing.assert_allclose(big_image, untiled_image,
+                                   rand_rel_diff_thresh)
 
     # Test that arrays of zeros are unchanged by tile/untile
     for shape, input_shape, stride_ratio, dtype in prod:
