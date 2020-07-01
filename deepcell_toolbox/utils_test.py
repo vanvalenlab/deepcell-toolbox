@@ -369,4 +369,4 @@ def test_untile_image():
         big_image_test = np.zeros((4, 4)).astype('int32')
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
                                              stride_ratio=0)
-        untiled_image = utils.untile_image(tiles, tile_info)
+        untiled_image = utils.untile_image(tiles, tiles_info)
