@@ -362,30 +362,6 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
 
     return resized.astype(original_dtype)
 
-# Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
-# These are unnecessary if not supporting python2
-
-
-@contextlib.contextmanager
-def cd(newdir, cleanup=lambda: True):
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
-    try:
-        yield
-    finally:
-        os.chdir(prevdir)
-        cleanup()
-
-
-@contextlib.contextmanager
-def get_tempdir():
-    dirpath = tempfile.mkdtemp()
-
-    def cleanup():
-        return shutil.rmtree(dirpath)
-    with cd(dirpath, cleanup):
-        yield dirpath
-
 
 def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     """
