@@ -128,79 +128,6 @@ def test_correct_drift():
     assert len(res.shape) == 4
 
 
-def test_tile_image_deprecated():
-    shapes = [
-        (4, 21, 21, 1),
-        (4, 21, 31, 2),
-        (4, 31, 21, 3),
-    ]
-    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
-
-    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
-
-    dtypes = ['int32', 'float32', 'uint16', 'float16']
-
-    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
-
-    for shape, input_shape, stride_ratio, dtype in prod:
-        big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image_deprecated(
-            big_image, input_shape,
-            stride_ratio=stride_ratio)
-
-        assert tiles_info['image_shape'] == shape
-        assert tiles.shape[1:] == input_shape + (shape[-1],)
-        assert tiles.dtype == big_image.dtype
-
-        x_diff = shape[1] - input_shape[0]
-        y_diff = shape[2] - input_shape[1]
-        x_ratio = np.ceil(stride_ratio * input_shape[0])
-        y_ratio = np.ceil(stride_ratio * input_shape[1])
-
-        expected_batches = shape[0]
-        expected_batches *= np.ceil(x_diff / x_ratio + 1)
-        expected_batches *= np.ceil(y_diff / y_ratio + 1)
-        expected_batches = int(expected_batches)
-        # pylint: disable=E1136
-        assert tiles.shape[0] == expected_batches
-
-    # test bad input shape
-    bad_shape = (21, 21, 1)
-    bad_image = (np.random.random(bad_shape) * 100)
-    with pytest.raises(ValueError):
-        utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
-
-
-# test for the old untile_image function
-def test_untile_image_deprecated():
-    shapes = [
-        (4, 21, 21, 1),
-        (4, 21, 31, 2),
-        (4, 31, 21, 3),
-    ]
-    model_input_shapes = [(3, 3), (5, 5), (7, 7), (12, 12)]
-
-    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
-
-    dtypes = ['int32', 'float32', 'uint16', 'float16']
-
-    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
-
-    for shape, input_shape, stride_ratio, dtype in prod:
-        big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image_deprecated(
-            big_image, input_shape,
-            stride_ratio=stride_ratio)
-
-        untiled_image = utils.untile_image_deprecated(
-            tiles=tiles, tiles_info=tiles_info,
-            model_input_shape=input_shape)
-
-        assert untiled_image.dtype == dtype
-        assert untiled_image.shape == shape
-        np.testing.assert_equal(untiled_image, big_image)
-
-
 def test_resize():
     base_shape = (32, 32)
     out_shapes = [
@@ -328,12 +255,14 @@ def test_tile_image():
 
 def test_untile_image():
     shapes = [
-        (1, 256, 256, 1),
-        (4, 300, 300, 2),
+        (3, 8, 16, 2),
+        (1, 64, 64, 1),
+        (1, 41, 58, 1),
+        (1, 93, 61, 1)
     ]
-    rand_rel_diff_thresh = 1e-2
-    model_input_shapes = [(51, 51), (64, 64), (256, 256), (300, 300)]
-    stride_ratios = [0.33, 0.5, 0.66, 0.75, 1]
+    rand_rel_diff_thresh = 2e-2
+    model_input_shapes = [(16, 20), (32, 32), (41, 51), (64, 64), (100, 90)]
+    stride_ratios = [0.33, 0.5, 0.51, 0.66, 0.75, 1]
     dtypes = ['int32', 'float32', 'uint16', 'float16']
     prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
 
@@ -361,7 +290,6 @@ def test_untile_image():
         assert untiled_image_zeros.dtype == dtype
         assert untiled_image_zeros.shape == shape
         assert big_image_zeros == untiled_image_zeros
-
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):
 

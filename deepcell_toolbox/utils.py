@@ -131,152 +131,6 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image_deprecated(image, model_input_shape=(512, 512), stride_ratio=0.75):
-    """
-    Tile large image into many overlapping tiles of size "model_input_shape".
-
-    Args:
-        image (numpy.array): The image to tile, must be rank 4.
-        model_input_shape (tuple): The input size of the model.
-        stride_ratio (float): The ratio of overlap between stride
-            and tile shape.
-
-    Returns:
-        tuple(numpy.array, dict): An tuple consisting of an array of tiled
-            images and a dictionary of tiling details (for use in un-tiling).
-
-    Raises:
-        ValueError: image is not rank 4.
-    """
-    if image.ndim != 4:
-        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
-            image.ndim))
-
-    image_size_x, image_size_y = image.shape[1:3]
-    tile_size_x = model_input_shape[0]
-    tile_size_y = model_input_shape[1]
-
-    ceil = lambda x: int(np.ceil(x))
-
-    stride_x = ceil(stride_ratio * tile_size_x)
-    stride_y = ceil(stride_ratio * tile_size_y)
-
-    rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
-    rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
-    new_batch_size = image.shape[0] * rep_number_x * rep_number_y
-
-    tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
-    tiles = np.zeros(tiles_shape, dtype=image.dtype)
-
-    counter = 0
-    batches = []
-    x_starts = []
-    x_ends = []
-    y_starts = []
-    y_ends = []
-
-    for b in range(image.shape[0]):
-        for i in range(rep_number_x):
-            for j in range(rep_number_y):
-                x_axis = 1
-                if i != rep_number_x - 1:  # not the last one
-                    x_start, x_end = i * stride_x, i * stride_x + tile_size_x
-                else:
-                    x_start, x_end = -tile_size_x, image.shape[x_axis]
-
-                if j != rep_number_y - 1:  # not the last one
-                    y_start, y_end = j * stride_y, j * stride_y + tile_size_y
-                else:
-                    y_start, y_end = -tile_size_y, image.shape[x_axis + 1]
-
-                tiles[counter] = image[b, x_start:x_end, y_start:y_end, :]
-                batches.append(b)
-                x_starts.append(x_start)
-                x_ends.append(x_end)
-                y_starts.append(y_start)
-                y_ends.append(y_end)
-                counter += 1
-
-    tiles_info = {}
-    tiles_info['tile_size_x'] = tile_size_x
-    tiles_info['tile_size_y'] = tile_size_y
-    tiles_info['batches'] = batches
-    tiles_info['x_starts'] = x_starts
-    tiles_info['x_ends'] = x_ends
-    tiles_info['y_starts'] = y_starts
-    tiles_info['y_ends'] = y_ends
-    tiles_info['stride_x'] = stride_x
-    tiles_info['stride_y'] = stride_y
-    tiles_info['image_shape'] = image.shape
-    tiles_info['dtype'] = image.dtype
-
-    return tiles, tiles_info
-
-
-def untile_image_deprecated(tiles, tiles_info, model_input_shape=(512, 512)):
-    """Untile a set of tiled images back to the original model shape.
-
-    Args:
-        tiles (numpy.array): The tiled images image to untile.
-        tiles_info (dict): Details of how the image was tiled (from tile_image).
-        model_input_shape (tuple): The input size of the model.
-
-    Returns:
-        numpy.array: The untiled image.
-    """
-
-    _axis = 1
-    image_shape = tiles_info['image_shape']
-    batches = tiles_info['batches']
-    x_starts = tiles_info['x_starts']
-    x_ends = tiles_info['x_ends']
-    y_starts = tiles_info['y_starts']
-    y_ends = tiles_info['y_ends']
-    stride_x = tiles_info['stride_x']
-    stride_y = tiles_info['stride_y']
-
-    tile_size_x = model_input_shape[0]
-    tile_size_y = model_input_shape[1]
-
-    image_shape = tuple(list(image_shape[0:3]) + [tiles.shape[-1]])
-    image = np.zeros(image_shape, dtype=tiles.dtype)
-
-    zipped = zip(tiles, batches, x_starts, x_ends, y_starts, y_ends)
-    for tile, batch, x_start, x_end, y_start, y_end in zipped:
-        tile_x_start = 0
-        tile_x_end = tile_size_x
-        tile_y_start = 0
-        tile_y_end = tile_size_y
-
-        if x_start != 0:
-            x_start += (tile_size_x - stride_x) // 2
-            tile_x_start += (tile_size_x - stride_x) // 2
-        if x_end != image_shape[_axis]:
-            x_end -= (tile_size_x - stride_x) // 2
-            tile_x_end -= (tile_size_x - stride_x) // 2
-        if y_start != 0:
-            y_start += (tile_size_y - stride_y) // 2
-            tile_y_start += (tile_size_y - stride_y) // 2
-        if y_end != image_shape[_axis + 1]:
-            y_end -= (tile_size_y - stride_y) // 2
-            tile_y_end -= (tile_size_y - stride_y) // 2
-
-        x_start = np.int(x_start)
-        x_end = np.int(x_end)
-        y_start = np.int(y_start)
-        y_end = np.int(y_end)
-
-        tile_x_start = np.int(tile_x_start)
-        tile_x_end = np.int(tile_x_end)
-        tile_y_start = np.int(tile_y_start)
-        tile_y_end = np.int(tile_y_end)
-
-        t = tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end]
-        image[batch, x_start:x_end, y_start:y_end] = t
-
-    return image
-
-
 def resize(data, shape, data_format='channels_last', labeled_image=False):
     """Resize the data to the given shape.
     Uses openCV to resize the data if the data is a single channel, as it
@@ -382,6 +236,7 @@ def get_tempdir():
     with cd(dirpath, cleanup):
         yield dirpath
 
+import scipy.signal
 
 def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     """
@@ -407,17 +262,11 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     ceil = lambda x: int(np.ceil(x))
     round_to_even = lambda x: int(np.ceil(x / 2.0) * 2)
 
-    stride_x = round_to_even(stride_ratio * tile_size_x)
-    stride_y = round_to_even(stride_ratio * tile_size_y)
+    stride_x = min(round_to_even(stride_ratio * tile_size_x), tile_size_x)
+    stride_y = min(round_to_even(stride_ratio * tile_size_y), tile_size_y)
 
-    if stride_x > tile_size_x:
-        stride_x = tile_size_x
-
-    if stride_y > tile_size_y:
-        stride_y = tile_size_y
-
-    rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
-    rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
+    rep_number_x = max(ceil((image_size_x - tile_size_x) / stride_x + 1), 1)
+    rep_number_y = max(ceil((image_size_y - tile_size_y) / stride_y + 1), 1)
     new_batch_size = image.shape[0] * rep_number_x * rep_number_y
 
     tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
@@ -431,7 +280,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0, 0)
-    padding = (pad_null, pad_y, pad_x, pad_null)
+    padding = (pad_null, pad_x, pad_y, pad_null)
     image = np.pad(image, padding, 'constant')
 
     counter = 0
@@ -565,10 +414,19 @@ def window_2D(window_size, overlap_x=(32, 32), overlap_y=(32, 32), power=2):
     return window
 
 
-def untile_image(tiles, tiles_info, model_input_shape=(512, 512), power=2):
-
+def untile_image(tiles, tiles_info, power=2, **kwargs):
+    """Untile a set of tiled images back to the original model shape.
+ 
+     Args:
+         tiles (numpy.array): The tiled images image to untile.
+         tiles_info (dict): Details of how the image was tiled (from tile_image).
+         power (int): The power of the window function
+ 
+     Returns:
+         numpy.array: The untiled image.
+     """
     # Define mininally acceptable tile_size and stride_ratio for spline interpolation
-    min_tile_size = 64
+    min_tile_size = 32
     min_stride_ratio = 0.5
 
     stride_ratio = tiles_info['stride_ratio']
@@ -580,8 +438,6 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), power=2):
     y_ends = tiles_info['y_ends']
     overlaps_x = tiles_info['overlaps_x']
     overlaps_y = tiles_info['overlaps_y']
-    stride_x = tiles_info['stride_x']
-    stride_y = tiles_info['stride_y']
     tile_size_x = tiles_info['tile_size_x']
     tile_size_y = tiles_info['tile_size_y']
     stride_ratio = tiles_info['stride_ratio']
@@ -592,10 +448,12 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), power=2):
     window_size = (tile_size_x, tile_size_y)
     image = np.zeros(image_shape, dtype=np.float)
 
-    n_tiles = tiles.shape[0]
-
     for tile, batch, x_start, x_end, y_start, y_end, overlap_x, overlap_y in zip(
             tiles, batches, x_starts, x_ends, y_starts, y_ends, overlaps_x, overlaps_y):
+        
+        # Conditions under which to use spline interpolation
+        # A tile size or stride ratio that is too small gives inconsistent results,
+        # so in these cases we skip interpolation and just return the raw tiles
         if (min_tile_size <= tile_size_x < image_shape[1] and
                 min_tile_size <= tile_size_y < image_shape[2] and
                 stride_ratio >= min_stride_ratio):
@@ -608,9 +466,9 @@ def untile_image(tiles, tiles_info, model_input_shape=(512, 512), power=2):
 
     x_start = x_pad[0]
     y_start = y_pad[0]
-    x_end = image_shape[2] - x_pad[1]
-    y_end = image_shape[1] - y_pad[1]
+    x_end = image_shape[1] - x_pad[1]
+    y_end = image_shape[2] - y_pad[1]
 
-    image = image[:, y_start:y_end, x_start:x_end, :]
+    image = image[:, x_start:x_end, y_start:y_end, :]
 
     return image
