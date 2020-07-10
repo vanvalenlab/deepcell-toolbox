@@ -34,6 +34,7 @@ import numpy as np
 from skimage.measure import label
 
 import pytest
+
 from deepcell_toolbox import utils
 
 
@@ -270,7 +271,8 @@ def test_untile_image():
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image(big_image, model_input_shape=input_shape,
+        tiles, tiles_info = utils.tile_image(big_image,
+                                             model_input_shape=input_shape,
                                              stride_ratio=stride_ratio)
 
         untiled_image = utils.untile_image(tiles, tiles_info)
@@ -278,22 +280,25 @@ def test_untile_image():
         assert untiled_image.dtype == dtype
         assert untiled_image.shape == shape
 
-        np.testing.assert_allclose(big_image, untiled_image, rand_rel_diff_thresh)
+        np.testing.assert_allclose(big_image, untiled_image,
+                                   rand_rel_diff_thresh)
 
     # Test that arrays of zeros are unchanged by tile/untile
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image_zeros = np.zeros(shape).astype(dtype)
-        tiles, tiles_info = utils.tile_image(big_image_zeros, model_input_shape=input_shape,
+        tiles, tiles_info = utils.tile_image(big_image_zeros,
+                                             model_input_shape=input_shape,
                                              stride_ratio=stride_ratio)
         untiled_image_zeros = utils.untile_image(tiles, tiles_info)
         assert untiled_image_zeros.dtype == dtype
         assert untiled_image_zeros.shape == shape
-        assert big_image_zeros == untiled_image_zeros
+        np.testing.assert_equal(big_image_zeros, untiled_image_zeros)
+
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):
 
         big_image_test = np.zeros((4, 4)).astype('int32')
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
                                              stride_ratio=0)
-        untiled_image = utils.untile_image(tiles, tile_info)
+        untiled_image = utils.untile_image(tiles, tiles_info)

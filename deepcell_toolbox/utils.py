@@ -212,9 +212,9 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
 
     return resized.astype(original_dtype)
 
+
 # Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
 # These are unnecessary if not supporting python2
-
 
 @contextlib.contextmanager
 def cd(newdir, cleanup=lambda: True):
@@ -236,18 +236,20 @@ def get_tempdir():
     with cd(dirpath, cleanup):
         yield dirpath
 
-import scipy.signal
 
 def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
+
     Args:
         image (numpy.array): The image to tile, must be rank 4.
         model_input_shape (tuple): The input size of the model.
-        stride_ratio (float): The stride expressed as a fraction of the tile size
+        stride_ratio (float): The stride expressed as a fraction of the tile size.
+
     Returns:
-        tuple(numpy.array, dict): An tuple consisting of an array of tiled
+        tuple(numpy.array, dict): A tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
+
     Raises:
         ValueError: image is not rank 4.
     """
