@@ -344,39 +344,40 @@ class TestMetricsObject():
         with testing.assert_raises(ValueError):
             m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10, 10))
 
-    def test_save_to_json(self):
+    def test_save_to_json(self, tmpdir):
         name = 'test'
-        with utils.get_tempdir() as outdir:
-            m = metrics.Metrics(name, outdir=outdir)
+        tmpdir = str(tmpdir)
+        m = metrics.Metrics(name, outdir=tmpdir)
 
-            # Create test list to save
-            L = []
-            for i in range(10):
-                L.append(dict(
-                    name=i,
-                    value=i,
-                    feature='test',
-                    stat_type='output'
-                ))
+        # Create test list to save
+        L = []
+        for i in range(10):
+            L.append(dict(
+                name=i,
+                value=i,
+                feature='test',
+                stat_type='output'
+            ))
 
-            m.save_to_json(L)
-            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-            outfilename = os.path.join(outdir, name + '_' + todays_date + '.json')
+        m.save_to_json(L)
+        todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        outfilename = os.path.join(tmpdir, name + '_' + todays_date + '.json')
 
-            # Check that file exists
-            testing.assert_equal(os.path.isfile(outfilename), True)
+        # Check that file exists
+        testing.assert_equal(os.path.isfile(outfilename), True)
 
-            # Check that it can be opened
-            with open(outfilename) as json_file:
-                data = json.load(json_file)
+        # Check that it can be opened
+        with open(outfilename) as json_file:
+            data = json.load(json_file)
 
-            # Check data types from loaded data
-            assert isinstance(data, dict)
-            assert np.array_equal(sorted(list(data.keys())), ['metadata', 'metrics'])
-            assert isinstance(data['metrics'], list)
-            assert isinstance(data['metadata'], dict)
+        # Check data types from loaded data
+        assert isinstance(data, dict)
+        assert np.array_equal(sorted(list(data.keys())), ['metadata', 'metrics'])
+        assert isinstance(data['metrics'], list)
+        assert isinstance(data['metadata'], dict)
 
-    def test_run_all(self):
+    def test_run_all(self, tmpdir):
+        tmpdir = str(tmpdir)
         y_true_lbl = label(_generate_stack_3d())
         y_pred_lbl = label(_generate_stack_3d())
         y_true_unlbl = _generate_stack_4d()
@@ -384,20 +385,19 @@ class TestMetricsObject():
 
         name = 'test'
         for seg in [True, False]:
-            with utils.get_tempdir() as outdir:
-                m = metrics.Metrics(name, outdir=outdir, seg=seg)
+            m = metrics.Metrics(name, outdir=tmpdir, seg=seg)
 
-                before = len(m.output)
+            before = len(m.output)
 
-                m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
+            m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
 
-                # Assert that data was added to output
-                assert len(m.output) != before
+            # Assert that data was added to output
+            assert len(m.output) != before
 
-                # Check output file
-                todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-                outname = os.path.join(outdir, name + '_' + todays_date + '.json')
-                testing.assert_equal(os.path.isfile(outname), True)
+            # Check output file
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+            outname = os.path.join(tmpdir, name + '_' + todays_date + '.json')
+            testing.assert_equal(os.path.isfile(outname), True)
 
 
 class TestObjectAccuracy():
@@ -593,7 +593,7 @@ class TestObjectAccuracy():
         assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
 
         # The tests below are more stochastic, and should be run multiple times
-        for _ in range(100):
+        for _ in range(10):
 
             # 3 cells merged together, with forced event links to ensure accurate assignment
             y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)

@@ -28,12 +28,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import cv2
 import contextlib
-import tempfile
 import os
 import shutil
+import tempfile
+
+import numpy as np
+import cv2
+import scipy.signal
 
 from scipy.ndimage import fourier_shift
 from skimage.morphology import ball, disk
@@ -129,144 +131,6 @@ def correct_drift(X, y=None):
     return X
 
 
-def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
-    """
-    Tile large image into many overlapping tiles of size "model_input_shape".
-
-    Args:
-        image (numpy.array): The image to tile.
-        model_input_shape (tuple): The input size of the model.
-        stride_ratio (float): The ratio of overlap between stride
-            and tile shape.
-
-    Returns:
-        tuple(numpy.array, dict): An tuple consisting of an array of tiled
-            images and a dictionary of tiling details (for use in un-tiling).
-    """
-    image_size_x, image_size_y = image.shape[1:3]
-    tile_size_x = model_input_shape[0]
-    tile_size_y = model_input_shape[1]
-
-    stride_x = np.int(stride_ratio * tile_size_x)
-    stride_y = np.int(stride_ratio * tile_size_y)
-
-    rep_number_x = np.int(np.ceil((image_size_x - tile_size_x) / stride_x + 1))
-    rep_number_y = np.int(np.ceil((image_size_y - tile_size_y) / stride_y + 1))
-    new_batch_size = image.shape[0] * rep_number_x * rep_number_y
-
-    tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
-    tiles = np.zeros(tiles_shape, dtype=image.dtype)
-
-    counter = 0
-    batches = []
-    x_starts = []
-    x_ends = []
-    y_starts = []
-    y_ends = []
-
-    for b in range(image.shape[0]):
-        for i in range(rep_number_x):
-            for j in range(rep_number_y):
-                x_axis = 1
-                if i != rep_number_x - 1:  # not the last one
-                    x_start, x_end = i * stride_x, i * stride_x + tile_size_x
-                else:
-                    x_start, x_end = -tile_size_x, image.shape[x_axis]
-
-                if j != rep_number_y - 1:  # not the last one
-                    y_start, y_end = j * stride_y, j * stride_y + tile_size_y
-                else:
-                    y_start, y_end = -tile_size_y, image.shape[x_axis + 1]
-
-                tiles[counter] = image[b, x_start:x_end, y_start:y_end, :]
-                batches.append(b)
-                x_starts.append(x_start)
-                x_ends.append(x_end)
-                y_starts.append(y_start)
-                y_ends.append(y_end)
-                counter += 1
-
-    tiles_info = {}
-    tiles_info['batches'] = batches
-    tiles_info['x_starts'] = x_starts
-    tiles_info['x_ends'] = x_ends
-    tiles_info['y_starts'] = y_starts
-    tiles_info['y_ends'] = y_ends
-    tiles_info['stride_x'] = stride_x
-    tiles_info['stride_y'] = stride_y
-    tiles_info['image_shape'] = image.shape
-    tiles_info['dtype'] = image.dtype
-
-    return tiles, tiles_info
-
-
-def untile_image(tiles, tiles_info,
-                 model_input_shape=(512, 512), dtype=None):
-    """Untile a set of tiled images back to the original model shape.
-
-    Args:
-        tiles (numpy.array): The tiled images image to untile.
-        tiles_info (dict): Details of how the image was tiled (from tile_image).
-        model_input_shape (tuple): The input size of the model.
-        dtype (string): optional dtype for output image, defaults to input image dtype
-
-    Returns:
-        numpy.array: The untiled image.
-    """
-    _axis = 1
-    image_shape = tiles_info['image_shape']
-    batches = tiles_info['batches']
-    x_starts = tiles_info['x_starts']
-    x_ends = tiles_info['x_ends']
-    y_starts = tiles_info['y_starts']
-    y_ends = tiles_info['y_ends']
-    stride_x = tiles_info['stride_x']
-    stride_y = tiles_info['stride_y']
-    if dtype is None:
-        dtype = tiles_info['dtype']
-
-    tile_size_x = model_input_shape[0]
-    tile_size_y = model_input_shape[1]
-
-    image_shape = tuple(list(image_shape[0:3]) + [tiles.shape[-1]])
-    image = np.zeros(image_shape, dtype=dtype)
-
-    zipped = zip(tiles, batches, x_starts, x_ends, y_starts, y_ends)
-    for tile, batch, x_start, x_end, y_start, y_end in zipped:
-        tile_x_start = 0
-        tile_x_end = tile_size_x
-        tile_y_start = 0
-        tile_y_end = tile_size_y
-
-        if x_start != 0:
-            x_start += (tile_size_x - stride_x) / 2
-            tile_x_start += (tile_size_x - stride_x) / 2
-        if x_end != image_shape[_axis]:
-            x_end -= (tile_size_x - stride_x) / 2
-            tile_x_end -= (tile_size_x - stride_x) / 2
-        if y_start != 0:
-            y_start += (tile_size_y - stride_y) / 2
-            tile_y_start += (tile_size_y - stride_y) / 2
-        if y_end != image_shape[_axis]:
-            y_end -= (tile_size_y - stride_y) / 2
-            tile_y_end -= (tile_size_y - stride_y) / 2
-
-        x_start = np.int(x_start)
-        x_end = np.int(x_end)
-        y_start = np.int(y_start)
-        y_end = np.int(y_end)
-
-        tile_x_start = np.int(tile_x_start)
-        tile_x_end = np.int(tile_x_end)
-        tile_y_start = np.int(tile_y_start)
-        tile_y_end = np.int(tile_y_end)
-
-        image[batch, x_start:x_end, y_start:y_end, :] = \
-            tile[tile_x_start:tile_x_end, tile_y_start:tile_y_end, :]
-
-    return image
-
-
 def resize(data, shape, data_format='channels_last', labeled_image=False):
     """Resize the data to the given shape.
     Uses openCV to resize the data if the data is a single channel, as it
@@ -322,7 +186,7 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
                                              order=order, anti_aliasing=anti_aliasing)
     # single channel image, resize with cv2
     else:
-        shape = tuple(shape)
+        shape = tuple(shape)[::-1]  # cv2 expects swapped axes.
 
         # linear interpolation for image data, nearest neighbor for labels
         # CV2 doesn't support ints for linear interpolation, set to float for image data
@@ -348,26 +212,241 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
 
     return resized.astype(original_dtype)
 
-# Workaround for python2 not supporting `with tempfile.TemporaryDirectory() as`
-# These are unnecessary if not supporting python2
+
+def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
+    """
+    Tile large image into many overlapping tiles of size "model_input_shape".
+
+    Args:
+        image (numpy.array): The image to tile, must be rank 4.
+        model_input_shape (tuple): The input size of the model.
+        stride_ratio (float): The stride expressed as a fraction of the tile size.
+
+    Returns:
+        tuple(numpy.array, dict): A tuple consisting of an array of tiled
+            images and a dictionary of tiling details (for use in un-tiling).
+
+    Raises:
+        ValueError: image is not rank 4.
+    """
+    if image.ndim != 4:
+        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
+            image.ndim))
+
+    image_size_x, image_size_y = image.shape[1:3]
+    tile_size_x = model_input_shape[0]
+    tile_size_y = model_input_shape[1]
+
+    ceil = lambda x: int(np.ceil(x))
+    round_to_even = lambda x: int(np.ceil(x / 2.0) * 2)
+
+    stride_x = min(round_to_even(stride_ratio * tile_size_x), tile_size_x)
+    stride_y = min(round_to_even(stride_ratio * tile_size_y), tile_size_y)
+
+    rep_number_x = max(ceil((image_size_x - tile_size_x) / stride_x + 1), 1)
+    rep_number_y = max(ceil((image_size_y - tile_size_y) / stride_y + 1), 1)
+    new_batch_size = image.shape[0] * rep_number_x * rep_number_y
+
+    tiles_shape = (new_batch_size, tile_size_x, tile_size_y, image.shape[3])
+    tiles = np.zeros(tiles_shape, dtype=image.dtype)
+
+    # Calculate overlap of last tile
+    overlap_x = (tile_size_x + stride_x * (rep_number_x - 1)) - image_size_x
+    overlap_y = (tile_size_y + stride_y * (rep_number_y - 1)) - image_size_y
+
+    # Calculate padding needed to account for overlap and pad image accordingly
+    pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
+    pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
+    pad_null = (0, 0)
+    padding = (pad_null, pad_x, pad_y, pad_null)
+    image = np.pad(image, padding, 'constant')
+
+    counter = 0
+    batches = []
+    x_starts = []
+    x_ends = []
+    y_starts = []
+    y_ends = []
+    overlaps_x = []
+    overlaps_y = []
+
+    for b in range(image.shape[0]):
+        for i in range(rep_number_x):
+            for j in range(rep_number_y):
+                x_axis = 1
+                y_axis = 2
+
+                # Compute the start and end for each tile
+                if i != rep_number_x - 1:  # not the last one
+                    x_start, x_end = i * stride_x, i * stride_x + tile_size_x
+                else:
+                    x_start, x_end = image.shape[x_axis] - tile_size_x, image.shape[x_axis]
+
+                if j != rep_number_y - 1:  # not the last one
+                    y_start, y_end = j * stride_y, j * stride_y + tile_size_y
+                else:
+                    y_start, y_end = image.shape[y_axis] - tile_size_y, image.shape[y_axis]
+
+                # Compute the overlaps for each tile
+                if i == 0:
+                    overlap_x = (0, tile_size_x - stride_x)
+                elif i == rep_number_x - 2:
+                    overlap_x = (tile_size_x - stride_x, tile_size_x - image.shape[x_axis] + x_end)
+                elif i == rep_number_x - 1:
+                    overlap_x = ((i - 1) * stride_x + tile_size_x - x_start, 0)
+                else:
+                    overlap_x = (tile_size_x - stride_x, tile_size_x - stride_x)
+
+                if j == 0:
+                    overlap_y = (0, tile_size_y - stride_y)
+                elif j == rep_number_y - 2:
+                    overlap_y = (tile_size_y - stride_y, tile_size_y - image.shape[y_axis] + y_end)
+                elif j == rep_number_y - 1:
+                    overlap_y = ((j - 1) * stride_y + tile_size_y - y_start, 0)
+                else:
+                    overlap_y = (tile_size_y - stride_y, tile_size_y - stride_y)
+
+                tiles[counter] = image[b, x_start:x_end, y_start:y_end, :]
+                batches.append(b)
+                x_starts.append(x_start)
+                x_ends.append(x_end)
+                y_starts.append(y_start)
+                y_ends.append(y_end)
+                overlaps_x.append(overlap_x)
+                overlaps_y.append(overlap_y)
+                counter += 1
+
+    tiles_info = {}
+    tiles_info['batches'] = batches
+    tiles_info['x_starts'] = x_starts
+    tiles_info['x_ends'] = x_ends
+    tiles_info['y_starts'] = y_starts
+    tiles_info['y_ends'] = y_ends
+    tiles_info['overlaps_x'] = overlaps_x
+    tiles_info['overlaps_y'] = overlaps_y
+    tiles_info['stride_x'] = stride_x
+    tiles_info['stride_y'] = stride_y
+    tiles_info['tile_size_x'] = tile_size_x
+    tiles_info['tile_size_y'] = tile_size_y
+    tiles_info['stride_ratio'] = stride_ratio
+    tiles_info['image_shape'] = image.shape
+    tiles_info['dtype'] = image.dtype
+    tiles_info['pad_x'] = pad_x
+    tiles_info['pad_y'] = pad_y
+
+    return tiles, tiles_info
 
 
-@contextlib.contextmanager
-def cd(newdir, cleanup=lambda: True):
-    prevdir = os.getcwd()
-    os.chdir(os.path.expanduser(newdir))
-    try:
-        yield
-    finally:
-        os.chdir(prevdir)
-        cleanup()
+def spline_window(window_size, overlap_left, overlap_right, power=2):
+    """
+    Squared spline (power=2) window function:
+    https://www.wolframalpha.com/input/?i=y%3Dx**2,+y%3D-(x-2)**2+%2B2,+y%3D(x-4)**2,+from+y+%3D+0+to+2
+    """
+
+    def _spline_window(w_size):
+        intersection = int(w_size / 4)
+        wind_outer = (abs(2 * (scipy.signal.triang(w_size))) ** power) / 2
+        wind_outer[intersection:-intersection] = 0
+
+        wind_inner = 1 - (abs(2 * (scipy.signal.triang(w_size) - 1)) ** power) / 2
+        wind_inner[:intersection] = 0
+        wind_inner[-intersection:] = 0
+
+        wind = wind_inner + wind_outer
+        wind = wind / np.amax(wind)
+        return wind
+
+    # Create the window for the left overlap
+    if overlap_left > 0:
+        window_size_l = 2 * overlap_left
+        l_spline = _spline_window(window_size_l)[0:overlap_left]
+
+    # Create the window for the right overlap
+    if overlap_right > 0:
+        window_size_r = 2 * overlap_right
+        r_spline = _spline_window(window_size_r)[overlap_right:]
+
+    # Put the two together
+    window = np.ones((window_size,))
+    if overlap_left > 0:
+        window[0:overlap_left] = l_spline
+    if overlap_right > 0:
+        window[-overlap_right:] = r_spline
+
+    return window
 
 
-@contextlib.contextmanager
-def get_tempdir():
-    dirpath = tempfile.mkdtemp()
+def window_2D(window_size, overlap_x=(32, 32), overlap_y=(32, 32), power=2):
+    """
+    Make a 1D window function, then infer and return a 2D window function.
+    Done with an augmentation, and self multiplication with its transpose.
+    Could be generalized to more dimensions.
+    """
+    window_x = spline_window(window_size[0], overlap_x[0], overlap_x[1], power=power)
+    window_y = spline_window(window_size[1], overlap_y[0], overlap_y[1], power=power)
 
-    def cleanup():
-        return shutil.rmtree(dirpath)
-    with cd(dirpath, cleanup):
-        yield dirpath
+    window_x = np.expand_dims(np.expand_dims(window_x, -1), -1)
+    window_y = np.expand_dims(np.expand_dims(window_y, -1), -1)
+
+    window = window_x * window_y.transpose(1, 0, 2)
+    return window
+
+
+def untile_image(tiles, tiles_info, power=2, **kwargs):
+    """Untile a set of tiled images back to the original model shape.
+
+     Args:
+         tiles (numpy.array): The tiled images image to untile.
+         tiles_info (dict): Details of how the image was tiled (from tile_image).
+         power (int): The power of the window function
+
+     Returns:
+         numpy.array: The untiled image.
+     """
+    # Define mininally acceptable tile_size and stride_ratio for spline interpolation
+    min_tile_size = 32
+    min_stride_ratio = 0.5
+
+    stride_ratio = tiles_info['stride_ratio']
+    image_shape = tiles_info['image_shape']
+    batches = tiles_info['batches']
+    x_starts = tiles_info['x_starts']
+    x_ends = tiles_info['x_ends']
+    y_starts = tiles_info['y_starts']
+    y_ends = tiles_info['y_ends']
+    overlaps_x = tiles_info['overlaps_x']
+    overlaps_y = tiles_info['overlaps_y']
+    tile_size_x = tiles_info['tile_size_x']
+    tile_size_y = tiles_info['tile_size_y']
+    stride_ratio = tiles_info['stride_ratio']
+    x_pad = tiles_info['pad_x']
+    y_pad = tiles_info['pad_y']
+
+    image_shape = [image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1]]
+    window_size = (tile_size_x, tile_size_y)
+    image = np.zeros(image_shape, dtype=np.float)
+
+    for tile, batch, x_start, x_end, y_start, y_end, overlap_x, overlap_y in zip(
+            tiles, batches, x_starts, x_ends, y_starts, y_ends, overlaps_x, overlaps_y):
+
+        # Conditions under which to use spline interpolation
+        # A tile size or stride ratio that is too small gives inconsistent results,
+        # so in these cases we skip interpolation and just return the raw tiles
+        if (min_tile_size <= tile_size_x < image_shape[1] and
+                min_tile_size <= tile_size_y < image_shape[2] and
+                stride_ratio >= min_stride_ratio):
+            window = window_2D(window_size, overlap_x=overlap_x, overlap_y=overlap_y, power=power)
+            image[batch, x_start:x_end, y_start:y_end, :] += tile * window
+        else:
+            image[batch, x_start:x_end, y_start:y_end, :] = tile
+
+    image = image.astype(tiles.dtype)
+
+    x_start = x_pad[0]
+    y_start = y_pad[0]
+    x_end = image_shape[1] - x_pad[1]
+    y_end = image_shape[2] - y_pad[1]
+
+    image = image[:, x_start:x_end, y_start:y_end, :]
+
+    return image

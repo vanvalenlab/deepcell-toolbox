@@ -28,6 +28,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
+
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage import fourier_shift
@@ -51,8 +53,8 @@ def normalize(image):
     return normal_image
 
 
-def phase_preprocess(image, kernel_size=64):
-    """Pre-process phase cytoplasm images using Contrast Limited Adaptive
+def histogram_normalization(image, kernel_size=64):
+    """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
     Args:
@@ -60,8 +62,12 @@ def phase_preprocess(image, kernel_size=64):
         kernel_size (integer): Size of kernel for CLAHE.
 
     Returns:
-        numpy.array: Pre-processed phase image data.
+        numpy.array: Pre-processed image data with dtype float32.
     """
+    if not np.issubdtype(image.dtype, np.floating):
+        logging.info('Converting image dtype to float')
+    image = image.astype('float32')
+
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
@@ -71,16 +77,19 @@ def phase_preprocess(image, kernel_size=64):
     return image
 
 
+def phase_preprocess(image, kernel_size=64):
+    """Maintained for backwards compatability"""
+    return histogram_normalization(image=image, kernel_size=kernel_size)
+
+
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
     """Post-processing for MIBI data. Uniquely segments every cell by
     repeatedly eroding and dilating the cell interior prediction  until a
     boundary is reached.
-
     Args:
         prediction: output from a pixelwise transform (edge, interior, bg)
         edge_threshold: confidence threshold to determine edge pixels
         interior_threshold: confidence threshold to determine interior pixels
-
     Returns:
         transformed data where each cell is labeled uniquely
     """
