@@ -418,12 +418,12 @@ def window_2D(window_size, overlap_x=(32, 32), overlap_y=(32, 32), power=2):
 
 def untile_image(tiles, tiles_info, power=2, **kwargs):
     """Untile a set of tiled images back to the original model shape.
- 
+
      Args:
          tiles (numpy.array): The tiled images image to untile.
          tiles_info (dict): Details of how the image was tiled (from tile_image).
          power (int): The power of the window function
- 
+
      Returns:
          numpy.array: The untiled image.
      """
@@ -452,7 +452,7 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
 
     for tile, batch, x_start, x_end, y_start, y_end, overlap_x, overlap_y in zip(
             tiles, batches, x_starts, x_ends, y_starts, y_ends, overlaps_x, overlaps_y):
-        
+
         # Conditions under which to use spline interpolation
         # A tile size or stride ratio that is too small gives inconsistent results,
         # so in these cases we skip interpolation and just return the raw tiles
