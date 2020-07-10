@@ -92,8 +92,8 @@ def test_erode_edges_3d():
     assert erode_0.shape == erode_1.shape
     assert erode_1.shape == erode_2.shape
     np.testing.assert_equal(erode_0, unique)
-    assert np.sum(erode_0) > np.sum(erode_1)
-    assert np.sum(erode_1) > np.sum(erode_2)
+    assert np.sum(erode_0) >= np.sum(erode_1)
+    assert np.sum(erode_1) >= np.sum(erode_2)
 
     # test too many dims
     with pytest.raises(ValueError):
