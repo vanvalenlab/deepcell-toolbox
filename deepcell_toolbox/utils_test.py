@@ -283,17 +283,17 @@ def test_untile_image():
         np.testing.assert_allclose(big_image, untiled_image,
                                    rand_rel_diff_thresh)
 
-    # Test that arrays of zeros are unchanged by tile/untile
+    # Test that constant arrays are unchanged by tile/untile
     for shape, input_shape, stride_ratio, dtype in prod:
-
-        big_image_zeros = np.zeros(shape).astype(dtype)
-        tiles, tiles_info = utils.tile_image(big_image_zeros,
-                                             model_input_shape=input_shape,
-                                             stride_ratio=stride_ratio)
-        untiled_image_zeros = utils.untile_image(tiles, tiles_info)
-        assert untiled_image_zeros.dtype == dtype
-        assert untiled_image_zeros.shape == shape
-        np.testing.assert_equal(big_image_zeros, untiled_image_zeros)
+        for x in [0, 1, np.random.randint(2, 99)]:
+            big_image = np.empty(shape).astype(dtype).fill(x)
+            tiles, tiles_info = utils.tile_image(big_image,
+                                                 model_input_shape=input_shape,
+                                                 stride_ratio=stride_ratio)
+            untiled_image = utils.untile_image(tiles, tiles_info)
+            assert untiled_image.dtype == dtype
+            assert untiled_image.shape == shape
+            np.testing.assert_equal(big_image, untiled_image)
 
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):
