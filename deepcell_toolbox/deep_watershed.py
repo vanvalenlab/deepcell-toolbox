@@ -101,55 +101,81 @@ def deep_watershed(outputs,
     return label_images
 
 
-def deep_watershed_mibi(outputs,
+def deep_watershed_mibi(model_output,
                         min_distance=10,
-                        detection_threshold=0.1,
-                        distance_threshold=0.25,
+                        maxima_threshold=0.1,
+                        cell_threshold=0.2,
                         exclude_border=False,
-                        small_objects_threshold=0):
+                        small_objects_threshold=0,
+                        cell_model='pixelwise-interior',
+                        maxima_model='inner-distance',
+                        cell_model_smooth=1,
+                        maxima_model_smooth=1):
     """Postprocessing function for multiplexed deep watershed models. Thresholds the inner
     distance prediction to find cell centroids, which are used to seed a marker
     based watershed of the pixelwise interior prediction.
 
     Args:
-        outputs (list): DeepWatershed model output. A list of
-            [inner_distance, outer_distance, fgbg, pixelwise].
+        model_output (dict): DeepWatershed model output. A dictionary containing key: value pairs
+            with the transform name and the corresponding output. Currently supported keys:
 
             - inner_distance: Prediction for the inner distance transform.
             - outer_distance: Prediction for the outer distance transform.
-            - fgbg: Prediction for the foregound/background transform.
-            - pixelwise: Prediction for the interior/border/background transform.
+            - fgbg: Foreground prediction for the foregound/background transform.
+            - pixelwise_interior: Interior prediction for the interior/border/background transform.
 
-        min_distance (int): Minimum allowable distance between two cells.
-        detection_threshold (float): Threshold for the inner distance.
-        distance_threshold (float): Threshold for the outer distance.
-        exclude_border (bool): Whether to include centroid detections
-            at the border.
+        min_distance (int): Minimum allowable distance between two cell maxima.
+        maxima_threshold (float): Threshold for the maxima prediction.
+        cell_threshold (float): Threshold for the cell prediction.
+        exclude_border (bool): Whether to include centroid detections at the border.
         small_objects_threshold (int): Removes objects smaller than this size.
+        cell_model: semantic head to use to predict location of cells
+        maxima_model: semantic head to use to predict maxima of cells
+        cell_model_smooth: smoothing factor to apply to interior model predictions
+        maxima_model_smooth: smoothing factor to apply to interior model predictions
 
     Returns:
         numpy.array: Uniquely labeled mask.
     """
-    inner_distance_batch = outputs[0][:, ..., 0]
-    pixel_interior_batch = outputs[3][:, ..., 1]
+
+    valid_model_names = {'inner-distance', 'outer-distance', 'fgbg-fg', 'pixelwise-interior'}
+
+    if cell_model not in valid_model_names:
+        raise ValueError('interior_model must be one of {}, got {}'.format(valid_model_names,
+                                                                           cell_model))
+
+    if maxima_model not in valid_model_names:
+        raise ValueError('maxima_model must be one of {}, got {}'.format(valid_model_names,
+                                                                         maxima_model))
+
+    cell_prediction_batch = model_output[cell_model]
+    maxima_prediction_batch = model_output[maxima_model]
+
+    if len(cell_prediction_batch.shape) != 4:
+        raise ValueError('Model output must be of length 4. The cell_prediction model '
+                         'provided was of shape {}'.format(cell_prediction_batch.shape))
+
+    if len(maxima_prediction_batch.shape) != 4:
+        raise ValueError('Model output must be of length 4. The maxima_prediction model '
+                         'provided was of shape {}'.format(maxima_prediction_batch.shape))
 
     label_images = []
-    for batch in range(inner_distance_batch.shape[0]):
-        inner_distance = inner_distance_batch[batch]
-        inner_distance = nd.gaussian_filter(inner_distance, 3)
-        pixel_interior = pixel_interior_batch[batch]
-        pixel_interior = nd.gaussian_filter(pixel_interior, 2)
+    for batch in range(cell_prediction_batch.shape[0]):
+        cell_prediction = cell_prediction_batch[batch, ..., 0]
+        cell_prediction = nd.gaussian_filter(cell_prediction, cell_model_smooth)
+        maxima_prediction = maxima_prediction_batch[batch, ..., 0]
+        maxima_prediction = nd.gaussian_filter(maxima_prediction, maxima_model_smooth)
 
-        markers = peak_local_max(inner_distance,
+        markers = peak_local_max(maxima_prediction,
                                  min_distance=min_distance,
-                                 threshold_abs=detection_threshold,
+                                 threshold_abs=maxima_threshold,
                                  exclude_border=exclude_border,
                                  indices=False)
         markers = label(markers)
 
-        label_image = watershed(-pixel_interior,
+        label_image = watershed(-cell_prediction,
                                 markers,
-                                mask=pixel_interior > distance_threshold,
+                                mask=cell_prediction > cell_threshold,
                                 watershed_line=0)
 
         # Remove small objects
@@ -161,5 +187,88 @@ def deep_watershed_mibi(outputs,
         label_images.append(label_image)
 
     label_images = np.stack(label_images, axis=0)
+    label_images = np.expand_dims(label_images, axis=-1)
 
     return label_images
+
+
+def deep_watershed_subcellular(model_output, compartment='whole-cell', whole_cell_kwargs=None,
+                               nuclear_kwargs=None):
+    """Postprocess model output to generate predictions for distinct cellular compartments
+
+    Args:
+        model_output (dict): Output from deep watershed model. A dict with a key corresponding to
+            each cellular compartment with a model prediction. Each key maps to a subsequent dict
+            with the following keys entries
+            - inner-distance: Prediction for the inner distance transform.
+            - outer-distance: Prediction for the outer distance transform
+            - fgbg-fg: prediction for the foreground/background transform
+            - pixelwise-interior: Prediction for the interior/border/background transform.
+        compartment: which cellular compartments to generate predictions for.
+            must be one of 'whole_cell', 'nuclear', 'both'
+        whole_cell_kwargs (dict): Optional list of post-processing kwargs for whole-cell prediction
+        nuclear_kwargs (dict): Optional list of post-processing kwargs for nuclear prediction
+
+    Returns:
+        numpy.array: Uniquely labeled mask for each compartment
+
+    Raises:
+        ValueError: for invalid compartment flag
+    """
+
+    valid_compartments = ['whole-cell', 'nuclear', 'both']
+
+    if whole_cell_kwargs is None:
+        whole_cell_kwargs = {}
+
+    if nuclear_kwargs is None:
+        nuclear_kwargs = {}
+
+    if compartment not in valid_compartments:
+        raise ValueError('Invalid compartment supplied: {}. '
+                         'Must be one of {}'.format(compartment, valid_compartments))
+
+    if compartment == 'whole-cell':
+        label_images = deep_watershed_mibi(model_output=model_output['whole-cell'],
+                                           **whole_cell_kwargs)
+    elif compartment == 'nuclear':
+        label_images = deep_watershed_mibi(model_output=model_output['nuclear'],
+                                           **nuclear_kwargs)
+    else:
+        label_images_cell = deep_watershed_mibi(model_output=model_output['whole-cell'],
+                                                **whole_cell_kwargs)
+
+        label_images_nucleus = deep_watershed_mibi(model_output=model_output['nuclear'],
+                                                   **nuclear_kwargs)
+
+        label_images = np.concatenate((label_images_cell, label_images_nucleus), axis=-1)
+
+    return label_images
+
+
+def format_output_multiplex(output_list):
+    """Takes list of model outputs and formats into a dictionary for better readability
+
+    Args:
+        output_list: list of predictions from semantic heads
+
+    Returns:
+        formatted_dict: dictionary with predictions
+
+    Raises: ValueError if model output list is not len(8)
+    """
+
+    if len(output_list) != 8:
+        raise ValueError('output_list was length {}, expecting length 8'.format(len(output_list)))
+
+    formatted_dict = {'whole-cell': {'inner-distance': output_list[0],
+                                     'outer-distance': output_list[1],
+                                     'fgbg-fg': output_list[2][..., :1],
+                                     'pixelwise-interior': output_list[3][..., 1:2]},
+                      'nuclear': {'inner-distance': output_list[4],
+                                  'outer-distance': output_list[5],
+                                  'fgbg-fg': output_list[6][..., :1],
+                                  'pixelwise-interior': output_list[7][..., 1:2]}
+                      }
+
+    return formatted_dict
