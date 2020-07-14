@@ -233,12 +233,15 @@ def deep_watershed_subcellular(model_output, compartment='whole-cell', whole_cel
     elif compartment == 'nuclear':
         label_images = deep_watershed_mibi(model_output=model_output['nuclear'],
                                            **nuclear_kwargs)
-    else:
+    elif compartment == 'both':
         label_images_cell = deep_watershed_mibi(model_output=model_output['whole-cell'],
                                                 **whole_cell_kwargs)
 
         label_images_nucleus = deep_watershed_mibi(model_output=model_output['nuclear'],
                                                    **nuclear_kwargs)
+    else:
+        raise ValueError('Invalid compartment supplied: {}. '
+                         'Must be one of {}'.format(compartment, valid_compartments))
 
         label_images = np.concatenate((label_images_cell, label_images_nucleus), axis=-1)
 
@@ -260,14 +263,19 @@ def format_output_multiplex(output_list):
     if len(output_list) != 8:
         raise ValueError('output_list was length {}, expecting length 8'.format(len(output_list)))
 
-    formatted_dict = {'whole-cell': {'inner-distance': output_list[0],
-                                     'outer-distance': output_list[1],
-                                     'fgbg-fg': output_list[2][..., :1],
-                                     'pixelwise-interior': output_list[3][..., 1:2]},
-                      'nuclear': {'inner-distance': output_list[4],
-                                  'outer-distance': output_list[5],
-                                  'fgbg-fg': output_list[6][..., :1],
-                                  'pixelwise-interior': output_list[7][..., 1:2]}
-                      }
+    formatted_dict = {
+        'whole-cell': {
+            'inner-distance': output_list[0],
+            'outer-distance': output_list[1],
+            'fgbg-fg': output_list[2][..., :1],
+            'pixelwise-interior': output_list[3][..., 1:2]
+        },
+        'nuclear': {
+            'inner-distance': output_list[4],
+            'outer-distance': output_list[5],
+            'fgbg-fg': output_list[6][..., :1],
+            'pixelwise-interior': output_list[7][..., 1:2]
+        }
+    }
 
     return formatted_dict
