@@ -190,3 +190,21 @@ def test_format_output_multiplex():
 
     with pytest.raises(ValueError):
         output = deep_watershed.format_output_multiplex(combined_list[:7])
+
+
+def test_deep_watershed_3D():
+    shape = (5, 10, 21, 21, 1)
+    inner_distance = np.random.random(shape) * 100
+    outer_distance = np.random.random(shape) * 100
+    fgbg = np.random.randint(0, 1, size=shape)
+    inputs = [inner_distance, outer_distance, fgbg]
+
+    # basic tests
+    watershed_img = deep_watershed.deep_watershed_3D(inputs)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
+
+    # turn some knobs
+    watershed_img = deep_watershed.deep_watershed_3D(inputs,
+                                                  small_objects_threshold=1,
+                                                  exclude_border=True)
+    np.testing.assert_equal(watershed_img.shape, shape[:-1])
