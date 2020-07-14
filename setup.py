@@ -24,9 +24,14 @@
 # limitations under the License.
 # ==============================================================================
 import setuptools
+from os import path
 from distutils.command.build_ext import build_ext as DistUtilsBuildExt
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
+
+# read the contents of your README file
+with open(path.join(path.abspath(path.dirname(__file__)), 'README.md')) as f:
+    long_description = f.read()
 
 
 VERSION = '0.6.0'
@@ -93,6 +98,17 @@ setup(name='Deepcell_Toolbox',
           'tests': ['pytest',
                     'pytest-pep8',
                     'pytest-cov']},
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       packages=find_packages(),
       ext_modules=extensions,
-      setup_requires=['cython>=0.28', 'numpy>=1.16.4'])
+      setup_requires=['cython>=0.28', 'numpy>=1.16.4'],
+      classifiers=[
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8'])
