@@ -207,11 +207,8 @@ def pixelwise(prediction, threshold=.8, min_size=50):
     labeled_prediction = np.zeros(prediction.shape[:-1] + (1,))
 
     for batch in range(prediction.shape[0]):
-
         interior = prediction[[batch], ..., 2] > threshold
-
         labeled = ndimage.label(interior)[0]
-
         labeled = morphology.remove_small_objects(
             labeled, min_size=min_size, connectivity=1)
 
