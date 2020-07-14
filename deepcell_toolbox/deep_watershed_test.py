@@ -205,6 +205,6 @@ def test_deep_watershed_3D():
 
     # turn some knobs
     watershed_img = deep_watershed.deep_watershed_3D(inputs,
-                                                  small_objects_threshold=1,
-                                                  exclude_border=True)
+                                                     small_objects_threshold=1,
+                                                     exclude_border=True)
     np.testing.assert_equal(watershed_img.shape, shape[:-1])

@@ -637,7 +637,16 @@ def window_3D(window_size, overlap_z=(5, 5), overlap_x=(32, 32), overlap_y=(32, 
 
 
 def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
+    """Untile a set of tiled images back to the original model shape.
 
+     Args:
+         tiles (numpy.array): The tiled images image to untile.
+         tiles_info (dict): Details of how the image was tiled (from tile_image).
+         power (int): The power of the window function
+
+     Returns:
+         numpy.array: The untiled image.
+     """
     # Define mininally acceptable tile_size and stride_ratios for spline interpolation
     min_tile_size = 32
     min_stride_ratio = 0.5

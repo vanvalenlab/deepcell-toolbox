@@ -286,21 +286,21 @@ def format_output_multiplex(output_list):
 
 
 def deep_watershed_3D(outputs,
-                   min_distance=10,
-                   detection_threshold=0.1,
-                   distance_threshold=0.01,
-                   exclude_border=False,
-                   small_objects_threshold=0):
-    """Postprocessing function for deep watershed models. Thresholds the inner
-    distance prediction to find cell centroids, which are used to seed a marker
-    based watershed of the outer distance prediction.
+                      min_distance=10,
+                      detection_threshold=0.1,
+                      distance_threshold=0.01,
+                      exclude_border=False,
+                      small_objects_threshold=0):
+    """Postprocessing function for deep watershed models. Thresholds the 3D inner
+    distance prediction to find volumetric cell centroids, which are used to seed a marker
+    based watershed of the (2D or 3D) outer distance prediction.
 
     Args:
         outputs (list): DeepWatershed model output. A list of
             [inner_distance, outer_distance, fgbg].
 
-            - inner_distance: Prediction for the inner distance transform.
-            - outer_distance: Prediction for the outer distance transform.
+            - inner_distance: Prediction for the 3D inner distance transform.
+            - outer_distance: Prediction for the 2D or 3D outer distance transform.
             - fgbg: Prediction for the foregound/background transform.
 
         min_distance (int): Minimum allowable distance between two cell centroids
@@ -328,7 +328,7 @@ def deep_watershed_3D(outputs,
 
         # Find peaks and merge equal regions
         markers = np.zeros(inner_distance.shape)
-        markers[coords[:, 0], coords[:, 1], coords[:,2]] = 1
+        markers[coords[:, 0], coords[:, 1], coords[:, 2]] = 1
         markers = label(markers)
 
         label_image = watershed(-outer_distance,
