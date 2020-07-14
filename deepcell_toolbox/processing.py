@@ -157,19 +157,20 @@ def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
     return segments.astype('uint16')
 
 
-def watershed(image, min_distance=10, threshold_abs=0.05):
+def watershed(image, min_distance=10, min_size=50, threshold_abs=0.05):
     """Use the watershed method to identify unique cells based
     on their distance transform.
 
     # TODO: labels should be the fgbg output, NOT the union of distances
 
     Args:
-        image: distance transform of image (model output)
-        min_distance: minimum number of pixels separating peaks
-        threshold_abs: minimum intensity of peaks
+        image (numpy.array): distance transform of image (model output)
+        min_distance (int): minimum number of pixels separating peaks
+        min_size (int): removes small objects if smaller than min_size.
+        threshold_abs (float): minimum intensity of peaks
 
     Returns:
-        image mask where each cell is annotated uniquely
+        numpy.array: image mask where each cell is annotated uniquely
     """
     distance = np.argmax(image, axis=-1)
     labels = (distance > 0).astype('int')
@@ -187,7 +188,7 @@ def watershed(image, min_distance=10, threshold_abs=0.05):
     segments = morphology.watershed(-distance, markers, mask=labels)
     results = np.expand_dims(segments, axis=-1)
     results = morphology.remove_small_objects(
-        results, min_size=50, connectivity=1)
+        results, min_size=min_size, connectivity=1)
     return results
 
 
