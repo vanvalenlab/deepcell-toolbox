@@ -382,7 +382,7 @@ def test_untile_image_3D():
     for shape, input_shape, stride_ratio, dtype in prod:
 
         big_image = (np.random.random(shape) * 100).astype(dtype)
-        tiles, tiles_info = utils.tile_image_3D(big_image, 
+        tiles, tiles_info = utils.tile_image_3D(big_image,
                                                 model_input_shape=input_shape,
                                                 stride_ratio=stride_ratio)
 
@@ -404,7 +404,6 @@ def test_untile_image_3D():
             assert untiled_image.dtype == dtype
             assert untiled_image.shape == shape
             np.testing.assert_equal(big_image, untiled_image)
-
 
     # test that a stride_fraction of 0 raises an error
     with pytest.raises(ValueError):

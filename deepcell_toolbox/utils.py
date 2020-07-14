@@ -483,7 +483,7 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
     stride_z = min(round_to_even(stride_ratio * tile_size_z), tile_size_z)
     stride_x = min(round_to_even(stride_ratio * tile_size_x), tile_size_x)
     stride_y = min(round_to_even(stride_ratio * tile_size_y), tile_size_y)
-    
+
     rep_number_z = max(ceil((image_size_z - tile_size_z) / stride_z + 1), 1)
     rep_number_x = max(ceil((image_size_x - tile_size_x) / stride_x + 1), 1)
     rep_number_y = max(ceil((image_size_y - tile_size_y) / stride_y + 1), 1)
@@ -506,7 +506,7 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
     pad_z = (int(np.ceil(overlap_z / 2)), int(np.floor(overlap_z / 2)))
     pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
-    pad_null = (0, 0) 
+    pad_null = (0, 0)
     padding = (pad_null, pad_z, pad_x, pad_y, pad_null)
     image = np.pad(image, padding, 'constant', constant_values=0)
 
@@ -540,7 +540,7 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
                         y_start, y_end = j * stride_y, j * stride_y + tile_size_y
                     else:
                         y_start, y_end = image.shape[y_axis] - tile_size_y, image.shape[y_axis]
-                        
+
                     if k != rep_number_z - 1:  # not the last one
                         z_start, z_end = k * stride_z, k * stride_z + tile_size_z
                     else:
@@ -550,7 +550,8 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
                     if i == 0:
                         overlap_x = (0, tile_size_x - stride_x)
                     elif i == rep_number_x - 2:
-                        overlap_x = (tile_size_x - stride_x, tile_size_x - image.shape[x_axis] + x_end)
+                        overlap_x = (tile_size_x - stride_x,
+                                     tile_size_x - image.shape[x_axis] + x_end)
                     elif i == rep_number_x - 1:
                         overlap_x = ((i - 1) * stride_x + tile_size_x - x_start, 0)
                     else:
@@ -559,16 +560,18 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
                     if j == 0:
                         overlap_y = (0, tile_size_y - stride_y)
                     elif j == rep_number_y - 2:
-                        overlap_y = (tile_size_y - stride_y, tile_size_y - image.shape[y_axis] + y_end)
+                        overlap_y = (tile_size_y - stride_y,
+                                     tile_size_y - image.shape[y_axis] + y_end)
                     elif j == rep_number_y - 1:
                         overlap_y = ((j - 1) * stride_y + tile_size_y - y_start, 0)
                     else:
                         overlap_y = (tile_size_y - stride_y, tile_size_y - stride_y)
-                        
-                    if k == 0:                       
+
+                    if k == 0:
                         overlap_z = (0, tile_size_z - stride_z)
                     elif k == rep_number_z - 2:
-                        overlap_z = (tile_size_z - stride_z, tile_size_z - image.shape[z_axis] + z_end)
+                        overlap_z = (tile_size_z - stride_z,
+                                     tile_size_z - image.shape[z_axis] + z_end)
                     elif k == rep_number_z - 1:
                         overlap_z = ((k - 1) * stride_z + tile_size_z - z_start, 0)
                     else:
@@ -670,8 +673,10 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
     window_size = (tile_size_z, tile_size_x, tile_size_y)
     image = np.zeros(image_shape, dtype=np.float)
 
-    for tile, batch, x_start, x_end, y_start, y_end, z_start, z_end, overlap_x, overlap_y, overlap_z in zip(
-            tiles, batches, x_starts, x_ends, y_starts, y_ends, z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z):
+    for (tile, batch, x_start, x_end, y_start, y_end, z_start,
+         z_end, overlap_x, overlap_y, overlap_z) in zip(
+            tiles, batches, x_starts, x_ends, y_starts, y_ends,
+            z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z):
 
         # Conditions under which to use spline interpolation
         # A tile size or stride ratio that is too small gives inconsistent results,
@@ -680,7 +685,8 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
                 min_tile_size <= tile_size_y < image_shape[3] and
                 min_stride_ratio <= stride_ratio):
 
-            window = window_3D(window_size, overlap_z=overlap_z, overlap_x=overlap_x, overlap_y=overlap_y, power=power)
+            window = window_3D(window_size, overlap_z=overlap_z, overlap_x=overlap_x,
+                               overlap_y=overlap_y, power=power)
             image[batch, z_start:z_end, x_start:x_end, y_start:y_end, :] += tile * window
         else:
             image[batch, z_start:z_end, x_start:x_end, y_start:y_end, :] = tile
