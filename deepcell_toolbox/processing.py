@@ -192,7 +192,7 @@ def watershed(image, min_distance=10, min_size=50, threshold_abs=0.05):
     return results
 
 
-def pixelwise(prediction, threshold=.8, min_size=50):
+def pixelwise(prediction, threshold=.8, min_size=50, interior_axis=-2):
     """Post-processing for pixelwise transform predictions.
     Uses the interior predictions to uniquely label every instance.
 
@@ -208,12 +208,12 @@ def pixelwise(prediction, threshold=.8, min_size=50):
     labeled_prediction = np.zeros(prediction.shape[:-1] + (1,))
 
     for batch in range(prediction.shape[0]):
-        interior = prediction[[batch], ..., 2] > threshold
+        interior = prediction[[batch], ..., interior_axis] > threshold
         labeled = ndimage.label(interior)[0]
         labeled = morphology.remove_small_objects(
             labeled, min_size=min_size, connectivity=1)
 
-        labeled_prediction[batch] = labeled
+        labeled_prediction[batch, ..., 0] = labeled
 
     return labeled_prediction
 
