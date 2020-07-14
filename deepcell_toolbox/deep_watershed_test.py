@@ -72,7 +72,7 @@ def test_deep_watershed_mibi():
                     'pixelwise-interior': pixelwise}
 
     # basic tests
-    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output, **kwargs_dict)
+    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output)
     np.testing.assert_equal(watershed_img.shape, shape)
 
     # turn some knobs
@@ -87,8 +87,12 @@ def test_deep_watershed_mibi():
             watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
                                                                **bad_model)
 
-    bad_array = pixelwise[:-1]
-        for
+    bad_array = pixelwise[..., 0]
+    for bad_transform in ['inner-distance', 'pixelwise-interior']:
+        bad_model_output = model_output.copy()
+        bad_model_output[bad_transform] = bad_array
+        with pytest.raises(ValueError):
+            watershed_img = deep_watershed.deep_watershed_mibi(model_output=bad_model_output)
 
 
 def test_deep_watershed_subcellular(mocker):
