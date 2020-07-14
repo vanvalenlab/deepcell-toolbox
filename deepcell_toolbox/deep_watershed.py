@@ -239,11 +239,12 @@ def deep_watershed_subcellular(model_output, compartment='whole-cell', whole_cel
 
         label_images_nucleus = deep_watershed_mibi(model_output=model_output['nuclear'],
                                                    **nuclear_kwargs)
+
+        label_images = np.concatenate((label_images_cell, label_images_nucleus), axis=-1)
+
     else:
         raise ValueError('Invalid compartment supplied: {}. '
                          'Must be one of {}'.format(compartment, valid_compartments))
-
-        label_images = np.concatenate((label_images_cell, label_images_nucleus), axis=-1)
 
     return label_images
 
