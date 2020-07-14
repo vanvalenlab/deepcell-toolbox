@@ -104,12 +104,12 @@ def deep_watershed(outputs,
 def deep_watershed_mibi(model_output,
                         min_distance=10,
                         maxima_threshold=0.1,
-                        cell_threshold=0.2,
+                        interior_threshold=0.2,
                         exclude_border=False,
                         small_objects_threshold=0,
-                        cell_model='pixelwise-interior',
+                        interior_model='pixelwise-interior',
                         maxima_model='inner-distance',
-                        cell_model_smooth=1,
+                        interior_model_smooth=1,
                         maxima_model_smooth=1):
     """Postprocessing function for multiplexed deep watershed models. Thresholds the inner
     distance prediction to find cell centroids, which are used to seed a marker
@@ -124,56 +124,60 @@ def deep_watershed_mibi(model_output,
             - fgbg: Foreground prediction for the foregound/background transform.
             - pixelwise_interior: Interior prediction for the interior/border/background transform.
 
-        min_distance (int): Minimum allowable distance between two cell maxima.
+        min_distance (int): Minimum allowable distance between two object maxima.
         maxima_threshold (float): Threshold for the maxima prediction.
-        cell_threshold (float): Threshold for the cell prediction.
+        interior_threshold (float): Threshold for the interior prediction.
         exclude_border (bool): Whether to include centroid detections at the border.
         small_objects_threshold (int): Removes objects smaller than this size.
-        cell_model: semantic head to use to predict location of cells
-        maxima_model: semantic head to use to predict maxima of cells
-        cell_model_smooth: smoothing factor to apply to interior model predictions
-        maxima_model_smooth: smoothing factor to apply to interior model predictions
+        interior_model: semantic head to use to predict interior of each object
+        maxima_model: semantic head to use to predict maxima of each object
+        interior_model_smooth: smoothing factor to apply to interior model predictions
+        maxima_model_smooth: smoothing factor to apply to maxima model predictions
 
     Returns:
         numpy.array: Uniquely labeled mask.
+
+    Raises:
+        ValueError: if interior_model or maxima_model names not in valid_model_names
+        ValueError: if interior_model or maxima_model predictions do not have length 4
     """
 
-    cell_model, maxima_model = cell_model.lower(), maxima_model.lower()
+    interior_model, maxima_model = interior_model.lower(), maxima_model.lower()
 
     valid_model_names = {'inner-distance', 'outer-distance', 'fgbg-fg', 'pixelwise-interior'}
 
-    for name, model in zip(['cell_model', 'maxima_model'], [cell_model, maxima_model]):
+    for name, model in zip(['interior_model', 'maxima_model'], [interior_model, maxima_model]):
         if model not in valid_model_names:
             raise ValueError('{} must be one of {}, got {}'.format(
                 name, valid_model_names, model))
 
-    cell_prediction_batch = model_output[cell_model]
-    maxima_prediction_batch = model_output[maxima_model]
+    interior_predictions = model_output[interior_model]
+    maxima_predictions = model_output[maxima_model]
 
-    zipped = zip(['cell_prediction', 'maxima_prediction'],
-                 (cell_prediction_batch, maxima_prediction_batch))
+    zipped = zip(['interior_prediction', 'maxima_prediction'],
+                 (interior_predictions, maxima_predictions))
     for name, arr in zipped:
         if len(arr.shape) != 4:
             raise ValueError('Model output must be of length 4. The {} model '
                              'provided was of shape {}'.format(name, arr.shape))
 
     label_images = []
-    for batch in range(cell_prediction_batch.shape[0]):
-        cell_prediction = cell_prediction_batch[batch, ..., 0]
-        cell_prediction = nd.gaussian_filter(cell_prediction, cell_model_smooth)
-        maxima_prediction = maxima_prediction_batch[batch, ..., 0]
-        maxima_prediction = nd.gaussian_filter(maxima_prediction, maxima_model_smooth)
+    for batch in range(interior_predictions.shape[0]):
+        interior_batch = interior_predictions[batch, ..., 0]
+        interior_batch = nd.gaussian_filter(interior_batch, interior_model_smooth)
+        maxima_batch = maxima_predictions[batch, ..., 0]
+        maxima_batch = nd.gaussian_filter(maxima_batch, maxima_model_smooth)
 
-        markers = peak_local_max(maxima_prediction,
+        markers = peak_local_max(maxima_batch,
                                  min_distance=min_distance,
                                  threshold_abs=maxima_threshold,
                                  exclude_border=exclude_border,
                                  indices=False)
         markers = label(markers)
 
-        label_image = watershed(-cell_prediction,
+        label_image = watershed(-interior_batch,
                                 markers,
-                                mask=cell_prediction > cell_threshold,
+                                mask=interior_batch > interior_threshold,
                                 watershed_line=0)
 
         # Remove small objects

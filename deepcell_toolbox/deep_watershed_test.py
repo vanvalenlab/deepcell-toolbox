@@ -68,7 +68,7 @@ def test_deep_watershed_mibi():
     pixelwise = np.random.random(shape[:-1] + (3, ))
     model_output = {'inner-distance': inner_distance,
                     'outer-distance': outer_distance,
-                    'fgbg_fg': fgbg,
+                    'fgbg-fg': fgbg,
                     'pixelwise-interior': pixelwise}
 
     # basic tests
@@ -79,9 +79,19 @@ def test_deep_watershed_mibi():
     watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
                                                        small_objects_threshold=1,
                                                        exclude_border=True)
+
+    # turn turn
+    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
+                                                       small_objects_threshold=1,
+                                                       exclude_border=True,
+                                                       maxima_model='fgbg-fg',
+                                                       interior_model='outer-distance',
+                                                       min_distance=30,
+                                                       maxima_model_smooth=0)
+
     np.testing.assert_equal(watershed_img.shape, shape)
 
-    for model_under_test in ['cell_model', 'maxima_model']:
+    for model_under_test in ['interior_model', 'maxima_model']:
         with pytest.raises(ValueError):
             bad_model = {model_under_test: 'bad_model_name'}
             watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
