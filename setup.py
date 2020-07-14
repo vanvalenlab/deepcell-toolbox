@@ -29,7 +29,7 @@ from setuptools import setup, find_packages
 from setuptools.extension import Extension
 
 
-VERSION = '0.5.0'
+VERSION = '0.6.0'
 
 
 class BuildExtension(setuptools.Command):
