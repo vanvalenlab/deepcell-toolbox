@@ -44,13 +44,17 @@ def normalize(image):
     """Normalize image data by dividing by the maximum pixel value
 
     Args:
-        image: numpy array of image data
+        image (numpy.array): numpy array of image data
 
     Returns:
-        normal_image: normalized image data
+        numpy.array: normalized image data
     """
-    normal_image = (image - image.mean()) / image.std()
-    return normal_image
+    for batch in range(image.shape[0]):
+        for channel in range(image.shape[-1]):
+            img = image[batch, ..., channel]
+            normal_image = (img - img.mean()) / img.std()
+            image[batch, ..., channel] = normal_image
+    return image
 
 
 def histogram_normalization(image, kernel_size=64):
