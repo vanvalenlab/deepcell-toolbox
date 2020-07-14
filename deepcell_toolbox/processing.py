@@ -44,13 +44,17 @@ def normalize(image):
     """Normalize image data by dividing by the maximum pixel value
 
     Args:
-        image: numpy array of image data
+        image (numpy.array): numpy array of image data
 
     Returns:
-        normal_image: normalized image data
+        numpy.array: normalized image data
     """
-    normal_image = (image - image.mean()) / image.std()
-    return normal_image
+    for batch in range(image.shape[0]):
+        for channel in range(image.shape[-1]):
+            img = image[batch, ..., channel]
+            normal_image = (img - img.mean()) / img.std()
+            image[batch, ..., channel] = normal_image
+    return image
 
 
 def histogram_normalization(image, kernel_size=64):
@@ -153,19 +157,20 @@ def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
     return segments.astype('uint16')
 
 
-def watershed(image, min_distance=10, threshold_abs=0.05):
+def watershed(image, min_distance=10, min_size=50, threshold_abs=0.05):
     """Use the watershed method to identify unique cells based
     on their distance transform.
 
     # TODO: labels should be the fgbg output, NOT the union of distances
 
     Args:
-        image: distance transform of image (model output)
-        min_distance: minimum number of pixels separating peaks
-        threshold_abs: minimum intensity of peaks
+        image (numpy.array): distance transform of image (model output)
+        min_distance (int): minimum number of pixels separating peaks
+        min_size (int): removes small objects if smaller than min_size.
+        threshold_abs (float): minimum intensity of peaks
 
     Returns:
-        image mask where each cell is annotated uniquely
+        numpy.array: image mask where each cell is annotated uniquely
     """
     distance = np.argmax(image, axis=-1)
     labels = (distance > 0).astype('int')
@@ -183,29 +188,34 @@ def watershed(image, min_distance=10, threshold_abs=0.05):
     segments = morphology.watershed(-distance, markers, mask=labels)
     results = np.expand_dims(segments, axis=-1)
     results = morphology.remove_small_objects(
-        results, min_size=50, connectivity=1)
+        results, min_size=min_size, connectivity=1)
     return results
 
 
-def pixelwise(prediction, threshold=.8):
+def pixelwise(prediction, threshold=.8, min_size=50, interior_axis=-2):
     """Post-processing for pixelwise transform predictions.
     Uses the interior predictions to uniquely label every instance.
 
     Args:
-        prediction: pixelwise transform prediction
-        threshold: confidence threshold for interior predictions
+        prediction (numpy.array): pixelwise transform prediction
+        threshold (float): confidence threshold for interior predictions
+        min_size (int): removes small objects if smaller than min_size.
 
     Returns:
-        post-processed data with each cell uniquely annotated
+        numpy.array: post-processed data with each cell uniquely annotated
     """
-    if prediction.shape[0] == 1:
-        prediction = np.squeeze(prediction, axis=0)
-    interior = prediction[..., 2] > threshold
-    data = np.expand_dims(interior, axis=-1)
-    labeled = ndimage.label(data)[0]
-    labeled = morphology.remove_small_objects(
-        labeled, min_size=50, connectivity=1)
-    return labeled
+    # instantiate array to be returned
+    labeled_prediction = np.zeros(prediction.shape[:-1] + (1,))
+
+    for batch in range(prediction.shape[0]):
+        interior = prediction[[batch], ..., interior_axis] > threshold
+        labeled = ndimage.label(interior)[0]
+        labeled = morphology.remove_small_objects(
+            labeled, min_size=min_size, connectivity=1)
+
+        labeled_prediction[batch, ..., 0] = labeled
+
+    return labeled_prediction
 
 
 def correct_drift(X, y=None):
