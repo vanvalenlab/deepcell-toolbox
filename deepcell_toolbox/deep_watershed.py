@@ -182,7 +182,6 @@ def deep_watershed_mibi(model_output,
 
         # Remove small objects
         label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
-        print(label_image.shape)
 
         # Relabel the label image
         label_image, _, _ = relabel_sequential(label_image)
