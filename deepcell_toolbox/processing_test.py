@@ -82,14 +82,14 @@ def test_pixelwise():
     channels = 4
     img = np.random.rand(1, 300, 300, channels)
     pixelwise_img = processing.pixelwise(img)
-    np.testing.assert_equal(pixelwise_img.shape, (300, 300, 1))
+    assert pixelwise_img.shape == img.shape[:-1] + (1,)
 
 
 def test_watershed():
     channels = np.random.randint(4, 8)
-    img = np.random.rand(300, 300, channels)
+    img = np.random.rand(1, 300, 300, channels)
     watershed_img = processing.watershed(img)
-    np.testing.assert_equal(watershed_img.shape, (300, 300, 1))
+    assert watershed_img.shape == img.shape[:-1] + (1,)
 
 
 def test_correct_drift():
