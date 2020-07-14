@@ -138,26 +138,24 @@ def deep_watershed_mibi(model_output,
         numpy.array: Uniquely labeled mask.
     """
 
+    cell_model, maxima_model = cell_model.lower(), maxima_model.lower()
+
     valid_model_names = {'inner-distance', 'outer-distance', 'fgbg-fg', 'pixelwise-interior'}
 
-    if cell_model not in valid_model_names:
-        raise ValueError('interior_model must be one of {}, got {}'.format(valid_model_names,
-                                                                           cell_model))
-
-    if maxima_model not in valid_model_names:
-        raise ValueError('maxima_model must be one of {}, got {}'.format(valid_model_names,
-                                                                         maxima_model))
+    for name, model in zip(['cell_model', 'maxima_model'], [cell_model, maxima_model]):
+        if model not in valid_model_names:
+            raise ValueError('{} must be one of {}, got {}'.format(
+                name, valid_model_names, model))
 
     cell_prediction_batch = model_output[cell_model]
     maxima_prediction_batch = model_output[maxima_model]
 
-    if len(cell_prediction_batch.shape) != 4:
-        raise ValueError('Model output must be of length 4. The cell_prediction model '
-                         'provided was of shape {}'.format(cell_prediction_batch.shape))
-
-    if len(maxima_prediction_batch.shape) != 4:
-        raise ValueError('Model output must be of length 4. The maxima_prediction model '
-                         'provided was of shape {}'.format(maxima_prediction_batch.shape))
+    zipped = zip(['cell_prediction', 'maxima_prediction'],
+                 (cell_prediction_batch, maxima_prediction_batch))
+    for name, arr in zipped:
+        if len(arr.shape) != 4:
+            raise ValueError('Model output must be of length 4. The {} model '
+                             'provided was of shape {}'.format(name, arr.shape))
 
     label_images = []
     for batch in range(cell_prediction_batch.shape[0]):
