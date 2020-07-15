@@ -313,8 +313,8 @@ def deep_watershed_3D(outputs,
     Returns:
         numpy.array: Uniquely labeled mask.
     """
-    inner_distance_batch = outputs[0][:, ..., 0]
-    outer_distance_batch = outputs[1][:, ..., 0]
+    inner_distance_batch = outputs[0][..., 0]
+    outer_distance_batch = outputs[1][..., 0]
 
     label_images = []
     for batch in range(inner_distance_batch.shape[0]):
