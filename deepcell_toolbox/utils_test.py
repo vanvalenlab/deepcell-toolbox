@@ -369,7 +369,7 @@ def test_untile_image_3D():
         (2, 20, 90, 30, 1)
     ]
 
-    rand_rel_diff_thresh = 5e-1
+    rand_rel_diff_thresh = 2e-2
     model_input_shapes = [(4, 60, 70), (30, 20, 30), (70, 40, 50)]
 
     stride_ratios = [0.33, 0.5, 0.51, 0.66, 1]

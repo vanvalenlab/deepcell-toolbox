@@ -521,15 +521,14 @@ def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
     overlaps_z = []
     overlaps_x = []
     overlaps_y = []
+    z_axis = 1
+    x_axis = 2
+    y_axis = 3
 
     for b in range(image.shape[0]):
         for i in range(rep_number_x):
             for j in range(rep_number_y):
                 for k in range(rep_number_z):
-                    z_axis = 1
-                    x_axis = 2
-                    y_axis = 3
-
                     # Compute the start and end for each tile
                     if i != rep_number_x - 1:  # not the last one
                         x_start, x_end = i * stride_x, i * stride_x + tile_size_x
@@ -643,6 +642,8 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
          tiles (numpy.array): The tiled images image to untile.
          tiles_info (dict): Details of how the image was tiled (from tile_image).
          power (int): The power of the window function
+         force (bool): If set to True, forces use spline interpolation regardless of
+                       tile size or stride_ratio.
 
      Returns:
          numpy.array: The untiled image.
@@ -678,14 +679,15 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
     pad_y = tiles_info['pad_y']
     pad_z = tiles_info['pad_z']
 
-    image_shape = [image_shape[0], image_shape[1], image_shape[2], image_shape[3], tiles.shape[-1]]
+    image_shape = tuple(list(image_shape[:4]) + [tiles.shape[-1]])
     window_size = (tile_size_z, tile_size_x, tile_size_y)
     image = np.zeros(image_shape, dtype=np.float)
 
+    tile_data_zip = zip(tiles, batches, x_starts, x_ends, y_starts,
+                        y_ends, z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z)
+
     for (tile, batch, x_start, x_end, y_start, y_end, z_start,
-         z_end, overlap_x, overlap_y, overlap_z) in zip(
-            tiles, batches, x_starts, x_ends, y_starts, y_ends,
-            z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z):
+         z_end, overlap_x, overlap_y, overlap_z) in tile_data_zip::
 
         # Conditions under which to use spline interpolation
         # A tile size or stride ratio that is too small gives inconsistent results,
