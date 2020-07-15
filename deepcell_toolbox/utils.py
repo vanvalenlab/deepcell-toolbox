@@ -686,7 +686,7 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
                         y_ends, z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z)
 
     for (tile, batch, x_start, x_end, y_start, y_end, z_start,
-         z_end, overlap_x, overlap_y, overlap_z) in tile_data_zip::
+         z_end, overlap_x, overlap_y, overlap_z) in tile_data_zip:
 
         # Conditions under which to use spline interpolation
         # A tile size or stride ratio that is too small gives inconsistent results,
