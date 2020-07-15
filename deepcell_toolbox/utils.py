@@ -57,7 +57,7 @@ def erode_edges(mask, erosion_width):
                          'Got ndim: {}'.format(mask.ndim))
     if erosion_width:
         new_mask = np.copy(mask)
-        for i in range(erosion_width):
+        for _ in range(erosion_width):
             boundaries = find_boundaries(new_mask, mode='inner')
             new_mask[boundaries > 0] = 0
         return new_mask
