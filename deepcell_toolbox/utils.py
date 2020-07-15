@@ -654,7 +654,6 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
 
     if force:
         min_tile_size = 0
-        min_tile_height = 0
         min_stride_ratio = 0
 
     stride_ratio = tiles_info['stride_ratio']
