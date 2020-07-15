@@ -32,6 +32,8 @@ from itertools import product
 
 import numpy as np
 from skimage.measure import label
+from skimage.morphology import binary_dilation
+from skimage.morphology import disk
 
 import pytest
 
@@ -45,7 +47,7 @@ def _get_image(img_h=300, img_w=300):
     return img
 
 
-def _generate_test_masks():
+def _generate_test_masks_2d():
     img_w = img_h = 30
     mask_images = []
     for _ in range(8):
@@ -54,8 +56,16 @@ def _generate_test_masks():
     return mask_images
 
 
+def _generate_test_masks_3d():
+    img_w = img_h = 30
+    mask_images = np.random.choice([0] * 35 + [1], size=(15, img_w, img_h), replace=True)
+    mask_images = binary_dilation(mask_images)
+
+    return mask_images
+
+
 def test_erode_edges_2d():
-    for img in _generate_test_masks():
+    for img in _generate_test_masks_2d():
         img = label(img)
         img = np.squeeze(img)
 
@@ -76,13 +86,8 @@ def test_erode_edges_2d():
 
 
 def test_erode_edges_3d():
-    mask_stack = np.array(_generate_test_masks())
-    unique = np.zeros(mask_stack.shape)
-
-    for i, mask in enumerate(_generate_test_masks()):
-        unique[i] = label(mask)
-
-    unique = np.squeeze(unique)
+    mask_stack = _generate_test_masks_3d()
+    unique = label(mask_stack)
 
     erode_0 = utils.erode_edges(unique, erosion_width=0)
     erode_1 = utils.erode_edges(unique, erosion_width=1)
@@ -92,8 +97,8 @@ def test_erode_edges_3d():
     assert erode_0.shape == erode_1.shape
     assert erode_1.shape == erode_2.shape
     np.testing.assert_equal(erode_0, unique)
-    assert np.sum(erode_0) >= np.sum(erode_1)
-    assert np.sum(erode_1) >= np.sum(erode_2)
+    assert np.sum(erode_0) > np.sum(erode_1)
+    assert np.sum(erode_1) > np.sum(erode_2)
 
     # test too many dims
     with pytest.raises(ValueError):
