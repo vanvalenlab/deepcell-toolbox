@@ -28,18 +28,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import contextlib
-import os
-import shutil
-import tempfile
-
 import numpy as np
 import cv2
 import scipy.signal
 
 from scipy.ndimage import fourier_shift
-from skimage.morphology import ball, disk
-from skimage.morphology import binary_erosion
 from skimage.feature import register_translation
 from skimage import transform
 from skimage.segmentation import find_boundaries
@@ -58,25 +51,16 @@ def erode_edges(mask, erosion_width):
     Raises:
         ValueError: mask.ndim is not 2 or 3
     """
+
+    if mask.ndim not in {2, 3}:
+        raise ValueError('erode_edges expects arrays of ndim 2 or 3.'
+                         'Got ndim: {}'.format(mask.ndim))
     if erosion_width:
-        if mask.ndim == 2:
-            new_mask = np.copy(mask)
-            for i in range(erosion_width):
-                boundaries = find_boundaries(new_mask, mode='inner')
-                new_mask[boundaries > 0] = 0
-            return new_mask
-        elif mask.ndim == 3:
-            new_mask = np.zeros(mask.shape)
-            strel = ball(erosion_width)
-            for cell_label in np.unique(mask):
-                if cell_label != 0:
-                    temp_img = mask == cell_label
-                    temp_img = binary_erosion(temp_img, strel)
-                    new_mask = np.where(mask == cell_label, temp_img, new_mask)
-            return np.multiply(new_mask, mask).astype('int')
-        else:
-            raise ValueError('erode_edges expects arrays of ndim 2 or 3.'
-                             'Got ndim: {}'.format(mask.ndim))
+        new_mask = np.copy(mask)
+        for i in range(erosion_width):
+            boundaries = find_boundaries(new_mask, mode='inner')
+            new_mask[boundaries > 0] = 0
+        return new_mask
 
     return mask
 
