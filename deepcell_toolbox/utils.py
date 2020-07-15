@@ -450,3 +450,266 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
     image = image[:, x_start:x_end, y_start:y_end, :]
 
     return image
+
+
+def tile_image_3D(image, model_input_shape=(10, 256, 256), stride_ratio=0.5):
+    """
+    Tile large image into many overlapping tiles of size "model_input_shape".
+
+    Args:
+        image (numpy.array): The 3D image to tile, must be rank 5.
+        model_input_shape (tuple): The input size of the model.
+        stride_ratio (float): The stride expressed as a fraction of the tile sizet
+
+    Returns:
+        tuple(numpy.array, dict): An tuple consisting of an array of tiled
+            images and a dictionary of tiling details (for use in un-tiling).
+
+    Raises:
+        ValueError: image is not rank 5.
+    """
+    if image.ndim != 5:
+        raise ValueError('Expected image of 5, got {}'.format(
+            image.ndim))
+
+    image_size_z, image_size_x, image_size_y = image.shape[1:4]
+    tile_size_z = model_input_shape[0]
+    tile_size_x = model_input_shape[1]
+    tile_size_y = model_input_shape[2]
+
+    ceil = lambda x: int(np.ceil(x))
+    round_to_even = lambda x: int(np.ceil(x / 2.0) * 2)
+
+    stride_z = min(round_to_even(stride_ratio * tile_size_z), tile_size_z)
+    stride_x = min(round_to_even(stride_ratio * tile_size_x), tile_size_x)
+    stride_y = min(round_to_even(stride_ratio * tile_size_y), tile_size_y)
+
+    rep_number_z = max(ceil((image_size_z - tile_size_z) / stride_z + 1), 1)
+    rep_number_x = max(ceil((image_size_x - tile_size_x) / stride_x + 1), 1)
+    rep_number_y = max(ceil((image_size_y - tile_size_y) / stride_y + 1), 1)
+    new_batch_size = image.shape[0] * rep_number_z * rep_number_x * rep_number_y
+
+    # catches error caused by interpolation along z axis with rep number = 1
+    # TODO - create a better solution or figure out why it doesn't occur in x and y planes
+    if rep_number_z == 1:
+        stride_z = tile_size_z
+
+    tiles_shape = (new_batch_size, tile_size_z, tile_size_x, tile_size_y, image.shape[4])
+    tiles = np.zeros(tiles_shape, dtype=image.dtype)
+
+    # Calculate overlap of last tile along each axis
+    overlap_z = (tile_size_z + stride_z * (rep_number_z - 1)) - image_size_z
+    overlap_x = (tile_size_x + stride_x * (rep_number_x - 1)) - image_size_x
+    overlap_y = (tile_size_y + stride_y * (rep_number_y - 1)) - image_size_y
+
+    # Calculate padding needed to account for overlap and pad image accordingly
+    pad_z = (int(np.ceil(overlap_z / 2)), int(np.floor(overlap_z / 2)))
+    pad_x = (int(np.ceil(overlap_x / 2)), int(np.floor(overlap_x / 2)))
+    pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
+    pad_null = (0, 0)
+    padding = (pad_null, pad_z, pad_x, pad_y, pad_null)
+    image = np.pad(image, padding, 'constant', constant_values=0)
+
+    counter = 0
+    batches = []
+    z_starts = []
+    z_ends = []
+    x_starts = []
+    x_ends = []
+    y_starts = []
+    y_ends = []
+    overlaps_z = []
+    overlaps_x = []
+    overlaps_y = []
+    z_axis = 1
+    x_axis = 2
+    y_axis = 3
+
+    for b in range(image.shape[0]):
+        for i in range(rep_number_x):
+            for j in range(rep_number_y):
+                for k in range(rep_number_z):
+                    # Compute the start and end for each tile
+                    if i != rep_number_x - 1:  # not the last one
+                        x_start, x_end = i * stride_x, i * stride_x + tile_size_x
+                    else:
+                        x_start, x_end = image.shape[x_axis] - tile_size_x, image.shape[x_axis]
+
+                    if j != rep_number_y - 1:  # not the last one
+                        y_start, y_end = j * stride_y, j * stride_y + tile_size_y
+                    else:
+                        y_start, y_end = image.shape[y_axis] - tile_size_y, image.shape[y_axis]
+
+                    if k != rep_number_z - 1:  # not the last one
+                        z_start, z_end = k * stride_z, k * stride_z + tile_size_z
+                    else:
+                        z_start, z_end = image.shape[z_axis] - tile_size_z, image.shape[z_axis]
+
+                    # Compute the overlaps for each tile
+                    if i == 0:
+                        overlap_x = (0, tile_size_x - stride_x)
+                    elif i == rep_number_x - 2:
+                        overlap_x = (tile_size_x - stride_x,
+                                     tile_size_x - image.shape[x_axis] + x_end)
+                    elif i == rep_number_x - 1:
+                        overlap_x = ((i - 1) * stride_x + tile_size_x - x_start, 0)
+                    else:
+                        overlap_x = (tile_size_x - stride_x, tile_size_x - stride_x)
+
+                    if j == 0:
+                        overlap_y = (0, tile_size_y - stride_y)
+                    elif j == rep_number_y - 2:
+                        overlap_y = (tile_size_y - stride_y,
+                                     tile_size_y - image.shape[y_axis] + y_end)
+                    elif j == rep_number_y - 1:
+                        overlap_y = ((j - 1) * stride_y + tile_size_y - y_start, 0)
+                    else:
+                        overlap_y = (tile_size_y - stride_y, tile_size_y - stride_y)
+
+                    if k == 0:
+                        overlap_z = (0, tile_size_z - stride_z)
+                    elif k == rep_number_z - 2:
+                        overlap_z = (tile_size_z - stride_z,
+                                     tile_size_z - image.shape[z_axis] + z_end)
+                    elif k == rep_number_z - 1:
+                        overlap_z = ((k - 1) * stride_z + tile_size_z - z_start, 0)
+                    else:
+                        overlap_z = (tile_size_z - stride_z, tile_size_z - stride_z)
+
+                    tiles[counter] = image[b, z_start:z_end, x_start:x_end, y_start:y_end, :]
+                    batches.append(b)
+                    x_starts.append(x_start)
+                    x_ends.append(x_end)
+                    y_starts.append(y_start)
+                    y_ends.append(y_end)
+                    z_starts.append(z_start)
+                    z_ends.append(z_end)
+                    overlaps_x.append(overlap_x)
+                    overlaps_y.append(overlap_y)
+                    overlaps_z.append(overlap_z)
+                    counter += 1
+
+    tiles_info = {}
+    tiles_info['batches'] = batches
+    tiles_info['x_starts'] = x_starts
+    tiles_info['x_ends'] = x_ends
+    tiles_info['y_starts'] = y_starts
+    tiles_info['y_ends'] = y_ends
+    tiles_info['z_starts'] = z_starts
+    tiles_info['z_ends'] = z_ends
+    tiles_info['overlaps_x'] = overlaps_x
+    tiles_info['overlaps_y'] = overlaps_y
+    tiles_info['overlaps_z'] = overlaps_z
+    tiles_info['stride_x'] = stride_x
+    tiles_info['stride_y'] = stride_y
+    tiles_info['stride_z'] = stride_z
+    tiles_info['tile_size_x'] = tile_size_x
+    tiles_info['tile_size_y'] = tile_size_y
+    tiles_info['tile_size_z'] = tile_size_z
+    tiles_info['stride_ratio'] = stride_ratio
+    tiles_info['image_shape'] = image.shape
+    tiles_info['dtype'] = image.dtype
+    tiles_info['pad_x'] = pad_x
+    tiles_info['pad_y'] = pad_y
+    tiles_info['pad_z'] = pad_z
+
+    return tiles, tiles_info
+
+
+def window_3D(window_size, overlap_z=(5, 5), overlap_x=(32, 32), overlap_y=(32, 32), power=3):
+    """
+    Make a 1D window function, then infer and return a 2D window function.
+    Done with an augmentation, and self multiplication with its transpose.
+    Could be generalized to more dimensions.
+    """
+    window_z = spline_window(window_size[0], overlap_z[0], overlap_z[1], power=power)
+    window_x = spline_window(window_size[1], overlap_x[0], overlap_x[1], power=power)
+    window_y = spline_window(window_size[2], overlap_y[0], overlap_y[1], power=power)
+
+    window_z = np.expand_dims(np.expand_dims(np.expand_dims(window_z, -1), -1), -1)
+    window_x = np.expand_dims(np.expand_dims(np.expand_dims(window_x, -1), -1), -1)
+    window_y = np.expand_dims(np.expand_dims(np.expand_dims(window_y, -1), -1), -1)
+
+    window = window_z * window_x.transpose(1, 0, 2, 3) * window_y.transpose(1, 2, 0, 3)
+
+    return window
+
+
+def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
+    """Untile a set of tiled images back to the original model shape.
+
+     Args:
+         tiles (numpy.array): The tiled images image to untile.
+         tiles_info (dict): Details of how the image was tiled (from tile_image).
+         power (int): The power of the window function
+         force (bool): If set to True, forces use spline interpolation regardless of
+                       tile size or stride_ratio.
+
+     Returns:
+         numpy.array: The untiled image.
+     """
+    # Define mininally acceptable tile_size and stride_ratios for spline interpolation
+    min_tile_size = 32
+    min_stride_ratio = 0.5
+
+    if force:
+        min_tile_size = 0
+        min_stride_ratio = 0
+
+    stride_ratio = tiles_info['stride_ratio']
+    image_shape = tiles_info['image_shape']
+    batches = tiles_info['batches']
+
+    x_starts = tiles_info['x_starts']
+    x_ends = tiles_info['x_ends']
+    y_starts = tiles_info['y_starts']
+    y_ends = tiles_info['y_ends']
+    z_starts = tiles_info['z_starts']
+    z_ends = tiles_info['z_ends']
+
+    overlaps_x = tiles_info['overlaps_x']
+    overlaps_y = tiles_info['overlaps_y']
+    overlaps_z = tiles_info['overlaps_z']
+
+    tile_size_x = tiles_info['tile_size_x']
+    tile_size_y = tiles_info['tile_size_y']
+    tile_size_z = tiles_info['tile_size_z']
+    pad_x = tiles_info['pad_x']
+    pad_y = tiles_info['pad_y']
+    pad_z = tiles_info['pad_z']
+
+    image_shape = tuple(list(image_shape[:4]) + [tiles.shape[-1]])
+    window_size = (tile_size_z, tile_size_x, tile_size_y)
+    image = np.zeros(image_shape, dtype=np.float)
+
+    tile_data_zip = zip(tiles, batches, x_starts, x_ends, y_starts,
+                        y_ends, z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z)
+
+    for (tile, batch, x_start, x_end, y_start, y_end, z_start,
+         z_end, overlap_x, overlap_y, overlap_z) in tile_data_zip:
+
+        # Conditions under which to use spline interpolation
+        # A tile size or stride ratio that is too small gives inconsistent results,
+        # so in these cases we skip interpolation and just return the raw tiles
+        if (min_tile_size <= tile_size_x < image_shape[2] and
+                min_tile_size <= tile_size_y < image_shape[3] and
+                min_stride_ratio <= stride_ratio):
+
+            window = window_3D(window_size, overlap_z=overlap_z, overlap_x=overlap_x,
+                               overlap_y=overlap_y, power=power)
+            image[batch, z_start:z_end, x_start:x_end, y_start:y_end, :] += tile * window
+        else:
+            image[batch, z_start:z_end, x_start:x_end, y_start:y_end, :] = tile
+
+    image = image.astype(tiles.dtype)
+
+    x_start = pad_x[0]
+    y_start = pad_y[0]
+    z_start = pad_z[0]
+    x_end = image_shape[2] - pad_x[1]
+    y_end = image_shape[3] - pad_y[1]
+    z_end = image_shape[1] - pad_z[1]
+
+    image = image[:, z_start:z_end, x_start:x_end, y_start:y_end, :]
+
+    return image

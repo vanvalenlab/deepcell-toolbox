@@ -302,3 +302,112 @@ def test_untile_image():
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
                                              stride_ratio=0)
         untiled_image = utils.untile_image(tiles, tiles_info)
+
+
+def test_tile_image_3D():
+    shapes = [
+        (3, 5, 21, 21, 1),
+        (1, 10, 21, 31, 2),
+        (1, 15, 31, 21, 1),
+    ]
+    model_input_shapes = [(4, 3, 4), (3, 5, 5), (3, 7, 7), (5, 12, 15)]
+
+    stride_ratios = [0.25, 0.33, 0.5, 0.66, 0.75, 0.8, 1]
+
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    for shape, input_shape, stride_ratio, dtype in prod:
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image_3D(
+            big_image, input_shape,
+            stride_ratio=stride_ratio)
+
+        assert tiles.shape[1:] == input_shape + (shape[-1],)
+        assert tiles.dtype == big_image.dtype
+
+        ceil = lambda x: int(np.ceil(x))
+        round_to_even = lambda x: int(np.ceil(x / 2.0) * 2)
+
+        image_size_z, image_size_x, image_size_y = big_image.shape[1:4]
+        tile_size_z = input_shape[0]
+        tile_size_x = input_shape[1]
+        tile_size_y = input_shape[2]
+
+        stride_x = round_to_even(stride_ratio * tile_size_x)
+        stride_y = round_to_even(stride_ratio * tile_size_y)
+        stride_z = round_to_even(stride_ratio * tile_size_z)
+
+        if stride_z > tile_size_z:
+            stride_z = tile_size_z
+
+        if stride_x > tile_size_x:
+            stride_x = tile_size_x
+
+        if stride_y > tile_size_y:
+            stride_y = tile_size_y
+
+        rep_number_x = ceil((image_size_x - tile_size_x) / stride_x + 1)
+        rep_number_y = ceil((image_size_y - tile_size_y) / stride_y + 1)
+        rep_number_z = ceil((image_size_z - tile_size_z) / stride_z + 1)
+
+        expected_batches = big_image.shape[0] * rep_number_x * rep_number_y * rep_number_z
+
+        assert tiles.shape[0] == expected_batches
+
+    # test bad input shape
+    bad_shape = (21, 21, 1)
+    bad_image = (np.random.random(bad_shape) * 100)
+    with pytest.raises(ValueError):
+        utils.tile_image(bad_image, (5, 5), stride_ratio=0.75)
+
+
+def test_untile_image_3D():
+    shapes = [
+        (1, 30, 60, 51, 2),
+        (2, 20, 90, 30, 1)
+    ]
+
+    rand_rel_diff_thresh = 2e-2
+    model_input_shapes = [(4, 60, 70), (30, 20, 30), (70, 40, 50)]
+
+    stride_ratios = [0.33, 0.5, 0.51, 0.66, 1]
+    dtypes = ['int32', 'float32', 'uint16', 'float16']
+    power = 3
+
+    prod = product(shapes, model_input_shapes, stride_ratios, dtypes)
+
+    # Test that randomly generated arrays are unchanged within a moderate tolerance
+    for shape, input_shape, stride_ratio, dtype in prod:
+
+        big_image = (np.random.random(shape) * 100).astype(dtype)
+        tiles, tiles_info = utils.tile_image_3D(big_image,
+                                                model_input_shape=input_shape,
+                                                stride_ratio=stride_ratio)
+
+        untiled_image = utils.untile_image_3D(tiles, tiles_info, power=power)   # add utils
+
+        assert untiled_image.dtype == dtype
+        assert untiled_image.shape == shape
+
+        np.testing.assert_allclose(big_image, untiled_image, rand_rel_diff_thresh)
+
+    # Test that constant arrays are unchanged by tile/untile
+    for shape, input_shape, stride_ratio, dtype in prod:
+        for x in [0, 1, np.random.randint(2, 99)]:
+            big_image = np.empty(shape).astype(dtype).fill(x)
+            tiles, tiles_info = utils.tile_image_3D(big_image,
+                                                    model_input_shape=input_shape,
+                                                    stride_ratio=stride_ratio)
+            untiled_image = utils.untile_image_3D(tiles, tiles_info, power=power)
+            assert untiled_image.dtype == dtype
+            assert untiled_image.shape == shape
+            np.testing.assert_equal(big_image, untiled_image)
+
+    # test that a stride_fraction of 0 raises an error
+    with pytest.raises(ValueError):
+        big_image_test = np.zeros((4, 4)).astype('int32')
+        tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
+                                             stride_ratio=0)
+        untiled_image = utils.untile_image(tiles, tile_info)

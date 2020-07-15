@@ -283,3 +283,67 @@ def format_output_multiplex(output_list):
     }
 
     return formatted_dict
+
+
+def deep_watershed_3D(outputs,
+                      min_distance=10,
+                      detection_threshold=0.1,
+                      distance_threshold=0.01,
+                      exclude_border=False,
+                      small_objects_threshold=0):
+    """Postprocessing function for deep watershed models. Thresholds the 3D inner
+    distance prediction to find volumetric cell centroids, which are used to seed a marker
+    based watershed of the (2D or 3D) outer distance prediction.
+
+    Args:
+        outputs (list): DeepWatershed model output. A list of
+            [inner_distance, outer_distance, fgbg].
+
+            - inner_distance: Prediction for the 3D inner distance transform.
+            - outer_distance: Prediction for the 2D or 3D outer distance transform.
+            - fgbg: Prediction for the foregound/background transform.
+
+        min_distance (int): Minimum allowable distance between two cell centroids
+        detection_threshold (float): Threshold for the inner distance.
+        distance_threshold (float): Threshold for the outer distance.
+        exclude_border (bool): Whether to include centroid detections
+            at the border.
+        small_objects_threshold (int): Removes objects smaller than this size.
+
+    Returns:
+        numpy.array: Uniquely labeled mask.
+    """
+    inner_distance_batch = outputs[0][..., 0]
+    outer_distance_batch = outputs[1][..., 0]
+
+    label_images = []
+    for batch in range(inner_distance_batch.shape[0]):
+        inner_distance = inner_distance_batch[batch]
+        outer_distance = outer_distance_batch[batch]
+
+        coords = peak_local_max(inner_distance,
+                                min_distance=min_distance,
+                                threshold_abs=detection_threshold,
+                                exclude_border=exclude_border)
+
+        # Find peaks and merge equal regions
+        markers = np.zeros(inner_distance.shape)
+        markers[coords[:, 0], coords[:, 1], coords[:, 2]] = 1
+        markers = label(markers)
+
+        label_image = watershed(-outer_distance,
+                                markers,
+                                mask=outer_distance > distance_threshold)
+        label_image = erode_edges(label_image, 1)
+
+        # Remove small objects
+        label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
+
+        # Relabel the label image
+        label_image, _, _ = relabel_sequential(label_image)
+
+        label_images.append(label_image)
+
+    label_images = np.stack(label_images, axis=0)
+
+    return label_images
