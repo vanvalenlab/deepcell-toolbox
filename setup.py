@@ -102,7 +102,7 @@ setup(name='Deepcell_Toolbox',
       long_description_content_type='text/markdown',
       packages=find_packages(),
       ext_modules=extensions,
-      setup_requires=['cython>=0.28', 'numpy>=1.16.4'],
+      setup_requires=['cython>=0.28', 'numpy>=1.16.4,<1.19'],
       classifiers=[
           'Programming Language :: Python',
           'Programming Language :: Python :: 2',
