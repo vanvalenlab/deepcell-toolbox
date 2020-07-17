@@ -159,8 +159,8 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
 
     Raises:
         ValueError: If y_true and y_pred are not the same shape
-        ValueError: If data_type is 2D, if input shape does not have ndim 2, 3, or 4
-        ValueError: If data_type is 3D, if input shape does not have ndim 4
+        ValueError: If data_type is 2D, if input shape does not have ndim 2 or 3
+        ValueError: If data_type is 3D, if input shape does not have ndim 3
     """
     def __init__(self,
                  y_true,
@@ -847,7 +847,9 @@ class Metrics(object):
             y_pred (numpy.array): Labeled prediction mask
 
         Raises:
-            ValueError: if the shape of the input tensor is less than length three
+            ValueError: If y_true and y_pred are not the same shape
+            ValueError: If data_type is 2D, if input shape does not have ndim 3 or 4
+            ValueError: If data_type is 3D, if input shape does not have ndim 4
         """
 
         if y_pred.shape != y_true.shape:
@@ -857,8 +859,8 @@ class Metrics(object):
 
         # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
         if not self.is_3d:
-            if self.y_true.ndim not in {2, 3, 4}:
-                raise ValueError('Expected dimensions for y_true (2D data) are 2, 3 or 4.'
+            if self.y_true.ndim not in {3, 4}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
                                  'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
                                  'Got ndim: {}'.format(self.y_true.ndim))
 
