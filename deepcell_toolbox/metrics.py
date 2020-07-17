@@ -657,6 +657,13 @@ class Metrics(object):
             information about the model
         seg (:obj:`bool`, optional): Calculates SEG score for
             cell tracking competition
+        force_event_links(:obj:`bool`, optional): Flag that determines whether to modify IOU
+            calculation so that merge or split events with cells of very different sizes are
+            never misclassified as misses/gains
+        is_3d(:obj:`bool`, optional): Flag that determines whether or not the input data
+            should be treated as 3-dimensional
+        round_output(:obj:`bool`, optional): Flag that determines whether or not to clip
+            print statements at ndigits
 
     Examples:
         >>> from deepcell import metrics
@@ -842,6 +849,7 @@ class Metrics(object):
                                cutoff1=self.cutoff1,
                                cutoff2=self.cutoff2,
                                seg=self.seg,
+                               force_event_links=self.force_event_links,
                                is_3d=self.is_3d)
             self.stats = self.stats.append(o.save_to_dataframe())
             predictions = o.save_error_ids()
