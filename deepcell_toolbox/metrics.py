@@ -63,7 +63,7 @@ from sklearn.metrics import confusion_matrix
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
-#from deepcell_toolbox.compute_overlap_3D import compute_overlap as compute_overlap_3d
+from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 
 
 def stats_pixelbased(y_true, y_pred):
@@ -180,9 +180,8 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                                  y_pred.shape, y_true.shape))
 
         # Relabel y_true and y_pred so the labels are consecutive
-        if not self.is_3d:
-            y_true, _, _ = relabel_sequential(y_true)
-            y_pred, _, _ = relabel_sequential(y_pred)
+        y_true, _, _ = relabel_sequential(y_true)
+        y_pred, _, _ = relabel_sequential(y_pred)
 
         self.y_true = y_true
         self.y_pred = y_pred
