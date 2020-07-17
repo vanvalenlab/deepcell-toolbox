@@ -859,19 +859,19 @@ class Metrics(object):
 
         # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
         if not self.is_3d:
-            if self.y_true.ndim not in {3, 4}:
+            if y_true.ndim not in {3, 4}:
                 raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
                                  'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
-                                 'Got ndim: {}'.format(self.y_true.ndim))
+                                 'Got ndim: {}'.format(y_true.ndim))
 
         # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
         # _classify_graph breaks, as it expects input to be 2D or 3D
         # TODO - add compatibility for multi-channel 3D-data
         else:
-            if self.y_true.ndim != 4:
+            if y_true.ndim != 4:
                 raise ValueError('Expected dimensions for y_true (3D data) is 4.'
                                  'Required format is: (batch, z, x, y)'
-                                 'Got ndim: {}'.format(self.y_true.ndim))
+                                 'Got ndim: {}'.format(y_true.ndim))
 
         self.stats = pd.DataFrame()
         self.predictions = []
