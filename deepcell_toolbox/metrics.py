@@ -231,6 +231,30 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         }
         self.catastrophe_indices['y_pred'] = []
 
+        # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
+        if not self.is_3d:
+            if self.y_pred.ndim not in {3, 4}:
+                raise ValueError('Expected dimensions for y_pred (2D data) are 3 or 4.'
+                                 'Acceptable formats are: (batch, x, y, channels) and (batch, x, y)'
+                                 'Got ndim: {}'.format(self.y_pred.ndim))
+            if self.y_true.ndim not in {3, 4}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
+                                 'Acceptable formats are: (batch, x, y, channels) and (batch, x, y)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
+
+        # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
+        # _classify_graph breaks, as it expects input to be 2D or 3D
+        # TODO - add compatibility for multi-channel 3D-data
+        else:
+            if self.y_pred.ndim != 4:
+                raise ValueError('Expected dimensions for y_pred (3D data) is 4.'
+                                 'Required format is: (batch, z, x, y)'
+                                 'Got ndim: {}'.format(self.y_pred.ndim))
+            if self.y_true.ndim != 4:
+                raise ValueError('Expected dimensions for y_true (3D data) is 4.'
+                                 'Requires format is: (batch, z, x, y)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
+
         # Check if either frame is empty before proceeding
         if self.n_true == 0:
             logging.info('Ground truth frame is empty')
@@ -624,18 +648,17 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         return error_dict, self.y_true, self.y_pred
 
 
-def to_precision(x, p, round_output=False):
+def to_precision(x, p):
     """
     returns a string representation of x formatted with a precision of p
 
     Based on the webkit javascript implementation taken from here:
     https://code.google.com/p/webkit-mirror/source/browse/JavaScriptCore/kjs/number_object.cpp
     """
-    if round_output:
-        return round(x, p)
-
     decimal.getcontext().prec = p
-    return decimal.Decimal(x)
+    dec = decimal.Decimal(x)
+
+    return round(float(dec), p)
 
 
 class Metrics(object):
@@ -659,11 +682,9 @@ class Metrics(object):
             cell tracking competition
         force_event_links(:obj:`bool`, optional): Flag that determines whether to modify IOU
             calculation so that merge or split events with cells of very different sizes are
-            never misclassified as misses/gains
+            never misclassified as misses/gains.
         is_3d(:obj:`bool`, optional): Flag that determines whether or not the input data
-            should be treated as 3-dimensional
-        round_output(:obj:`bool`, optional): Flag that determines whether or not to clip
-            print statements at ndigits
+            should be treated as 3-dimensional.
 
     Examples:
         >>> from deepcell import metrics
@@ -690,8 +711,7 @@ class Metrics(object):
                  json_notes='',
                  seg=False,
                  force_event_links=False,
-                 is_3d=False,
-                 round_output=False):
+                 is_3d=False):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -705,7 +725,6 @@ class Metrics(object):
         self.seg = seg
         self.force_event_links = force_event_links
         self.is_3d = is_3d
-        self.round_output = round_output
 
         # Initialize output list to collect stats
         self.output = []
@@ -887,11 +906,11 @@ class Metrics(object):
         print('\nCorrect detections:  {}\tRecall: {}%'.format(
             int(self.stats['correct_detections'].sum()),
             to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_true'].sum(),
-                         self.ndigits, self.round_output)))
+                         self.ndigits)))
         print('Incorrect detections: {}\tPrecision: {}%'.format(
             int(self.stats['n_pred'].sum() - self.stats['correct_detections'].sum()),
             to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_pred'].sum(),
-                         self.ndigits, self.round_output)))
+                         self.ndigits)))
 
         total_err = (self.stats['gained_detections'].sum()
                      + self.stats['missed_detections'].sum()
@@ -901,24 +920,19 @@ class Metrics(object):
 
         print('\nGained detections: {}\tPerc Error: {}%'.format(
             int(self.stats['gained_detections'].sum()),
-            to_precision(100 * self.stats['gained_detections'].sum() / total_err,
-                         self.ndigits, self.round_output)))
+            to_precision(100 * self.stats['gained_detections'].sum() / total_err, self.ndigits)))
         print('Missed detections: {}\tPerc Error: {}%'.format(
             int(self.stats['missed_detections'].sum()),
-            to_precision(100 * self.stats['missed_detections'].sum() / total_err,
-                         self.ndigits, self.round_output)))
+            to_precision(100 * self.stats['missed_detections'].sum() / total_err, self.ndigits)))
         print('Merges: {}\t\tPerc Error: {}%'.format(
             int(self.stats['merge'].sum()),
-            to_precision(100 * self.stats['merge'].sum() / total_err,
-                         self.ndigits, self.round_output)))
+            to_precision(100 * self.stats['merge'].sum() / total_err, self.ndigits)))
         print('Splits: {}\t\tPerc Error: {}%'.format(
             int(self.stats['split'].sum()),
-            to_precision(100 * self.stats['split'].sum() / total_err,
-                         self.ndigits, self.round_output)))
+            to_precision(100 * self.stats['split'].sum() / total_err, self.ndigits)))
         print('Catastrophes: {}\t\tPerc Error: {}%\n'.format(
             int(self.stats['catastrophe'].sum()),
-            to_precision(100 * self.stats['catastrophe'].sum() / total_err,
-                         self.ndigits, self.round_output)))
+            to_precision(100 * self.stats['catastrophe'].sum() / total_err, self.ndigits)))
 
         print('Gained detections from splits: {}'.format(
             int(self.stats['gained_det_from_split'].sum())))
@@ -930,12 +944,10 @@ class Metrics(object):
             int(self.stats['pred_det_in_catastrophe'].sum())), '\n')
 
         if self.seg is True:
-            print('SEG:', to_precision(self.stats['seg'].mean(),
-                  self.ndigits, self.round_output), '\n')
+            print('SEG:', to_precision(self.stats['seg'].mean(), self.ndigits), '\n')
 
         print('Average Pixel IOU (Jaccard Index):',
-              to_precision(self.stats['jaccard'].mean(),
-                           self.ndigits, self.round_output), '\n')
+              to_precision(self.stats['jaccard'].mean(), self.ndigits), '\n')
 
     def run_all(self,
                 y_true_lbl,
