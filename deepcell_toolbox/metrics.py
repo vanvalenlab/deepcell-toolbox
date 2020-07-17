@@ -233,13 +233,13 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
 
         # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
         if not self.is_3d:
-            if self.y_pred.ndim not in {3, 4}:
-                raise ValueError('Expected dimensions for y_pred (2D data) are 3 or 4.'
-                                 'Acceptable formats are: (batch, x, y, channels) and (batch, x, y)'
+            if self.y_pred.ndim not in {2, 3, 4}:
+                raise ValueError('Expected dimensions for y_pred (2D data) are 2, 3 or 4.'
+                                 'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
                                  'Got ndim: {}'.format(self.y_pred.ndim))
-            if self.y_true.ndim not in {3, 4}:
-                raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
-                                 'Acceptable formats are: (batch, x, y, channels) and (batch, x, y)'
+            if self.y_true.ndim not in {2, 3, 4}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 2, 3 or 4.'
+                                 'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
                                  'Got ndim: {}'.format(self.y_true.ndim))
 
         # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
