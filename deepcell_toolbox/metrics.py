@@ -284,7 +284,7 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
 
         # has the form [gt_bbox, res_bbox]
         if self.is_3d:
-            overlaps = compute_overlap_3d(y_true_boxes, y_pred_boxes)
+            overlaps = compute_overlap_3D(y_true_boxes, y_pred_boxes)
         else:
             overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
 
@@ -624,13 +624,16 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         return error_dict, self.y_true, self.y_pred
 
 
-def to_precision(x, p):
+def to_precision(x, p, round_output=False):
     """
     returns a string representation of x formatted with a precision of p
 
     Based on the webkit javascript implementation taken from here:
     https://code.google.com/p/webkit-mirror/source/browse/JavaScriptCore/kjs/number_object.cpp
     """
+    if round_output:
+        return round(x, p)
+
     decimal.getcontext().prec = p
     return decimal.Decimal(x)
 
@@ -680,7 +683,8 @@ class Metrics(object):
                  json_notes='',
                  seg=False,
                  force_event_links=False,
-                 is_3d=False):
+                 is_3d=False,
+                 round_output=False):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -694,6 +698,7 @@ class Metrics(object):
         self.seg = seg
         self.force_event_links = force_event_links
         self.is_3d = is_3d
+        self.round_output = round_output
 
         # Initialize output list to collect stats
         self.output = []
@@ -874,11 +879,11 @@ class Metrics(object):
         print('\nCorrect detections:  {}\tRecall: {}%'.format(
             int(self.stats['correct_detections'].sum()),
             to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_true'].sum(),
-                         self.ndigits)))
+                         self.ndigits, self.round_output)))
         print('Incorrect detections: {}\tPrecision: {}%'.format(
             int(self.stats['n_pred'].sum() - self.stats['correct_detections'].sum()),
             to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_pred'].sum(),
-                         self.ndigits)))
+                         self.ndigits, self.round_output)))
 
         total_err = (self.stats['gained_detections'].sum()
                      + self.stats['missed_detections'].sum()
@@ -888,19 +893,24 @@ class Metrics(object):
 
         print('\nGained detections: {}\tPerc Error: {}%'.format(
             int(self.stats['gained_detections'].sum()),
-            to_precision(100 * self.stats['gained_detections'].sum() / total_err, self.ndigits)))
+            to_precision(100 * self.stats['gained_detections'].sum() / total_err,
+                         self.ndigits, self.round_output)))
         print('Missed detections: {}\tPerc Error: {}%'.format(
             int(self.stats['missed_detections'].sum()),
-            to_precision(100 * self.stats['missed_detections'].sum() / total_err, self.ndigits)))
+            to_precision(100 * self.stats['missed_detections'].sum() / total_err,
+                         self.ndigits, self.round_output)))
         print('Merges: {}\t\tPerc Error: {}%'.format(
             int(self.stats['merge'].sum()),
-            to_precision(100 * self.stats['merge'].sum() / total_err, self.ndigits)))
+            to_precision(100 * self.stats['merge'].sum() / total_err,
+                         self.ndigits, self.round_output)))
         print('Splits: {}\t\tPerc Error: {}%'.format(
             int(self.stats['split'].sum()),
-            to_precision(100 * self.stats['split'].sum() / total_err, self.ndigits)))
+            to_precision(100 * self.stats['split'].sum() / total_err,
+                         self.ndigits, self.round_output)))
         print('Catastrophes: {}\t\tPerc Error: {}%\n'.format(
             int(self.stats['catastrophe'].sum()),
-            to_precision(100 * self.stats['catastrophe'].sum() / total_err, self.ndigits)))
+            to_precision(100 * self.stats['catastrophe'].sum() / total_err,
+                         self.ndigits, self.round_output)))
 
         print('Gained detections from splits: {}'.format(
             int(self.stats['gained_det_from_split'].sum())))
@@ -912,10 +922,12 @@ class Metrics(object):
             int(self.stats['pred_det_in_catastrophe'].sum())), '\n')
 
         if self.seg is True:
-            print('SEG:', to_precision(self.stats['seg'].mean(), self.ndigits), '\n')
+            print('SEG:', to_precision(self.stats['seg'].mean(),
+                  self.ndigits, self.round_output), '\n')
 
         print('Average Pixel IOU (Jaccard Index):',
-              to_precision(self.stats['jaccard'].mean(), self.ndigits), '\n')
+              to_precision(self.stats['jaccard'].mean(),
+                           self.ndigits, self.round_output), '\n')
 
     def run_all(self,
                 y_true_lbl,
