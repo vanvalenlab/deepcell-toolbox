@@ -10,7 +10,7 @@ import numpy as np
 cimport numpy as np
 
 
-def compute_overlap(
+def compute_overlap_3D(
     np.ndarray[double, ndim=2] boxes,
     np.ndarray[double, ndim=2] query_boxes
 ):
@@ -46,7 +46,7 @@ def compute_overlap(
                 )
                 if iw > 0:
                     ih = (
-                        min(boxes[n, 5], query_boxes[k, 5]) - 
+                        min(boxes[n, 5], query_boxes[k, 5]) -
                         max(boxes[n, 2], query_boxes[k, 2]) + 1
                     )
                     if ih > 0:
