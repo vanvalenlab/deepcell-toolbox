@@ -112,6 +112,19 @@ def _sample1(w, h, imw, imh, merge):
         true[true == 3] = 2
         return true.astype('int'), im.astype('int')
 
+def _sample1_3D(w, h, imw, imh, merge, z):
+    """Two cell merge/split in 3D"""
+    y_trues = []
+    y_preds = []
+    y_true, y_pred = _sample1(w, h, imw, imh, merge)
+
+    for stack in range(z):
+        y_trues.append(y_true)
+        y_preds.append(y_pred)
+
+    y_true = np.expand_dims(np.stack(y_trues, axis=0), -1)
+    y_pred = np.expand_dims(np.stack(y_preds, axis=0), -1)
+    return y_true, y_pred
 
 def _sample2(w, h, imw, imh, similar_size=False):
     """Merge of three cells"""
@@ -444,6 +457,24 @@ class TestObjectAccuracy():
     def test_calc_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
         o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
+
+        o._calc_iou()
+
+        # Check that iou was created
+        assert hasattr(o, 'iou')
+
+        # Check that it is not equal to initial value
+        assert np.count_nonzero(o.iou) != 0
+
+        # Test seg_thresh creation
+        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
+        o._calc_iou()
+
+        assert hasattr(o, 'seg_thresh')
+
+    def test_calc_iou_3D(self):
+        y_true, y_pred = _sample1_3D(10, 10, 30, 30, True, 8)
+        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
 
         o._calc_iou()
 
