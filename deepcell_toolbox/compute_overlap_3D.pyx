@@ -10,7 +10,7 @@ import numpy as np
 cimport numpy as np
 
 
-def compute_overlap_3D(
+def compute_overlap(
     np.ndarray[double, ndim=2] boxes,
     np.ndarray[double, ndim=2] query_boxes
 ):
