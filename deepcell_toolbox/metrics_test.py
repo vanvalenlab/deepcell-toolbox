@@ -123,8 +123,8 @@ def _sample1_3D(w, h, imw, imh, merge, z):
         y_trues.append(y_true)
         y_preds.append(y_pred)
 
-    y_true = np.expand_dims(np.stack(y_trues, axis=0), -1)
-    y_pred = np.expand_dims(np.stack(y_preds, axis=0), -1)
+    y_true = np.stack(y_trues, axis=0)
+    y_pred = np.stack(y_preds, axis=0)
     return y_true, y_pred
 
 
