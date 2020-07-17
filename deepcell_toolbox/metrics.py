@@ -233,20 +233,20 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         }
         self.catastrophe_indices['y_pred'] = []
 
-        # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
+        # If 2D, dimensions can be 2 or 3 (with or without channel dimension)
         if not self.is_3d:
-            if self.y_true.ndim not in {2, 3, 4}:
+            if self.y_true.ndim not in {2, 3}:
                 raise ValueError('Expected dimensions for y_true (2D data) are 2, 3 or 4.'
-                                 'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
+                                 'Accepts: (x, y), or (x, y, chan)'
                                  'Got ndim: {}'.format(self.y_true.ndim))
 
-        # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
+        # If 3D, inputs must have 3 dimensions (batch, z, x, y) - cannot have channel dimension or
         # _classify_graph breaks, as it expects input to be 2D or 3D
         # TODO - add compatibility for multi-channel 3D-data
         else:
-            if self.y_true.ndim != 4:
-                raise ValueError('Expected dimensions for y_true (3D data) is 4.'
-                                 'Requires format is: (batch, z, x, y)'
+            if self.y_true.ndim != 3:
+                raise ValueError('Expected dimensions for y_true (3D data) is 3.'
+                                 'Requires format is: (z, x, y)'
                                  'Got ndim: {}'.format(self.y_true.ndim))
 
         # Check if either frame is empty before proceeding
@@ -850,8 +850,26 @@ class Metrics(object):
             ValueError: if the shape of the input tensor is less than length three
         """
 
-        if len(y_true.shape) < 3:
-            raise ValueError('Invalid input dimensions: must be at least 3D tensor')
+        if y_pred.shape != y_true.shape:
+            raise ValueError('Input shapes need to match. Shape of prediction '
+                             'is: {}.  Shape of y_true is: {}'.format(
+                                 y_pred.shape, y_true.shape))
+
+        # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
+        if not self.is_3d:
+            if self.y_true.ndim not in {2, 3, 4}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 2, 3 or 4.'
+                                 'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
+
+        # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
+        # _classify_graph breaks, as it expects input to be 2D or 3D
+        # TODO - add compatibility for multi-channel 3D-data
+        else:
+            if self.y_true.ndim != 4:
+                raise ValueError('Expected dimensions for y_true (3D data) is 4.'
+                                 'Required format is: (batch, z, x, y)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
 
         self.stats = pd.DataFrame()
         self.predictions = []
