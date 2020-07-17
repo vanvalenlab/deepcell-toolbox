@@ -63,6 +63,7 @@ from sklearn.metrics import confusion_matrix
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
+from deepcell_toolbox.compute_overlap_3D import compute_overlap as compute_overlap_3d
 
 
 def stats_pixelbased(y_true, y_pred):
@@ -153,6 +154,8 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         force_event_links(:obj:'bool, optional): Flag that determines whether to modify IOU
             calculation so that merge or split events with cells of very different sizes are
             never misclassified as misses/gains.
+        is_3d(:obj:'bool', optional): Flag that determines whether or not the input data
+            should be treated as 3-dimensional.
 
     Raises:
         ValueError: If y_true and y_pred are not the same shape
@@ -164,10 +167,12 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                  cutoff2=0.1,
                  test=False,
                  seg=False,
-                 force_event_links=False):
+                 force_event_links=False,
+                 is_3d=False):
         self.cutoff1 = cutoff1
         self.cutoff2 = cutoff2
         self.seg = seg
+        self.is_3d = is_3d
 
         if y_pred.shape != y_true.shape:
             raise ValueError('Input shapes must match. Shape of prediction '
@@ -175,8 +180,9 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                                  y_pred.shape, y_true.shape))
 
         # Relabel y_true and y_pred so the labels are consecutive
-        y_true, _, _ = relabel_sequential(y_true)
-        y_pred, _, _ = relabel_sequential(y_pred)
+        if not self.is_3d:
+            y_true, _, _ = relabel_sequential(y_true)
+            y_pred, _, _ = relabel_sequential(y_pred)
 
         self.y_true = y_true
         self.y_pred = y_pred
@@ -278,7 +284,10 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         y_pred_boxes, y_pred_labels = get_box_labels(self.y_pred.astype('int'))
 
         # has the form [gt_bbox, res_bbox]
-        overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
+        if self.is_3d:
+            overlaps = compute_overlap_3d(y_true_boxes, y_pred_boxes)
+        else:
+            overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
 
         # Find the bboxes that have overlap at all
         # (ind_ corresponds to box number - starting at 0)
@@ -670,7 +679,9 @@ class Metrics(object):
                  return_iou=False,
                  feature_key=[],
                  json_notes='',
-                 seg=False):
+                 seg=False,
+                 force_event_links=False,
+                 is_3d=False):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -682,6 +693,8 @@ class Metrics(object):
         self.feature_key = feature_key
         self.json_notes = json_notes
         self.seg = seg
+        self.force_event_links = force_event_links
+        self.is_3d = is_3d
 
         # Initialize output list to collect stats
         self.output = []
@@ -824,7 +837,8 @@ class Metrics(object):
                                y_pred[i],
                                cutoff1=self.cutoff1,
                                cutoff2=self.cutoff2,
-                               seg=self.seg)
+                               seg=self.seg,
+                               is_3d=self.is_3d)
             self.stats = self.stats.append(o.save_to_dataframe())
             predictions = o.save_error_ids()
             self.predictions.append(predictions)
