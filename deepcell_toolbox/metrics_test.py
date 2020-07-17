@@ -112,6 +112,7 @@ def _sample1(w, h, imw, imh, merge):
         true[true == 3] = 2
         return true.astype('int'), im.astype('int')
 
+
 def _sample1_3D(w, h, imw, imh, merge, z):
     """Two cell merge/split in 3D"""
     y_trues = []
@@ -125,6 +126,7 @@ def _sample1_3D(w, h, imw, imh, merge, z):
     y_true = np.expand_dims(np.stack(y_trues, axis=0), -1)
     y_pred = np.expand_dims(np.stack(y_preds, axis=0), -1)
     return y_true, y_pred
+
 
 def _sample2(w, h, imw, imh, similar_size=False):
     """Merge of three cells"""
