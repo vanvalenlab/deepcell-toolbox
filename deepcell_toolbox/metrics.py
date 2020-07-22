@@ -182,7 +182,12 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                                  y_pred.shape, y_true.shape))
 
         # Relabel y_true and y_pred so the labels are consecutive
-        y_true, _, _ = relabel_sequential(y_true)
+        if is_3d:
+            y_true = erode_edges(y_true)
+            y_true, _, _ = relabel_sequential(y_true)
+        else:
+            y_true, _, _ = relabel_sequential(y_true)
+
         y_pred, _, _ = relabel_sequential(y_pred)
 
         self.y_true = y_true
