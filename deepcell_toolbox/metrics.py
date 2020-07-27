@@ -861,7 +861,7 @@ class Metrics(object):
         if not self.is_3d:
             if y_true.ndim not in {3, 4}:
                 raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
-                                 'Accepts: (x, y), (batch, x, y), or (batch, x, y, chan)'
+                                 'Accepts: (batch, x, y), or (batch, x, y, chan)'
                                  'Got ndim: {}'.format(y_true.ndim))
 
         # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
