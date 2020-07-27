@@ -503,7 +503,6 @@ class TestObjectAccuracy():
         with pytest.raises(ValueError):
             o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
 
-
     def test_modify_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
         o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
