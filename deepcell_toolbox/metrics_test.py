@@ -492,6 +492,18 @@ class TestObjectAccuracy():
 
         assert hasattr(o, 'seg_thresh')
 
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10, 15, 15, 3))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10, 3, 3))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
+
     def test_modify_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)
         o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
