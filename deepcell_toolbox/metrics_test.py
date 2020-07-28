@@ -429,6 +429,26 @@ class TestObjectAccuracy():
 
         testing.assert_equal(o.empty_frame, False)
 
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10))
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
+
+        y_true = np.zeros(shape=(10, 5, 5, 5))
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
+
+        # test errors thrown for improper ndim inputs with 3d data
+        y_true = np.zeros(shape=(10, 15))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
     def test_init_wrongsize(self):
         # Test mismatched input size
         y_true = label(_get_image())
@@ -492,16 +512,21 @@ class TestObjectAccuracy():
 
         assert hasattr(o, 'seg_thresh')
 
-        # test errors thrown for improper ndim inputs
-        y_true = np.zeros(shape=(10, 15, 15, 3))
-        y_pred = y_true
-        with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+        m = metrics.Metrics('test')
 
-        y_true = np.zeros(shape=(10, 15, 15, 10, 3, 3))
-        y_pred = y_true
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10, 15, 11))
         with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+            m.calc_object_stats(y_true, y_true)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10, 15))
+        with pytest.raises(ValueError):
+            m.calc_object_stats(y_true, y_true)
+
+        y_true = np.zeros(shape=(2, 3, 5, 2))
+        y_pred = np.zeros(shape=(1, 4, 11, 2))
+        with pytest.raises(ValueError):
+            m.calc_object_stats(y_true, y_pred)
 
     def test_modify_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)

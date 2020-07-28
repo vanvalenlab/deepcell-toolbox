@@ -236,7 +236,7 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         # If 2D, dimensions can be 2 or 3 (with or without channel dimension)
         if not self.is_3d:
             if self.y_true.ndim not in {2, 3}:
-                raise ValueError('Expected dimensions for y_true (2D data) are 2, 3 or 4.'
+                raise ValueError('Expected dimensions for y_true (2D data) are 2 and 3'
                                  'Accepts: (x, y), or (x, y, chan)'
                                  'Got ndim: {}'.format(self.y_true.ndim))
 
