@@ -113,6 +113,21 @@ def _sample1(w, h, imw, imh, merge):
         return true.astype('int'), im.astype('int')
 
 
+def _sample1_3D(w, h, imw, imh, merge, z):
+    """Two cell merge/split in 3D"""
+    y_trues = []
+    y_preds = []
+    y_true, y_pred = _sample1(w, h, imw, imh, merge)
+
+    for stack in range(z):
+        y_trues.append(y_true)
+        y_preds.append(y_pred)
+
+    y_true = np.stack(y_trues, axis=0)
+    y_pred = np.stack(y_preds, axis=0)
+    return y_true, y_pred
+
+
 def _sample2(w, h, imw, imh, similar_size=False):
     """Merge of three cells"""
     x = np.random.randint(2, imw - w)
@@ -414,6 +429,26 @@ class TestObjectAccuracy():
 
         testing.assert_equal(o.empty_frame, False)
 
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10))
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
+
+        y_true = np.zeros(shape=(10, 5, 5, 5))
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
+
+        # test errors thrown for improper ndim inputs with 3d data
+        y_true = np.zeros(shape=(10, 15))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10))
+        y_pred = y_true
+        with pytest.raises(ValueError):
+            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
     def test_init_wrongsize(self):
         # Test mismatched input size
         y_true = label(_get_image())
@@ -458,6 +493,40 @@ class TestObjectAccuracy():
         o._calc_iou()
 
         assert hasattr(o, 'seg_thresh')
+
+    def test_calc_iou_3D(self):
+        y_true, y_pred = _sample1_3D(10, 10, 30, 30, True, 8)
+        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
+
+        o._calc_iou()
+
+        # Check that iou was created
+        assert hasattr(o, 'iou')
+
+        # Check that it is not equal to initial value
+        assert np.count_nonzero(o.iou) != 0
+
+        # Test seg_thresh creation
+        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
+        o._calc_iou()
+
+        assert hasattr(o, 'seg_thresh')
+
+        m = metrics.Metrics('test', is_3d=True)
+
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10, 15, 11))
+        with pytest.raises(ValueError):
+            m.calc_object_stats(y_true, y_true)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10, 15))
+        with pytest.raises(ValueError):
+            m.calc_object_stats(y_true, y_true)
+
+        y_true = np.zeros(shape=(2, 3, 5, 2))
+        y_pred = np.zeros(shape=(1, 4, 11, 2))
+        with pytest.raises(ValueError):
+            m.calc_object_stats(y_true, y_pred)
 
     def test_modify_iou(self):
         y_true, y_pred = _sample1(10, 10, 30, 30, True)

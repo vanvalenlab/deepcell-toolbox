@@ -63,6 +63,7 @@ from sklearn.metrics import confusion_matrix
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
+from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 
 
 def stats_pixelbased(y_true, y_pred):
@@ -153,9 +154,13 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         force_event_links(:obj:'bool, optional): Flag that determines whether to modify IOU
             calculation so that merge or split events with cells of very different sizes are
             never misclassified as misses/gains.
+        is_3d(:obj:'bool', optional): Flag that determines whether or not the input data
+            should be treated as 3-dimensional.
 
     Raises:
         ValueError: If y_true and y_pred are not the same shape
+        ValueError: If data_type is 2D, if input shape does not have ndim 2 or 3
+        ValueError: If data_type is 3D, if input shape does not have ndim 3
     """
     def __init__(self,
                  y_true,
@@ -164,10 +169,12 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                  cutoff2=0.1,
                  test=False,
                  seg=False,
-                 force_event_links=False):
+                 force_event_links=False,
+                 is_3d=False):
         self.cutoff1 = cutoff1
         self.cutoff2 = cutoff2
         self.seg = seg
+        self.is_3d = is_3d
 
         if y_pred.shape != y_true.shape:
             raise ValueError('Input shapes must match. Shape of prediction '
@@ -226,6 +233,22 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         }
         self.catastrophe_indices['y_pred'] = []
 
+        # If 2D, dimensions can be 2 or 3 (with or without channel dimension)
+        if not self.is_3d:
+            if self.y_true.ndim not in {2, 3}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 2 and 3'
+                                 'Accepts: (x, y), or (x, y, chan)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
+
+        # If 3D, inputs must have 3 dimensions (batch, z, x, y) - cannot have channel dimension or
+        # _classify_graph breaks, as it expects input to be 2D or 3D
+        # TODO - add compatibility for multi-channel 3D-data
+        else:
+            if self.y_true.ndim != 3:
+                raise ValueError('Expected dimensions for y_true (3D data) is 3.'
+                                 'Requires format is: (z, x, y)'
+                                 'Got ndim: {}'.format(self.y_true.ndim))
+
         # Check if either frame is empty before proceeding
         if self.n_true == 0:
             logging.info('Ground truth frame is empty')
@@ -278,7 +301,10 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         y_pred_boxes, y_pred_labels = get_box_labels(self.y_pred.astype('int'))
 
         # has the form [gt_bbox, res_bbox]
-        overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
+        if self.is_3d:
+            overlaps = compute_overlap_3D(y_true_boxes, y_pred_boxes)
+        else:
+            overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
 
         # Find the bboxes that have overlap at all
         # (ind_ corresponds to box number - starting at 0)
@@ -624,7 +650,9 @@ def to_precision(x, p):
     https://code.google.com/p/webkit-mirror/source/browse/JavaScriptCore/kjs/number_object.cpp
     """
     decimal.getcontext().prec = p
-    return decimal.Decimal(x)
+    dec = decimal.Decimal(x)
+
+    return round(float(dec), p)
 
 
 class Metrics(object):
@@ -646,6 +674,11 @@ class Metrics(object):
             information about the model
         seg (:obj:`bool`, optional): Calculates SEG score for
             cell tracking competition
+        force_event_links(:obj:`bool`, optional): Flag that determines whether to modify IOU
+            calculation so that merge or split events with cells of very different sizes are
+            never misclassified as misses/gains.
+        is_3d(:obj:`bool`, optional): Flag that determines whether or not the input data
+            should be treated as 3-dimensional.
 
     Examples:
         >>> from deepcell import metrics
@@ -670,7 +703,9 @@ class Metrics(object):
                  return_iou=False,
                  feature_key=[],
                  json_notes='',
-                 seg=False):
+                 seg=False,
+                 force_event_links=False,
+                 is_3d=False):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -682,6 +717,8 @@ class Metrics(object):
         self.feature_key = feature_key
         self.json_notes = json_notes
         self.seg = seg
+        self.force_event_links = force_event_links
+        self.is_3d = is_3d
 
         # Initialize output list to collect stats
         self.output = []
@@ -810,11 +847,31 @@ class Metrics(object):
             y_pred (numpy.array): Labeled prediction mask
 
         Raises:
-            ValueError: if the shape of the input tensor is less than length three
+            ValueError: If y_true and y_pred are not the same shape
+            ValueError: If data_type is 2D, if input shape does not have ndim 3 or 4
+            ValueError: If data_type is 3D, if input shape does not have ndim 4
         """
 
-        if len(y_true.shape) < 3:
-            raise ValueError('Invalid input dimensions: must be at least 3D tensor')
+        if y_pred.shape != y_true.shape:
+            raise ValueError('Input shapes need to match. Shape of prediction '
+                             'is: {}.  Shape of y_true is: {}'.format(
+                                 y_pred.shape, y_true.shape))
+
+        # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
+        if not self.is_3d:
+            if y_true.ndim not in {3, 4}:
+                raise ValueError('Expected dimensions for y_true (2D data) are 3 or 4.'
+                                 'Accepts: (batch, x, y), or (batch, x, y, chan)'
+                                 'Got ndim: {}'.format(y_true.ndim))
+
+        # If 3D, inputs must have 4 dimensions (batch, z, x, y) - cannot have channel dimension or
+        # _classify_graph breaks, as it expects input to be 2D or 3D
+        # TODO - add compatibility for multi-channel 3D-data
+        else:
+            if y_true.ndim != 4:
+                raise ValueError('Expected dimensions for y_true (3D data) is 4.'
+                                 'Required format is: (batch, z, x, y)'
+                                 'Got ndim: {}'.format(y_true.ndim))
 
         self.stats = pd.DataFrame()
         self.predictions = []
@@ -824,7 +881,9 @@ class Metrics(object):
                                y_pred[i],
                                cutoff1=self.cutoff1,
                                cutoff2=self.cutoff2,
-                               seg=self.seg)
+                               seg=self.seg,
+                               force_event_links=self.force_event_links,
+                               is_3d=self.is_3d)
             self.stats = self.stats.append(o.save_to_dataframe())
             predictions = o.save_error_ids()
             self.predictions.append(predictions)
