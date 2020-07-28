@@ -512,7 +512,7 @@ class TestObjectAccuracy():
 
         assert hasattr(o, 'seg_thresh')
 
-        m = metrics.Metrics('test')
+        m = metrics.Metrics('test', is_3d=True)
 
         # test errors thrown for improper ndim inputs
         y_true = np.zeros(shape=(10, 15, 11))
