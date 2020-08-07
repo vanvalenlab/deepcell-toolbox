@@ -78,16 +78,15 @@ def test_deep_watershed_mibi():
     # turn some knobs
     watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
                                                        small_objects_threshold=1,
-                                                       exclude_border=True)
+                                                       pixel_expansion=5)
 
     # turn turn
     watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
                                                        small_objects_threshold=1,
-                                                       exclude_border=True,
                                                        maxima_model='fgbg-fg',
                                                        interior_model='outer-distance',
-                                                       min_distance=30,
-                                                       maxima_model_smooth=0)
+                                                       maxima_model_smooth=0,
+                                                       fill_holes_threshold=4)
 
     np.testing.assert_equal(watershed_img.shape, shape)
 
