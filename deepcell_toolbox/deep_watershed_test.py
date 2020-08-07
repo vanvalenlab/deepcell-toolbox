@@ -85,7 +85,8 @@ def test_deep_watershed_mibi():
                                                        small_objects_threshold=1,
                                                        maxima_model='fgbg-fg',
                                                        interior_model='outer-distance',
-                                                       maxima_model_smooth=0)
+                                                       maxima_model_smooth=0,
+                                                       fill_holes_threshold=4)
 
     np.testing.assert_equal(watershed_img.shape, shape)
 

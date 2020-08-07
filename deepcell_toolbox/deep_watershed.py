@@ -36,7 +36,7 @@ from skimage.measure import label
 from skimage.morphology import watershed, remove_small_objects, h_maxima, disk, square, dilation
 from skimage.segmentation import relabel_sequential
 
-from deepcell_toolbox.utils import erode_edges
+from deepcell_toolbox.utils import erode_edges, fill_holes
 
 
 def deep_watershed(outputs,
@@ -106,7 +106,7 @@ def deep_watershed_mibi(model_output,
                         maxima_threshold=0.1,
                         interior_threshold=0.2,
                         small_objects_threshold=0,
-                        fill_holes=True,
+                        fill_holes_threshold=0,
                         interior_model='pixelwise-interior',
                         maxima_model='inner-distance',
                         interior_model_smooth=1,
@@ -129,7 +129,7 @@ def deep_watershed_mibi(model_output,
         maxima_threshold (float): Threshold for the maxima prediction.
         interior_threshold (float): Threshold for the interior prediction.
         small_objects_threshold (int): Removes objects smaller than this size.
-        fill_holes (bool): controls whether holes within segmented objects are filled
+        fill_holes_threshold (int): maximum size for holes within segmented objects to be filled
         interior_model: semantic head to use to predict interior of each object
         maxima_model: semantic head to use to predict maxima of each object
         interior_model_smooth: smoothing factor to apply to interior model predictions
@@ -187,6 +187,10 @@ def deep_watershed_mibi(model_output,
 
         # Remove small objects
         label_image = remove_small_objects(label_image, min_size=small_objects_threshold)
+
+        # fill in holes that lie completely within a segmentation label
+        if fill_holes_threshold > 0:
+            label_image = fill_holes(label_image, size=fill_holes_threshold)
 
         # Relabel the label image
         label_image, _, _ = relabel_sequential(label_image)
