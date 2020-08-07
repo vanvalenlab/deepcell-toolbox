@@ -33,7 +33,7 @@ import scipy.ndimage as nd
 
 from skimage.feature import peak_local_max
 from skimage.measure import label
-from skimage.morphology import watershed, remove_small_objects
+from skimage.morphology import watershed, remove_small_objects, h_maxima, disk, square, dilation
 from skimage.segmentation import relabel_sequential
 
 from deepcell_toolbox.utils import erode_edges
@@ -102,15 +102,16 @@ def deep_watershed(outputs,
 
 
 def deep_watershed_mibi(model_output,
-                        min_distance=10,
+                        radius=10,
                         maxima_threshold=0.1,
                         interior_threshold=0.2,
-                        exclude_border=False,
                         small_objects_threshold=0,
+                        fill_holes=True,
                         interior_model='pixelwise-interior',
                         maxima_model='inner-distance',
                         interior_model_smooth=1,
-                        maxima_model_smooth=1):
+                        maxima_model_smooth=0,
+                        pixel_expansion=None):
     """Postprocessing function for multiplexed deep watershed models. Thresholds the inner
     distance prediction to find cell centroids, which are used to seed a marker
     based watershed of the pixelwise interior prediction.
@@ -124,15 +125,16 @@ def deep_watershed_mibi(model_output,
             - fgbg: Foreground prediction for the foregound/background transform.
             - pixelwise_interior: Interior prediction for the interior/border/background transform.
 
-        min_distance (int): Minimum allowable distance between two object maxima.
+        radius (int): Radius of disk used to search for maxima
         maxima_threshold (float): Threshold for the maxima prediction.
         interior_threshold (float): Threshold for the interior prediction.
-        exclude_border (bool): Whether to include centroid detections at the border.
         small_objects_threshold (int): Removes objects smaller than this size.
+        fill_holes (bool): controls whether holes within segmented objects are filled
         interior_model: semantic head to use to predict interior of each object
         maxima_model: semantic head to use to predict maxima of each object
         interior_model_smooth: smoothing factor to apply to interior model predictions
         maxima_model_smooth: smoothing factor to apply to maxima model predictions
+        pixel_expansion: optional number of pixels to expand segmentation labels
 
     Returns:
         numpy.array: Uniquely labeled mask.
@@ -165,14 +167,17 @@ def deep_watershed_mibi(model_output,
     for batch in range(interior_predictions.shape[0]):
         interior_batch = interior_predictions[batch, ..., 0]
         interior_batch = nd.gaussian_filter(interior_batch, interior_model_smooth)
+
+        if pixel_expansion is not None:
+            interior_batch = dilation(interior_batch, selem=square(pixel_expansion * 2 + 1))
+
         maxima_batch = maxima_predictions[batch, ..., 0]
         maxima_batch = nd.gaussian_filter(maxima_batch, maxima_model_smooth)
 
-        markers = peak_local_max(maxima_batch,
-                                 min_distance=min_distance,
-                                 threshold_abs=maxima_threshold,
-                                 exclude_border=exclude_border,
-                                 indices=False)
+        markers = h_maxima(image=maxima_batch,
+                           h=maxima_threshold,
+                           selem=disk(radius))
+
         markers = label(markers)
 
         label_image = watershed(-interior_batch,
