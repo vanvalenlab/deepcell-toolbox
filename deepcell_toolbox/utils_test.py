@@ -416,3 +416,39 @@ def test_untile_image_3D():
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
                                              stride_ratio=0)
         untiled_image = utils.untile_image(tiles, tile_info)
+
+
+def test_fill_holes():
+    example_arr = np.zeros((50, 50), dtype='int')
+    example_arr[:5, :5] = 1
+    example_arr[10:20, 10:20] = 2
+    example_arr[30:40, 30:40] = 3
+    example_arr[30:40, 40:50] = 4
+
+    # create hole of size 4
+    example_arr[2:4, 2:4] = 0
+
+    # create hole of size 25
+    example_arr[12:17, 12:17] = 0
+
+    # create hole that borders two cells
+    example_arr[32:34, 38:40] = 0
+
+    filled = utils.fill_holes(label_img=example_arr, size=5)
+
+    # small hole has been filled
+    assert np.sum(filled == 1) == 25
+
+    # large hole has not been filled
+    assert np.sum(filled == 2) == 75
+
+    # hole bordering other cell has not been filled
+    assert np.all(filled[32:34, 38:40] == 0)
+
+    # set size so that large hole is filled
+    filled = utils.fill_holes(label_img=example_arr, size=26)
+    assert np.sum(filled == 2) == 100
+
+    # set size so that small hole is not filled
+    filled = utils.fill_holes(label_img=example_arr, size=3)
+    assert np.sum(filled == 1) == 21

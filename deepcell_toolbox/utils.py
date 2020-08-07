@@ -32,10 +32,14 @@ import numpy as np
 import cv2
 import scipy.signal
 
+from copy import copy
+
 from scipy.ndimage import fourier_shift
 from skimage.feature import register_translation
 from skimage import transform
 from skimage.segmentation import find_boundaries
+from skimage.morphology import remove_small_objects, square, dilation
+from skimage.measure import label
 
 
 def erode_edges(mask, erosion_width):
@@ -703,3 +707,43 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
     image = image[:, z_start:z_end, x_start:x_end, y_start:y_end, :]
 
     return image
+
+
+def fill_holes(label_img, size=10, connectivity=1):
+    """Fills holes located completely within a given label with pixels of the same value
+
+    Args:
+        label_img: a 2D labeled image
+        size: maximum size for a hole to be filled in
+        connectivity: the connectivity used to define the hole
+
+    Returns:
+        label_img_filled: a labeled image with small holes filled in with same value as the label
+    """
+
+    label_img_filled = copy(label_img)
+
+    # invert the image, so that holes are objects
+    inverse_img = np.logical_not(label_img)
+
+    inverse_img_removed = remove_small_objects(ar=inverse_img, min_size=size,
+                                               connectivity=connectivity)
+
+    # identify potential holes in the image
+    potential_holes = inverse_img != inverse_img_removed
+    potential_holes = label(potential_holes)
+
+    # for each identified hole, check if it is contained completely within a single label
+    for i in np.unique(potential_holes):
+        mask = potential_holes == i
+        enlarged_mask = dilation(mask, selem=square(3))
+
+        label_values = np.unique(label_img[enlarged_mask])
+        label_values = [x for x in label_values if x != 0]
+
+        # the enlarged mask only contains a single value, hence the hole is completely contained
+        # within a single label
+        if len(label_values) == 1:
+            label_img_filled[mask] = label_values[0]
+
+    return label_img_filled
