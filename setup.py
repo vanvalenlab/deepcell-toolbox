@@ -34,7 +34,7 @@ with open(path.join(path.abspath(path.dirname(__file__)), 'README.md')) as f:
     long_description = f.read()
 
 
-VERSION = '0.6.1'
+VERSION = '0.6.2'
 
 
 class BuildExtension(setuptools.Command):
@@ -91,9 +91,9 @@ setup(name='Deepcell_Toolbox',
       license='LICENSE',
       cmdclass={'build_ext': BuildExtension},
       install_requires=['cython',
-                        'opencv-python',
+                        'opencv-python<=3.4.9.31',
                         'pandas',
-                        'networkx',
+                        'networkx>=2.1',
                         'numpy',
                         'scipy',
                         'scikit-image',
