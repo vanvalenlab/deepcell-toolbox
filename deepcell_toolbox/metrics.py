@@ -188,8 +188,8 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         self.y_true = y_true
         self.y_pred = y_pred
 
-        self.n_true = len(np.unique(self.y_true)) - 1
-        self.n_pred = len(np.unique(self.y_pred)) - 1
+        self.n_true = len(np.unique(self.y_true[self.y_true > 0]))
+        self.n_pred = len(np.unique(self.y_pred[self.y_pred > 0]))
 
         self.n_obj = self.n_true + self.n_pred
 
