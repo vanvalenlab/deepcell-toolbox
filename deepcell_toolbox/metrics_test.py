@@ -250,6 +250,19 @@ def _sample4_loner(w, h, imw, imh, gain):
         return im.astype('int'), pred.astype('int')
 
 
+def _dense_sample():
+    true = np.zeros((10, 10))
+    true[:5, :5] = 1
+    true[:5, 5:] = 2
+    true[5:, :5] = 3
+    true[5:, 5:] = 4
+
+    pred = np.zeros((10, 10))
+    pred[2:, :] = true[2:, :]
+
+    return true.astype('int'), pred.astype('int')
+
+
 class TestMetricFunctions():
 
     def test_pixelstats_output(self):
@@ -493,6 +506,12 @@ class TestObjectAccuracy():
         o._calc_iou()
 
         assert hasattr(o, 'seg_thresh')
+
+        # check that image without any background passes
+        y_true, y_pred = _dense_sample()
+        o = metrics.ObjectAccuracy(y_true=y_true, y_pred=y_pred, test=False)
+
+        o._calc_iou()
 
     def test_calc_iou_3D(self):
         y_true, y_pred = _sample1_3D(10, 10, 30, 30, True, 8)
