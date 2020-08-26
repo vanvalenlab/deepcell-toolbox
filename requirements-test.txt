@@ -1,5 +1,5 @@
-pytest>=5.0
-pytest-cov==2.5.1
+pytest
+pytest-cov
 pytest-pep8
 pytest-mock
 coveralls
