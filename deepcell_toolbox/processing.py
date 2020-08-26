@@ -81,11 +81,6 @@ def histogram_normalization(image, kernel_size=64):
     return image
 
 
-def phase_preprocess(image, kernel_size=64):
-    """Maintained for backwards compatability"""
-    return histogram_normalization(image=image, kernel_size=kernel_size)
-
-
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
     """Post-processing for MIBI data. Uniquely segments every cell by
     repeatedly eroding and dilating the cell interior prediction  until a
@@ -261,3 +256,7 @@ def correct_drift(X, y=None):
         return X, y
 
     return X
+
+
+# alias for backwards compatibility
+phase_preprocess = histogram_normalization
