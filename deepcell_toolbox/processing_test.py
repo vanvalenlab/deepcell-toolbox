@@ -76,6 +76,7 @@ def test_histogram_normalization():
 
     for img in test_images:
         preprocessed = processing.histogram_normalization(img)
+
         # test min and max values of output
         assert preprocessed.min() == 0 and preprocessed.max() == 1
 
