@@ -57,13 +57,14 @@ def normalize(image):
     return image
 
 
-def histogram_normalization(image, kernel_size=64):
+def histogram_normalization(image, kernel_size=None):
     """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
     Args:
         image (numpy.array): numpy array of phase image data.
-        kernel_size (integer): Size of kernel for CLAHE.
+        kernel_size (integer): Size of kernel for CLAHE,
+            defaults to 1/8 of image size.
 
     Returns:
         numpy.array: Pre-processed image data with dtype float32.
@@ -75,8 +76,8 @@ def histogram_normalization(image, kernel_size=64):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
-            X = equalize_adapthist(X, kernel_size=(kernel_size, kernel_size))
             X = rescale_intensity(X, out_range=(0.0, 1.0))
+            X = equalize_adapthist(X, kernel_size=kernel_size)
             image[batch, ..., channel] = X
     return image
 
