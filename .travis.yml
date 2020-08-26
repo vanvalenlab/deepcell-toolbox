@@ -16,7 +16,7 @@ cache: pip
 
 install:
   - travis_retry pip install -r requirements.txt
-  - travis_retry pip install -r requirements-test.txt
+  - travis_retry pip install -r -U requirements-test.txt
   # install deepcell with setup.py
   - travis_retry python setup.py build_ext --inplace
 
