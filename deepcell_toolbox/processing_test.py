@@ -108,7 +108,7 @@ def test_multiplex_preprocess():
     assert (processed <= 1).all() and (processed >= -1).all()
 
     # maxima have been thresholded to same value
-    assert processed[0, 200, 200, 0] == processed[0, 201, 201, 0]
+    assert np.round(processed[0, 200, 200, 0], 3) == np.round(processed[0, 201, 201, 0], 3)
 
 
 def test_mibi():
