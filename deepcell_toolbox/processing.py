@@ -81,37 +81,35 @@ def histogram_normalization(image, kernel_size=64):
     return image
 
 
-def percentile_threshold(image, percentiles=None):
+def percentile_threshold(image, percentile=None):
     """Threshold an image to reduce bright spots
 
     Args:
         image: numpy array of image data
-        percentiles: tuple of lower_percentile, upper_percentile used to threshold image
+        percentile: cutoff used to threshold image
 
     Returns:
         np.array: thresholded version of input image
     """
 
-    if percentiles is None:
-        percentiles = (5, 95)
+    if percentile is None:
+        percentile = 99.9
 
+    processed_image = np.zeros_like(image)
     for img in range(image.shape[0]):
         for chan in range(image.shape[-1]):
-            # get non-zero values to determine percentiles
-            current_img = image[img, ..., chan]
+            current_img = np.copy(image[img, ..., chan])
             non_zero_vals = current_img[np.nonzero(current_img)]
-            img_min, img_max = np.percentile(non_zero_vals, percentiles)
+            img_max = np.percentile(non_zero_vals, percentile)
 
-            # threshold values below min or above max to be min or max, respectively
-            min_mask = current_img < img_min
-            max_mask = current_img > img_max
-            current_img[min_mask] = img_min
-            current_img[max_mask] = img_max
+            # threshold values down to max
+            threshold_mask = current_img > img_max
+            current_img[threshold_mask] = img_max
 
             # update image
-            image[img, ..., chan] = current_img
+            processed_image[img, ..., chan] = current_img
 
-    return image
+    return processed_image
 
 
 def multiplex_preprocess(image, **kwargs):
@@ -123,12 +121,16 @@ def multiplex_preprocess(image, **kwargs):
     Returns:
         np.array: processed image array
     """
+    output = np.copy(image)
+    threshold = kwargs.get('threshold', True)
+    if threshold:
+        percentile = kwargs.get('percentile', 99.9)
+        output = percentile_threshold(image=output, percentile=percentile)
 
-    percentiles = kwargs.get('percentiles', None)
-    output = percentile_threshold(image=image, percentiles=percentiles)
-
-    kernel_size = kwargs.get('kernel_size', 128)
-    output = histogram_normalization(image=output, kernel_size=kernel_size)
+    normalize = kwargs.get('normalize', True)
+    if normalize:
+        kernel_size = kwargs.get('kernel_size', 128)
+        output = histogram_normalization(image=output, kernel_size=kernel_size)
 
     return output
 

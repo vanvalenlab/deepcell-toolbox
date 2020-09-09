@@ -78,9 +78,8 @@ def test_percentile_threshold():
     thresholded = processing.percentile_threshold(image=image_data)
     assert np.all(thresholded < 100)
 
-    # setting percentiles to 0, 100 shouldn't change data
-    no_threshold = processing.percentile_threshold(image=image_data,
-                                                   percentiles=(0, 100))
+    # setting percentile to 100 shouldn't change data
+    no_threshold = processing.percentile_threshold(image=image_data, percentile=100)
     assert np.array_equal(image_data, no_threshold)
 
     # different channels have different distributions
@@ -99,16 +98,42 @@ def test_multiplex_preprocess():
     img = np.expand_dims(img, axis=0)
     img = np.expand_dims(img, axis=-1)
 
-    # two bright spots
+    # single bright spot
     img[0, 200, 200, 0] = 5000
-    img[0, 201, 201, 0] = 4000
 
     # histogram normalized
     processed = processing.multiplex_preprocess(img)
     assert (processed <= 1).all() and (processed >= -1).all()
 
-    # maxima have been thresholded to same value
-    assert np.round(processed[0, 200, 200, 0], 3) == np.round(processed[0, 201, 201, 0], 3)
+    # maxima is no longer significantly greater than rest of image
+    new_spot_val = processed[0, 200, 200, 0]
+    processed[0, 200, 200, 0] = 0.5
+    next_max_val = np.max(processed)
+
+    # difference between bright spot and next greatest value is essentially nothing
+    assert np.round(new_spot_val / next_max_val, 1) == 1
+
+    # histogram normalization without thresholding
+    processed_hist = processing.multiplex_preprocess(img, threshold=False)
+    assert (processed_hist <= 1).all() and (processed_hist >= -1).all()
+
+    new_spot_val = processed_hist[0, 200, 200, 0]
+    processed_hist[0, 200, 200, 0] = 0.5
+    next_max_val = np.max(processed_hist)
+    assert np.round(new_spot_val / next_max_val, 1) > 1
+
+    # thresholding without histogram normalization
+    processed_thresh = processing.multiplex_preprocess(img, normalize=False)
+    assert not (processed_thresh <= 1).all()
+
+    new_spot_val = processed_thresh[0, 200, 200, 0]
+    processed_thresh[0, 200, 200, 0] = 0.5
+    next_max_val = np.max(processed_thresh)
+    assert np.round(new_spot_val / next_max_val, 1) == 1
+
+    # no change to image
+    not_processed = processing.multiplex_preprocess(img, normalize=False, threshold=False)
+    assert np.all(not_processed == img)
 
 
 def test_mibi():
