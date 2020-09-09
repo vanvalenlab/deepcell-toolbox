@@ -71,6 +71,46 @@ def test_histogram_normalization():
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
 
+def test_percentile_threshold():
+    image_data = np.random.rand(5, 20, 20, 2)
+    image_data[4, 19, 4, 0] = 100
+
+    thresholded = processing.percentile_threshold(image=image_data)
+    assert np.all(thresholded < 100)
+
+    # setting percentiles to 0, 100 shouldn't change data
+    no_threshold = processing.percentile_threshold(image=image_data,
+                                                   percentiles=(0, 100))
+    assert np.array_equal(image_data, no_threshold)
+
+    # different channels have different distributions
+    image_data[:, :, :, 0] *= 100
+    thresholded = processing.percentile_threshold(image=image_data)
+
+    assert np.mean(thresholded[..., 0]) > 10
+    assert np.mean(thresholded[..., 1]) < 1
+
+
+def test_multiplex_preprocess():
+    height, width = 300, 300
+    img = _get_image(height, width)
+
+    # make rank 4 (batch, X, y, channel)
+    img = np.expand_dims(img, axis=0)
+    img = np.expand_dims(img, axis=-1)
+
+    # two bright spots
+    img[0, 200, 200, 0] = 5000
+    img[0, 201, 201, 0] = 4000
+
+    # histogram normalized
+    processed = processing.multiplex_preprocess(img)
+    assert (processed <= 1).all() and (processed >= -1).all()
+
+    # maxima have been thresholded to same value
+    assert processed[0, 200, 200, 0] == processed[0, 201, 201, 0]
+
+
 def test_mibi():
     channels = 3
     img = np.random.rand(300, 300, channels)

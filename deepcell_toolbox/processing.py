@@ -81,6 +81,58 @@ def histogram_normalization(image, kernel_size=64):
     return image
 
 
+def percentile_threshold(image, percentiles=None):
+    """Threshold an image to reduce bright spots
+
+    Args:
+        image: numpy array of image data
+        percentiles: tuple of lower_percentile, upper_percentile used to threshold image
+
+    Returns:
+        np.array: thresholded version of input image
+    """
+
+    if percentiles is None:
+        percentiles = (5, 95)
+
+    for img in range(image.shape[0]):
+        for chan in range(image.shape[-1]):
+            # get non-zero values to determine percentiles
+            current_img = image[img, ..., chan]
+            non_zero_vals = current_img[np.nonzero(current_img)]
+            img_min, img_max = np.percentile(non_zero_vals, percentiles)
+
+            # threshold values below min or above max to be min or max, respectively
+            min_mask = current_img < img_min
+            max_mask = current_img > img_max
+            current_img[min_mask] = img_min
+            current_img[max_mask] = img_max
+
+            # update image
+            image[img, ..., chan] = current_img
+
+    return image
+
+
+def multiplex_preprocess(image, **kwargs):
+    """Preprocessing function for multiplex data
+
+    Args:
+        image: array to be processed
+
+    Returns:
+        np.array: processed image array
+    """
+
+    percentiles = kwargs.get('percentiles', None)
+    output = percentile_threshold(image=image, percentiles=percentiles)
+
+    kernel_size = kwargs.get('kernel_size', 128)
+    output = histogram_normalization(image=output, kernel_size=kernel_size)
+
+    return output
+
+
 def phase_preprocess(image, kernel_size=64):
     """Maintained for backwards compatability"""
     return histogram_normalization(image=image, kernel_size=kernel_size)
