@@ -81,7 +81,7 @@ def histogram_normalization(image, kernel_size=64):
     return image
 
 
-def percentile_threshold(image, percentile=None):
+def percentile_threshold(image, percentile=99.9):
     """Threshold an image to reduce bright spots
 
     Args:
@@ -91,9 +91,6 @@ def percentile_threshold(image, percentile=None):
     Returns:
         np.array: thresholded version of input image
     """
-
-    if percentile is None:
-        percentile = 99.9
 
     processed_image = np.zeros_like(image)
     for img in range(image.shape[0]):
@@ -110,29 +107,6 @@ def percentile_threshold(image, percentile=None):
             processed_image[img, ..., chan] = current_img
 
     return processed_image
-
-
-def multiplex_preprocess(image, **kwargs):
-    """Preprocessing function for multiplex data
-
-    Args:
-        image: array to be processed
-
-    Returns:
-        np.array: processed image array
-    """
-    output = np.copy(image)
-    threshold = kwargs.get('threshold', True)
-    if threshold:
-        percentile = kwargs.get('percentile', 99.9)
-        output = percentile_threshold(image=output, percentile=percentile)
-
-    normalize = kwargs.get('normalize', True)
-    if normalize:
-        kernel_size = kwargs.get('kernel_size', 128)
-        output = histogram_normalization(image=output, kernel_size=kernel_size)
-
-    return output
 
 
 def phase_preprocess(image, kernel_size=64):

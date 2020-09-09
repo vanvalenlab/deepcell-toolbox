@@ -90,52 +90,6 @@ def test_percentile_threshold():
     assert np.mean(thresholded[..., 1]) < 1
 
 
-def test_multiplex_preprocess():
-    height, width = 300, 300
-    img = _get_image(height, width)
-
-    # make rank 4 (batch, X, y, channel)
-    img = np.expand_dims(img, axis=0)
-    img = np.expand_dims(img, axis=-1)
-
-    # single bright spot
-    img[0, 200, 200, 0] = 5000
-
-    # histogram normalized
-    processed = processing.multiplex_preprocess(img)
-    assert (processed <= 1).all() and (processed >= -1).all()
-
-    # maxima is no longer significantly greater than rest of image
-    new_spot_val = processed[0, 200, 200, 0]
-    processed[0, 200, 200, 0] = 0.5
-    next_max_val = np.max(processed)
-
-    # difference between bright spot and next greatest value is essentially nothing
-    assert np.round(new_spot_val / next_max_val, 1) == 1
-
-    # histogram normalization without thresholding
-    processed_hist = processing.multiplex_preprocess(img, threshold=False)
-    assert (processed_hist <= 1).all() and (processed_hist >= -1).all()
-
-    new_spot_val = processed_hist[0, 200, 200, 0]
-    processed_hist[0, 200, 200, 0] = 0.5
-    next_max_val = np.max(processed_hist)
-    assert np.round(new_spot_val / next_max_val, 1) > 1
-
-    # thresholding without histogram normalization
-    processed_thresh = processing.multiplex_preprocess(img, normalize=False)
-    assert not (processed_thresh <= 1).all()
-
-    new_spot_val = processed_thresh[0, 200, 200, 0]
-    processed_thresh[0, 200, 200, 0] = 0.5
-    next_max_val = np.max(processed_thresh)
-    assert np.round(new_spot_val / next_max_val, 1) == 1
-
-    # no change to image
-    not_processed = processing.multiplex_preprocess(img, normalize=False, threshold=False)
-    assert np.all(not_processed == img)
-
-
 def test_mibi():
     channels = 3
     img = np.random.rand(300, 300, channels)
