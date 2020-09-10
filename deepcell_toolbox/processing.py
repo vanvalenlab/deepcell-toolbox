@@ -81,6 +81,34 @@ def histogram_normalization(image, kernel_size=64):
     return image
 
 
+def percentile_threshold(image, percentile=99.9):
+    """Threshold an image to reduce bright spots
+
+    Args:
+        image: numpy array of image data
+        percentile: cutoff used to threshold image
+
+    Returns:
+        np.array: thresholded version of input image
+    """
+
+    processed_image = np.zeros_like(image)
+    for img in range(image.shape[0]):
+        for chan in range(image.shape[-1]):
+            current_img = np.copy(image[img, ..., chan])
+            non_zero_vals = current_img[np.nonzero(current_img)]
+            img_max = np.percentile(non_zero_vals, percentile)
+
+            # threshold values down to max
+            threshold_mask = current_img > img_max
+            current_img[threshold_mask] = img_max
+
+            # update image
+            processed_image[img, ..., chan] = current_img
+
+    return processed_image
+
+
 def phase_preprocess(image, kernel_size=64):
     """Maintained for backwards compatability"""
     return histogram_normalization(image=image, kernel_size=kernel_size)

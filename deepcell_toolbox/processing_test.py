@@ -71,6 +71,25 @@ def test_histogram_normalization():
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
 
+def test_percentile_threshold():
+    image_data = np.random.rand(5, 20, 20, 2)
+    image_data[4, 19, 4, 0] = 100
+
+    thresholded = processing.percentile_threshold(image=image_data)
+    assert np.all(thresholded < 100)
+
+    # setting percentile to 100 shouldn't change data
+    no_threshold = processing.percentile_threshold(image=image_data, percentile=100)
+    assert np.array_equal(image_data, no_threshold)
+
+    # different channels have different distributions
+    image_data[:, :, :, 0] *= 100
+    thresholded = processing.percentile_threshold(image=image_data)
+
+    assert np.mean(thresholded[..., 0]) > 10
+    assert np.mean(thresholded[..., 1]) < 1
+
+
 def test_mibi():
     channels = 3
     img = np.random.rand(300, 300, channels)
