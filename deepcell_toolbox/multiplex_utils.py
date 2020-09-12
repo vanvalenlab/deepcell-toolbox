@@ -119,32 +119,28 @@ def multiplex_postprocess(model_output, compartment='whole-cell', whole_cell_kwa
 
 def format_output_multiplex(output_list):
     """Takes list of model outputs and formats into a dictionary for better readability
-
+    
     Args:
-        output_list: list of predictions from semantic heads
+        output_list (list): predictions from semantic heads
 
     Returns:
         dict: dictionary with predictions
 
     Raises:
-        ValueError: model output list is not len(8)
+        ValueError: if model output list is not len(8)
     """
 
-    if len(output_list) != 8:
+    if len(output_list) != 4:
         raise ValueError('output_list was length {}, expecting length 8'.format(len(output_list)))
 
     formatted_dict = {
         'whole-cell': {
             'inner-distance': output_list[0],
-            'outer-distance': output_list[1],
-            'fgbg-fg': output_list[2][..., :1],
-            'pixelwise-interior': output_list[3][..., 1:2]
+            'pixelwise-interior': output_list[1][..., 1:2]
         },
         'nuclear': {
-            'inner-distance': output_list[4],
-            'outer-distance': output_list[5],
-            'fgbg-fg': output_list[6][..., :1],
-            'pixelwise-interior': output_list[7][..., 1:2]
+            'inner-distance': output_list[2],
+            'pixelwise-interior': output_list[3][..., 1:2]
         }
     }
 

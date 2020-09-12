@@ -144,13 +144,11 @@ def test_format_output_multiplex():
     # create output list, each with a different constant value across image
     base_array = np.ones((1, 20, 20, 1))
 
-    whole_cell_list = [base_array * mult for mult in range(1, 8)]
+    whole_cell_list = [base_array * mult for mult in range(1, 5)]
     whole_cell_list = [whole_cell_list[0],
-                       whole_cell_list[1],
-                       np.concatenate(whole_cell_list[2:4], axis=-1),
-                       np.concatenate(whole_cell_list[4:7], axis=-1)]
+                       np.concatenate(whole_cell_list[1:4], axis=-1)]
 
-    # cre
+    # create output list for nuclear predictions
     nuclear_list = [img * 2 for img in whole_cell_list]
 
     combined_list = whole_cell_list + nuclear_list
@@ -162,8 +160,8 @@ def test_format_output_multiplex():
     assert np.array_equal(output['whole-cell']['inner-distance'], base_array)
     assert np.array_equal(output['nuclear']['inner-distance'], base_array * 2)
 
-    assert np.array_equal(output['whole-cell']['pixelwise-interior'], base_array * 6)
-    assert np.array_equal(output['nuclear']['pixelwise-interior'], base_array * 12)
+    assert np.array_equal(output['whole-cell']['pixelwise-interior'], base_array * 3)
+    assert np.array_equal(output['nuclear']['pixelwise-interior'], base_array * 6)
 
     with pytest.raises(ValueError):
-        output = format_output_multiplex(combined_list[:7])
+        output = format_output_multiplex(combined_list[:3])
