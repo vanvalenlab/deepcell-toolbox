@@ -81,8 +81,7 @@ def test_multiplex_preprocess():
     assert np.round(new_spot_val / next_max_val, 1) == 1
 
     # no change to image
-    not_processed = multiplex_preprocess(img, normalize=False,
-                                                                threshold=False)
+    not_processed = multiplex_preprocess(img, normalize=False, threshold=False)
     assert np.all(not_processed == img)
 
 
