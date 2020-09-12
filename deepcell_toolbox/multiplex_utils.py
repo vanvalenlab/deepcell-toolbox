@@ -119,7 +119,7 @@ def multiplex_postprocess(model_output, compartment='whole-cell', whole_cell_kwa
 
 def format_output_multiplex(output_list):
     """Takes list of model outputs and formats into a dictionary for better readability
-    
+
     Args:
         output_list (list): predictions from semantic heads
 
