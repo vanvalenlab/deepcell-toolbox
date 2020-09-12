@@ -34,7 +34,7 @@ with open(path.join(path.abspath(path.dirname(__file__)), 'README.md')) as f:
     long_description = f.read()
 
 
-VERSION = '0.7.0'
+VERSION = '0.8.0'
 
 
 class BuildExtension(setuptools.Command):
