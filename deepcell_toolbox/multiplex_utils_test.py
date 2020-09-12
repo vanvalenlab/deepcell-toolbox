@@ -119,7 +119,7 @@ def test_multiplex_postprocess(mocker):
         pixelwise_interior_vals = model_output['pixelwise-interior']
         return pixelwise_interior_vals
 
-    mocker.patch('deepcell_toolbox.deep_watershed.deep_watershed_mibi',
+    mocker.patch('deepcell_toolbox.multiplex_utils.deep_watershed_mibi',
                  mock_deep_watershed_mibi)
 
     # whole cell predictions only
