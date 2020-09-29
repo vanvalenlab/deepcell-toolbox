@@ -129,9 +129,10 @@ def format_output_multiplex(output_list):
     Raises:
         ValueError: if model output list is not len(8)
     """
-
-    if len(output_list) != 4:
-        raise ValueError('output_list was length {}, expecting length 8'.format(len(output_list)))
+    expected_length = 4
+    if len(output_list) != expected_length:
+        raise ValueError('output_list was length {}, expecting length {}'.format(
+            len(output_list), expected_length))
 
     formatted_dict = {
         'whole-cell': {
