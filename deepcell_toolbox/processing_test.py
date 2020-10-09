@@ -70,11 +70,6 @@ def test_histogram_normalization():
     preprocessed_img = processing.phase_preprocess(img)
     assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
 
-    # test blank image
-    blank_img = np.zeros((1, 40, 40, 1))
-    preprocessed_img = processing.histogram_normalization(blank_img)
-    assert len(np.unique(preprocessed_img)) == 1
-
 
 def test_percentile_threshold():
     image_data = np.random.rand(5, 20, 20, 2)
