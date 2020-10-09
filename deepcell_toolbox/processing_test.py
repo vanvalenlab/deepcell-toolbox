@@ -89,6 +89,11 @@ def test_percentile_threshold():
     assert np.mean(thresholded[..., 0]) > 10
     assert np.mean(thresholded[..., 1]) < 1
 
+    # blank channels are returned as blank
+    image_data[0, ..., 0] = 0
+    thresholded_blank = processing.percentile_threshold(image=image_data)
+    assert np.all(thresholded_blank[0, ..., 0] == 0)
+
 
 def test_mibi():
     channels = 3

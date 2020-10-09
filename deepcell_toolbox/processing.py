@@ -97,14 +97,17 @@ def percentile_threshold(image, percentile=99.9):
         for chan in range(image.shape[-1]):
             current_img = np.copy(image[img, ..., chan])
             non_zero_vals = current_img[np.nonzero(current_img)]
-            img_max = np.percentile(non_zero_vals, percentile)
 
-            # threshold values down to max
-            threshold_mask = current_img > img_max
-            current_img[threshold_mask] = img_max
+            # only threshold if channel isn't blank
+            if len(non_zero_vals) > 0:
+                img_max = np.percentile(non_zero_vals, percentile)
 
-            # update image
-            processed_image[img, ..., chan] = current_img
+                # threshold values down to max
+                threshold_mask = current_img > img_max
+                current_img[threshold_mask] = img_max
+
+                # update image
+                processed_image[img, ..., chan] = current_img
 
     return processed_image
 
