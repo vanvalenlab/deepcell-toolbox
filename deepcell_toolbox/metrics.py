@@ -182,11 +182,17 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                                  y_pred.shape, y_true.shape))
 
         # Relabel y_true and y_pred so the labels are consecutive
-        y_true, _, _ = relabel_sequential(y_true)
-        y_pred, _, _ = relabel_sequential(y_pred)
+        y_true_relabeled, _, _ = relabel_sequential(y_true)
+        y_pred_relabeled, _, _ = relabel_sequential(y_pred)
 
-        self.y_true = y_true
-        self.y_pred = y_pred
+        if not (np.array_equal(y_true, y_true_relabeled) and
+                np.array_equal(y_pred, y_pred_relabeled)):
+            warnings.warn('Provided data is being relabeled. Cell ids from metrics will not match '
+                          'cell ids in original data. Relabel your data prior to running the '
+                          'metrics package if you wish to maintain cell ids')
+
+        self.y_true = y_true_relabeled
+        self.y_pred = y_pred_relabeled
 
         self.n_true = len(np.unique(self.y_true[np.nonzero(self.y_true)]))
         self.n_pred = len(np.unique(self.y_pred[np.nonzero(self.y_pred)]))
