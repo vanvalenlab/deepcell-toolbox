@@ -40,11 +40,12 @@ from skimage.exposure import rescale_intensity
 from skimage.measure import label
 
 
-def normalize(image):
+def normalize(image, epsilon=1e-07):
     """Normalize image data by dividing by the maximum pixel value
 
     Args:
         image (numpy.array): numpy array of image data
+        epsilon (float): fuzz factor used in numeric expressions.
 
     Returns:
         numpy.array: normalized image data
@@ -52,7 +53,7 @@ def normalize(image):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             img = image[batch, ..., channel]
-            normal_image = (img - img.mean()) / img.std()
+            normal_image = (img - img.mean()) / (img.std() + epsilon)
             image[batch, ..., channel] = normal_image
     return image
 

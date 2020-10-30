@@ -51,6 +51,13 @@ def test_normalize():
     np.testing.assert_almost_equal(normalized_img.mean(), 0)
     np.testing.assert_almost_equal(normalized_img.var(), 1)
 
+    # test single-valued image is non NaN.
+    img = np.ones((height, width))
+    img = np.expand_dims(img, axis=0)
+    img = np.expand_dims(img, axis=-1)
+    normalized_img = processing.normalize(img)
+    np.testing.assert_almost_equal(normalized_img.mean(), 0)
+
 
 def test_histogram_normalization():
     height, width = 300, 300
