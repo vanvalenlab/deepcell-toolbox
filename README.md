@@ -1,6 +1,6 @@
 # ![DeepCell Toolbox Banner](https://raw.githubusercontent.com/vanvalenlab/deepcell-toolbox/master/docs/images/DeepCell_toolbox_Banner.png)
 
-[![Build Status](https://travis-ci.com/vanvalenlab/deepcell-toolbox.svg?branch=master)](https://travis-ci.com/vanvalenlab/deepcell-toolbox)
+[![Build Status](https://github.com/vanvalenlab/deepcell-toolbox/workflows/build/badge.svg)](https://github.com/vanvalenlab/deepcell-toolbox/actions)
 [![Coverage Status](https://coveralls.io/repos/github/vanvalenlab/deepcell-toolbox/badge.svg?branch=master)](https://coveralls.io/github/vanvalenlab/deepcell-toolbox?branch=master)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](/LICENSE)
 [![PyPI version](https://badge.fury.io/py/Deepcell-Toolbox.svg)](https://badge.fury.io/py/deepcell-toolbox)
