@@ -37,7 +37,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 
 about = {}
-with open(os.path.join(here, 'kiosk_client', '__version__.py'), 'r', 'utf-8') as f:
+with open(os.path.join(here, 'deepcell_toolbox', '__version__.py'), 'r', 'utf-8') as f:
     exec(f.read(), about)
 
 
