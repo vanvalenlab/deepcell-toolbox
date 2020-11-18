@@ -60,22 +60,47 @@ def test_normalize():
 
 
 def test_histogram_normalization():
-    height, width = 300, 300
-    img = _get_image(height, width)
+    height, width = 30, 30
+    image = _get_image(height, width)
 
     # make rank 4 (batch, X, y, channel)
-    img = np.expand_dims(img, axis=0)
-    img = np.expand_dims(img, axis=-1)
+    image = np.expand_dims(image, axis=0)
+    image = np.expand_dims(image, axis=-1)
 
-    preprocessed_img = processing.histogram_normalization(img)
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+    # randomly flip sign of image values
+    negative_filter = (2 * np.random.randint(0, 2, size=image.shape) - 1)
 
-    preprocessed_img = processing.histogram_normalization(img.astype('uint16'))
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+    # create a few other test inputs
+    test_images = [
+        image,
+        image.astype('uint16'),
+        image.astype('int16'),
+        image.astype('float16'),
+        image * negative_filter,
+        image.astype('int16') * negative_filter,
+        image.astype('float16') * negative_filter
+    ]
 
-    # test legacy version
-    preprocessed_img = processing.phase_preprocess(img)
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+    for img in test_images:
+        preprocessed = processing.histogram_normalization(img)
+
+        # test min and max values of output
+        assert preprocessed.min() == 0 and preprocessed.max() == 1
+
+        # test minima and maxima are consistent
+        # min_coords = (img == img.min()).nonzero()
+        # max_coords = (img == img.max()).nonzero()
+        # assert (preprocessed[min_coords] == 0).all()
+        # assert (preprocessed[max_coords] == 1).all()
+
+        # test negative coordinates don't get clipped
+        negative_coords = (img < 0).nonzero()
+        if len(preprocessed[negative_coords]):
+            assert (preprocessed[negative_coords] >= 0).all()
+
+        # test legacy version
+        legacy_img = processing.phase_preprocess(img)
+        np.testing.assert_equal(legacy_img, preprocessed)
 
 
 def test_percentile_threshold():

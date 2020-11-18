@@ -58,13 +58,14 @@ def normalize(image, epsilon=1e-07):
     return image
 
 
-def histogram_normalization(image, kernel_size=64):
+def histogram_normalization(image, kernel_size=None):
     """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
     Args:
         image (numpy.array): numpy array of phase image data.
-        kernel_size (integer): Size of kernel for CLAHE.
+        kernel_size (integer): Size of kernel for CLAHE,
+            defaults to 1/8 of image size.
 
     Returns:
         numpy.array: Pre-processed image data with dtype float32.
@@ -76,8 +77,9 @@ def histogram_normalization(image, kernel_size=64):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
-            X = rescale_intensity(X, out_range='float')
-            X = equalize_adapthist(X, kernel_size=(kernel_size, kernel_size))
+            # X = rescale_intensity(X, out_range='float')
+            X = rescale_intensity(X, out_range=(0.0, 1.0))
+            X = equalize_adapthist(X, kernel_size=kernel_size)
             image[batch, ..., channel] = X
     return image
 
@@ -111,11 +113,6 @@ def percentile_threshold(image, percentile=99.9):
                 processed_image[img, ..., chan] = current_img
 
     return processed_image
-
-
-def phase_preprocess(image, kernel_size=64):
-    """Maintained for backwards compatability"""
-    return histogram_normalization(image=image, kernel_size=kernel_size)
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
@@ -293,3 +290,7 @@ def correct_drift(X, y=None):
         return X, y
 
     return X
+
+
+# alias for backwards compatibility
+phase_preprocess = histogram_normalization
