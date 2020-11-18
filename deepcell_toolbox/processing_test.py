@@ -60,7 +60,7 @@ def test_normalize():
 
 
 def test_histogram_normalization():
-    height, width = 300, 300
+    height, width = 30, 30
     image = _get_image(height, width)
 
     # make rank 4 (batch, X, y, channel)
@@ -92,6 +92,11 @@ def test_histogram_normalization():
         # max_coords = (img == img.max()).nonzero()
         # assert (preprocessed[min_coords] == 0).all()
         # assert (preprocessed[max_coords] == 1).all()
+
+        # test negative coordinates don't get clipped
+        negative_coords = (img < 0).nonzero()
+        if len(preprocessed[negative_coords]):
+            assert (preprocessed[negative_coords] >= 0).all()
 
         # test legacy version
         legacy_img = processing.phase_preprocess(img)
