@@ -429,7 +429,8 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
         if (min_tile_size <= tile_size_x < image_shape[1] and
                 min_tile_size <= tile_size_y < image_shape[2] and
                 stride_ratio >= min_stride_ratio):
-            window = window_2D(window_size, overlap_x=overlap_x, overlap_y=overlap_y, power=power)
+            window = window_2D(window_size, overlap_x=overlap_x,
+                               overlap_y=overlap_y, power=power)
             image[batch, x_start:x_end, y_start:y_end, :] += tile * window
         else:
             image[batch, x_start:x_end, y_start:y_end, :] = tile
