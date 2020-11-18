@@ -51,6 +51,13 @@ def test_normalize():
     np.testing.assert_almost_equal(normalized_img.mean(), 0)
     np.testing.assert_almost_equal(normalized_img.var(), 1)
 
+    # test single-valued image is non NaN.
+    img = np.ones((height, width))
+    img = np.expand_dims(img, axis=0)
+    img = np.expand_dims(img, axis=-1)
+    normalized_img = processing.normalize(img)
+    np.testing.assert_almost_equal(normalized_img.mean(), 0)
+
 
 def test_histogram_normalization():
     height, width = 300, 300
@@ -89,6 +96,30 @@ def test_histogram_normalization():
         # test legacy version
         legacy_img = processing.phase_preprocess(img)
         np.testing.assert_equal(legacy_img, preprocessed)
+
+
+def test_percentile_threshold():
+    image_data = np.random.rand(5, 20, 20, 2)
+    image_data[4, 19, 4, 0] = 100
+
+    thresholded = processing.percentile_threshold(image=image_data)
+    assert np.all(thresholded < 100)
+
+    # setting percentile to 100 shouldn't change data
+    no_threshold = processing.percentile_threshold(image=image_data, percentile=100)
+    assert np.array_equal(image_data, no_threshold)
+
+    # different channels have different distributions
+    image_data[:, :, :, 0] *= 100
+    thresholded = processing.percentile_threshold(image=image_data)
+
+    assert np.mean(thresholded[..., 0]) > 10
+    assert np.mean(thresholded[..., 1]) < 1
+
+    # blank channels are returned as blank
+    image_data[0, ..., 0] = 0
+    thresholded_blank = processing.percentile_threshold(image=image_data)
+    assert np.all(thresholded_blank[0, ..., 0] == 0)
 
 
 def test_mibi():

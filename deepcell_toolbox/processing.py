@@ -40,11 +40,12 @@ from skimage.exposure import rescale_intensity
 from skimage.measure import label
 
 
-def normalize(image):
+def normalize(image, epsilon=1e-07):
     """Normalize image data by dividing by the maximum pixel value
 
     Args:
         image (numpy.array): numpy array of image data
+        epsilon (float): fuzz factor used in numeric expressions.
 
     Returns:
         numpy.array: normalized image data
@@ -52,7 +53,7 @@ def normalize(image):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             img = image[batch, ..., channel]
-            normal_image = (img - img.mean()) / img.std()
+            normal_image = (img - img.mean()) / (img.std() + epsilon)
             image[batch, ..., channel] = normal_image
     return image
 
@@ -80,6 +81,42 @@ def histogram_normalization(image, kernel_size=None):
             X = equalize_adapthist(X, kernel_size=kernel_size)
             image[batch, ..., channel] = X
     return image
+
+
+def percentile_threshold(image, percentile=99.9):
+    """Threshold an image to reduce bright spots
+
+    Args:
+        image: numpy array of image data
+        percentile: cutoff used to threshold image
+
+    Returns:
+        np.array: thresholded version of input image
+    """
+
+    processed_image = np.zeros_like(image)
+    for img in range(image.shape[0]):
+        for chan in range(image.shape[-1]):
+            current_img = np.copy(image[img, ..., chan])
+            non_zero_vals = current_img[np.nonzero(current_img)]
+
+            # only threshold if channel isn't blank
+            if len(non_zero_vals) > 0:
+                img_max = np.percentile(non_zero_vals, percentile)
+
+                # threshold values down to max
+                threshold_mask = current_img > img_max
+                current_img[threshold_mask] = img_max
+
+                # update image
+                processed_image[img, ..., chan] = current_img
+
+    return processed_image
+
+
+def phase_preprocess(image, kernel_size=64):
+    """Maintained for backwards compatability"""
+    return histogram_normalization(image=image, kernel_size=kernel_size)
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
