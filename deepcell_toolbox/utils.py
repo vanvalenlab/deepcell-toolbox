@@ -148,13 +148,14 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
         numpy.array: data reshaped to new shape.
     """
     if len(data.shape) not in {3, 4}:
-        raise ValueError('Data must have 3 or 4 dimensions, e.g. [batch, x, y], [x, y, channel]'
-                         'or [batch, x, y, channel]. Input data only has {} dimensions.'.format(
-                             str(len(data.shape))))
+        raise ValueError('Data must have 3 or 4 dimensions, e.g. '
+                         '[batch, x, y], [x, y, channel] or '
+                         '[batch, x, y, channel]. Input data only has {} '
+                         'dimensions.'.format(len(data.shape)))
 
     if len(shape) != 2:
         raise ValueError('Shape for resize can only have length of 2, e.g. (x,y).'
-                         'Input shape has {} dimensions.'.format(str(len(shape))))
+                         'Input shape has {} dimensions.'.format(len(shape)))
 
     original_dtype = data.dtype
 
