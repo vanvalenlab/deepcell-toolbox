@@ -207,7 +207,8 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
     return resized.astype(original_dtype)
 
 
-def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
+def tile_image(image, model_input_shape=(512, 512),
+               stride_ratio=0.75, pad_mode='constant'):
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
 
@@ -215,9 +216,10 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
         image (numpy.array): The image to tile, must be rank 4.
         model_input_shape (tuple): The input size of the model.
         stride_ratio (float): The stride expressed as a fraction of the tile size.
+        pad_mode (str): Padding mode passed to ``np.pad``.
 
     Returns:
-        tuple(numpy.array, dict): A tuple consisting of an array of tiled
+        tuple (numpy.array, dict): A tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
 
     Raises:
@@ -253,7 +255,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0, 0)
     padding = (pad_null, pad_x, pad_y, pad_null)
-    image = np.pad(image, padding, 'constant')
+    image = np.pad(image, padding, pad_mode)
 
     counter = 0
     batches = []
