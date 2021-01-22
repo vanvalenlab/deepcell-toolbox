@@ -226,8 +226,7 @@ def tile_image(image, model_input_shape=(512, 512),
         ValueError: image is not rank 4.
     """
     if image.ndim != 4:
-        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
-            image.ndim))
+        raise ValueError('Expected image of rank 4, got {}'.format(image.ndim))
 
     image_size_x, image_size_y = image.shape[1:3]
     tile_size_x = model_input_shape[0]
