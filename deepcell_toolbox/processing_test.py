@@ -95,12 +95,17 @@ def test_histogram_normalization():
 
         # test negative coordinates don't get clipped
         negative_coords = (img < 0).nonzero()
-        if len(preprocessed[negative_coords]):
+        if len(preprocessed[negative_coords]) > 0:
             assert (preprocessed[negative_coords] >= 0).all()
 
         # test legacy version
         legacy_img = processing.phase_preprocess(img)
         np.testing.assert_equal(legacy_img, preprocessed)
+    
+    # test constant value array raises error
+    with pytest.raises(ValueError):
+        image = np.ones((1, 32, 32, 1))
+        processing.histogram_normalization(image)
 
 
 def test_percentile_threshold():
