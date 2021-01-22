@@ -148,13 +148,14 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
         numpy.array: data reshaped to new shape.
     """
     if len(data.shape) not in {3, 4}:
-        raise ValueError('Data must have 3 or 4 dimensions, e.g. [batch, x, y], [x, y, channel]'
-                         'or [batch, x, y, channel]. Input data only has {} dimensions.'.format(
-                             str(len(data.shape))))
+        raise ValueError('Data must have 3 or 4 dimensions, e.g. '
+                         '[batch, x, y], [x, y, channel] or '
+                         '[batch, x, y, channel]. Input data only has {} '
+                         'dimensions.'.format(len(data.shape)))
 
     if len(shape) != 2:
         raise ValueError('Shape for resize can only have length of 2, e.g. (x,y).'
-                         'Input shape has {} dimensions.'.format(str(len(shape))))
+                         'Input shape has {} dimensions.'.format(len(shape)))
 
     original_dtype = data.dtype
 
@@ -207,7 +208,8 @@ def resize(data, shape, data_format='channels_last', labeled_image=False):
     return resized.astype(original_dtype)
 
 
-def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
+def tile_image(image, model_input_shape=(512, 512),
+               stride_ratio=0.75, pad_mode='constant'):
     """
     Tile large image into many overlapping tiles of size "model_input_shape".
 
@@ -215,17 +217,17 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
         image (numpy.array): The image to tile, must be rank 4.
         model_input_shape (tuple): The input size of the model.
         stride_ratio (float): The stride expressed as a fraction of the tile size.
+        pad_mode (str): Padding mode passed to ``np.pad``.
 
     Returns:
-        tuple(numpy.array, dict): A tuple consisting of an array of tiled
+        tuple: (numpy.array, dict): A tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
 
     Raises:
         ValueError: image is not rank 4.
     """
     if image.ndim != 4:
-        raise ValueError('Expected image of rank 2, 3 or 4, got {}'.format(
-            image.ndim))
+        raise ValueError('Expected image of rank 4, got {}'.format(image.ndim))
 
     image_size_x, image_size_y = image.shape[1:3]
     tile_size_x = model_input_shape[0]
@@ -253,7 +255,7 @@ def tile_image(image, model_input_shape=(512, 512), stride_ratio=0.75):
     pad_y = (int(np.ceil(overlap_y / 2)), int(np.floor(overlap_y / 2)))
     pad_null = (0, 0)
     padding = (pad_null, pad_x, pad_y, pad_null)
-    image = np.pad(image, padding, 'constant')
+    image = np.pad(image, padding, pad_mode)
 
     counter = 0
     batches = []
