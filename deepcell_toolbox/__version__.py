@@ -1,4 +1,4 @@
-# Copyright 2016-2020 The Van Valen Lab at the California Institute of
+# Copyright 2016-2021 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -32,5 +32,5 @@ __version__ = '0.8.3'
 __author__ = 'Van Valen Lab'
 __author_email__ = 'vanvalenlab@gmail.com'
 __license__ = 'LICENSE'
-__copyright__ = 'Copyright 2016-2020 The Van Valen Lab at the ' \
+__copyright__ = 'Copyright 2016-2021 The Van Valen Lab at the ' \
     'California Institute of Technology (Caltech)'
