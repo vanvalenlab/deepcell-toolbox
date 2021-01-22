@@ -220,7 +220,7 @@ def tile_image(image, model_input_shape=(512, 512),
         pad_mode (str): Padding mode passed to ``np.pad``.
 
     Returns:
-        tuple (numpy.array, dict): A tuple consisting of an array of tiled
+        tuple: (numpy.array, dict): A tuple consisting of an array of tiled
             images and a dictionary of tiling details (for use in un-tiling).
 
     Raises:
