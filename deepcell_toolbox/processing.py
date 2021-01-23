@@ -50,6 +50,10 @@ def normalize(image, epsilon=1e-07):
     Returns:
         numpy.array: normalized image data
     """
+    if not np.issubdtype(image.dtype, np.floating):
+        logging.info('Converting image dtype to float')
+    image = image.astype('float32')
+
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             img = image[batch, ..., channel]
