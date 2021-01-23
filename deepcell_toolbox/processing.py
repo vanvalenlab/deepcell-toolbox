@@ -77,6 +77,16 @@ def histogram_normalization(image, kernel_size=None):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
+            sample_value = X[(0,) * X.ndim]
+            if (X == sample_value).all():
+                # TODO: Deal with constant value arrays
+                # https://github.com/scikit-image/scikit-image/issues/4596
+                logging.warning('Found constant value array in batch %s and '
+                                'channel %s. Normalizing as zeros.',
+                                batch, channel)
+                image[batch, ..., channel] = np.zeros_like(X)
+                continue
+
             # X = rescale_intensity(X, out_range='float')
             X = rescale_intensity(X, out_range=(0.0, 1.0))
             X = equalize_adapthist(X, kernel_size=kernel_size)
