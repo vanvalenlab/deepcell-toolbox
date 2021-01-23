@@ -28,6 +28,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import random
+
 import numpy as np
 
 import pytest
@@ -64,8 +66,7 @@ def test_histogram_normalization():
     image = _get_image(height, width)
 
     # make rank 4 (batch, X, y, channel)
-    image = np.expand_dims(image, axis=0)
-    image = np.expand_dims(image, axis=-1)
+    image = np.expand_dims(image, axis=(0, -1))
 
     # randomly flip sign of image values
     negative_filter = (2 * np.random.randint(0, 2, size=image.shape) - 1)
@@ -87,12 +88,6 @@ def test_histogram_normalization():
         # test min and max values of output
         assert preprocessed.min() == 0 and preprocessed.max() == 1
 
-        # test minima and maxima are consistent
-        # min_coords = (img == img.min()).nonzero()
-        # max_coords = (img == img.max()).nonzero()
-        # assert (preprocessed[min_coords] == 0).all()
-        # assert (preprocessed[max_coords] == 1).all()
-
         # test negative coordinates don't get clipped
         negative_coords = (img < 0).nonzero()
         if len(preprocessed[negative_coords]) > 0:
@@ -101,11 +96,21 @@ def test_histogram_normalization():
         # test legacy version
         legacy_img = processing.phase_preprocess(img)
         np.testing.assert_equal(legacy_img, preprocessed)
-    
-    # test constant value array raises error
-    with pytest.raises(ValueError):
-        image = np.ones((1, 32, 32, 1))
-        processing.histogram_normalization(image)
+
+    # test constant value arrays
+    # these won't have different min/max values or indices.
+    constant_images = [
+        np.zeros_like(image),
+        np.ones_like(image),
+        np.ones_like(image) * -1,
+        np.ones_like(image) * random.randint(2, 9),
+        np.ones_like(image) * random.randint(2, 9) * -1,
+    ]
+
+    for img in constant_images:
+        preprocessed = processing.histogram_normalization(img)
+        assert preprocessed.min() >= 0 and preprocessed.max() <= 1
+        assert preprocessed.min() == preprocessed.max()
 
 
 def test_percentile_threshold():

@@ -77,10 +77,6 @@ def histogram_normalization(image, kernel_size=None):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
-            if (X == X[(0,) * X.ndim]).all():
-                raise ValueError('histogram_normalization does not support '
-                                 'constant-value arrays.')
-
             # X = rescale_intensity(X, out_range='float')
             X = rescale_intensity(X, out_range=(0.0, 1.0))
             X = equalize_adapthist(X, kernel_size=kernel_size)
