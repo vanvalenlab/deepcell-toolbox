@@ -66,6 +66,9 @@ def histogram_normalization(image, kernel_size=None):
     """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
+    If one of the inputs is a constant-value array, it will
+    be normalized as an array of all zeros of the same shape.
+
     Args:
         image (numpy.array): numpy array of phase image data.
         kernel_size (integer): Size of kernel for CLAHE,
