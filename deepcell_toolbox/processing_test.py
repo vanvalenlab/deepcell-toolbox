@@ -66,7 +66,8 @@ def test_histogram_normalization():
     image = _get_image(height, width)
 
     # make rank 4 (batch, X, y, channel)
-    image = np.expand_dims(image, axis=(0, -1))
+    image = np.expand_dims(image, axis=0)
+    image = np.expand_dims(image, axis=-1)
 
     # randomly flip sign of image values
     negative_filter = (2 * np.random.randint(0, 2, size=image.shape) - 1)
