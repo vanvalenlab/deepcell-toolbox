@@ -63,6 +63,8 @@ def _retinamask_data(im, semantic=False):
 
     # scores
     scores = np.random.random(size=(n_batch, n_det, 1))
+    # set one score to .999 to force a match
+    scores[:, 0, 0] = .999
 
     # labels
     labels = np.zeros((n_batch, n_det, n_labels))
@@ -88,13 +90,11 @@ def test_retinamask_postprocess():
     im = _sample1(10, 10, 40, 40)
     out = _retinamask_data(im, semantic=False)
 
-    label = retinanet.retinamask_postprocess(
-        out, im.shape, score_threshold=.01)
+    label = retinanet.retinamask_postprocess(out, im.shape)
 
 
 def test_retinamask_semantic_postprocess():
     im = _sample1(10, 10, 40, 40)
     out = _retinamask_data(im, semantic=True)
 
-    label = retinanet.retinamask_semantic_postprocess(
-        out, score_threshold=.01)
+    label = retinanet.retinamask_semantic_postprocess(out)
