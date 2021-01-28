@@ -62,7 +62,7 @@ def _retinamask_data(im, semantic=False):
     boxes[..., :] = rp
 
     # scores
-    scores = np.random.random(size=(n_batch, n_det, 1))
+    scores = np.random.random(0, 1, size=(n_batch, n_det, 1))
     # set one score to .999 to force a match
     scores[:, 0, 0] = .999
 
