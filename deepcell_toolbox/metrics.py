@@ -53,7 +53,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from scipy.optimize import linear_sum_assignment
@@ -1171,7 +1171,7 @@ def plot_errors(y_true, y_pred, error_dict):
     plotting_tif = assign_plot_values(y_true, y_pred, error_dict)
 
     plotting_colors = ['Black', 'Pink', 'Blue', 'Green', 'tan', 'Red', 'Grey']
-    cmap = matplotlib.colors.ListedColormap(plotting_colors)
+    cmap = mpl.colors.ListedColormap(plotting_colors)
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
     mat = ax.imshow(plotting_tif, cmap=cmap, vmin=np.min(plotting_tif) - .5,
