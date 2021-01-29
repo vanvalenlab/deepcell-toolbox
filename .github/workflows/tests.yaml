@@ -41,14 +41,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install .[tests] coveralls
         python setup.py build_ext --inplace
+  
+    - name: PyTest
+      run: |
+        pytest --cov deepcell_toolbox --pep8
 
-    - name: Run PyTest and Coveralls
+    - name: Coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         COVERALLS_FLAG_NAME: python-${{ matrix.os }}-${{ matrix.python-version }}
         COVERALLS_PARALLEL: true
       run: |
-        pytest --cov deepcell_toolbox --pep8
         coveralls
 
   coveralls:
