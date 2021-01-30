@@ -53,6 +53,84 @@ def compute_iou(boxes, mask_image):
     return ious
 
 
+def _get_masks(boxes, scores, masks, mask_shape, score_threshold=0.5,
+               multi_iou_threshold=0.25, binarize_threshold=0.5):
+    # Get good detections
+    selection = np.nonzero(scores > score_threshold)[0]
+    boxes = boxes[selection]
+    scores = scores[selection]
+    masks = masks[selection, ..., -1]
+
+    # Compute overlap of masks with each other
+    mask_image = np.zeros(mask_shape, dtype='float32')
+
+    for j in range(masks.shape[0]):
+        mask = masks[j]
+        box = boxes[j].astype(int)
+        mask = resize(mask, (box[3] - box[1], box[2] - box[0]))
+        mask = (mask > binarize_threshold).astype('float32')
+        mask_image[j, box[1]:box[3], box[0]:box[2]] = mask
+
+    ious = compute_iou(boxes, mask_image)
+
+    # Identify all the masks with no overlaps and
+    # add to the label matrix
+    summed_ious = np.sum(ious, axis=-1)
+    no_overlaps = np.where(summed_ious == 1)
+
+    masks_no_overlaps = mask_image[no_overlaps]
+    range_no_overlaps = np.arange(1, masks_no_overlaps.shape[0] + 1)
+    masks_no_overlaps *= np.expand_dims(np.expand_dims(range_no_overlaps, axis=-1), axis=-1)
+
+    masks_concat = masks_no_overlaps
+
+    # If a mask has a big iou with two other masks, remove it
+    bad_mask = np.sum(ious > multi_iou_threshold, axis=0)
+    good_overlaps = np.logical_and(summed_ious > 1, bad_mask < 3)
+    good_overlaps = np.where(good_overlaps == 1)
+
+    # Identify all the ambiguous pixels and resolve
+    # by performing marker based watershed using unambiguous
+    # pixels as the markers
+    masks_overlaps = mask_image[good_overlaps]
+    range_overlaps = np.arange(1, masks_overlaps.shape[0] + 1)
+    masks_overlaps_label = masks_overlaps * np.expand_dims(
+        np.expand_dims(range_overlaps, axis=-1), axis=-1)
+
+    masks_overlaps_sum = np.sum(masks_overlaps, axis=0)
+    ambiguous_pixels = np.where(masks_overlaps_sum > 1)
+    markers = np.sum(masks_overlaps_label, axis=0)
+
+    if np.sum(markers.flatten()) > 0:
+        markers[markers == 0] = -1
+        markers[ambiguous_pixels] = 0
+
+        foreground = masks_overlaps_sum > 0
+        segments = random_walker(foreground, markers)
+
+        if not (segments == -1).all():
+
+            masks_overlaps = np.zeros((
+                np.amax(segments).astype(int),
+                masks_overlaps.shape[1],
+                masks_overlaps.shape[2]
+            ))
+
+            for j in range(1, masks_overlaps.shape[0] + 1):
+                masks_overlaps[j - 1] = segments == j
+
+            range_overlaps = np.arange(
+                masks_no_overlaps.shape[0] + 1,
+                masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
+
+            range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
+            range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
+            masks_overlaps *= range_overlaps
+            masks_concat = np.concatenate([masks_concat, masks_overlaps], axis=0)
+
+    return masks_concat, masks_overlaps, masks_no_overlaps
+
+
 def retinamask_semantic_postprocess(retinanet_outputs,
                                     score_threshold=0.5,
                                     multi_iou_threshold=0.25,
@@ -63,88 +141,29 @@ def retinamask_semantic_postprocess(retinanet_outputs,
 
     boxes_batch = retinanet_outputs[-5]
     scores_batch = retinanet_outputs[-4]
-    labels_batch = retinanet_outputs[-3]
+    labels_batch = retinanet_outputs[-3]  # pylint: disable=unused-variable
     masks_batch = retinanet_outputs[-2]
     semantic_batch = retinanet_outputs[-1]
 
     # Create empty label matrix
     label_images = np.zeros(
-        (masks_batch.shape[0], semantic_batch.shape[1], semantic_batch.shape[2]))
+        (masks_batch.shape[0], semantic_batch.shape[1], semantic_batch.shape[2]),
+        dtype='float32')
 
     # Iterate over batches
     for i in range(boxes_batch.shape[0]):
         boxes = boxes_batch[i]
         scores = scores_batch[i]
-        labels = labels_batch[i]
         masks = masks_batch[i]
         semantic = semantic_batch[i]
 
-        # Get good detections
-        selection = np.nonzero(scores > score_threshold)[0]
-        boxes = boxes[selection]
-        scores = scores[selection]
-        labels = labels[selection]
-        masks = masks[selection, ..., -1]
+        shape = (masks.shape[0], semantic.shape[0], semantic.shape[1])
 
-        # Compute overlap of masks with each other
-        mask_image = np.zeros((masks.shape[0], semantic.shape[0],
-                               semantic.shape[1]), dtype='float32')
-
-        for j in range(masks.shape[0]):
-            mask = masks[j]
-            box = boxes[j].astype(int)
-            mask = resize(mask, (box[3] - box[1], box[2] - box[0]))
-            mask = (mask > binarize_threshold).astype('float32')
-            mask_image[j, box[1]:box[3], box[0]:box[2]] = mask
-
-        ious = compute_iou(boxes, mask_image)
-
-        # Identify all the masks with no overlaps and
-        # add to the label matrix
-        summed_ious = np.sum(ious, axis=-1)
-        no_overlaps = np.where(summed_ious == 1)
-
-        masks_no_overlaps = mask_image[no_overlaps]
-        range_no_overlaps = np.arange(1, masks_no_overlaps.shape[0] + 1)
-        masks_no_overlaps *= np.expand_dims(np.expand_dims(range_no_overlaps, axis=-1), axis=-1)
-
-        masks_concat = masks_no_overlaps
-
-        # If a mask has a big iou with two other masks, remove it
-        overlaps = np.where(summed_ious > 1)
-        bad_mask = np.sum(ious > multi_iou_threshold, axis=0)
-        good_overlaps = np.logical_and(summed_ious > 1, bad_mask < 3)
-        good_overlaps = np.where(good_overlaps == 1)
-
-        # Identify all the ambiguous pixels and resolve
-        # by performing marker based watershed using unambiguous
-        # pixels as the markers
-        masks_overlaps = mask_image[good_overlaps]
-        range_overlaps = np.arange(1, masks_overlaps.shape[0] + 1)
-        masks_overlaps_label = masks_overlaps * np.expand_dims(
-            np.expand_dims(range_overlaps, axis=-1), axis=-1)
-
-        masks_overlaps_sum = np.sum(masks_overlaps, axis=0)
-        ambiguous_pixels = np.where(masks_overlaps_sum > 1)
-        markers = np.sum(masks_overlaps_label, axis=0)
-
-        if np.sum(markers.flatten()) > 0:
-            markers[markers == 0] = -1
-            markers[ambiguous_pixels] = 0
-
-            foreground = masks_overlaps_sum > 0
-            segments = random_walker(foreground, markers)
-
-            masks_overlaps = np.zeros((np.amax(segments).astype(int),
-                                       masks_overlaps.shape[1], masks_overlaps.shape[2]))
-
-            for j in range(1, masks_overlaps.shape[0] + 1):
-                masks_overlaps[j - 1] = segments == j
-
-            range_overlaps = np.arange(masks_no_overlaps.shape[0] + 1,
-                                       masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
-            masks_overlaps *= np.expand_dims(np.expand_dims(range_overlaps, axis=-1), axis=-1)
-            masks_concat = np.concatenate([masks_concat, masks_overlaps], axis=0)
+        masks_concat, masks_overlaps, masks_no_overlaps = _get_masks(
+            boxes, scores, masks, shape,
+            score_threshold=score_threshold,
+            multi_iou_threshold=multi_iou_threshold,
+            binarize_threshold=binarize_threshold)
 
         # Find peaks in watershed that are not within any
         # box and perform watershed
@@ -223,86 +242,27 @@ def retinamask_postprocess(outputs,
     """
     boxes_batch = outputs[-4]
     scores_batch = outputs[-3]
-    labels_batch = outputs[-2]
+    labels_batch = outputs[-2]  # pylint: disable=unused-variable
     masks_batch = outputs[-1]
 
     # Create empty label matrix
-    label_images = np.zeros((masks_batch.shape[0], image_shape[0], image_shape[1]))
+    label_images = np.zeros(
+        (masks_batch.shape[0], image_shape[0], image_shape[1]),
+        dtype=dtype)
 
     # Iterate over batches
     for i in range(boxes_batch.shape[0]):
         boxes = boxes_batch[i]
         scores = scores_batch[i]
-        labels = labels_batch[i]
         masks = masks_batch[i]
 
-        # Get good detections
-        selection = np.nonzero(scores > score_threshold)[0]
-        boxes = boxes[selection]
-        scores = scores[selection]
-        labels = labels[selection]
-        masks = masks[selection, ..., -1]
+        shape = (masks.shape[0], image_shape[0], image_shape[1])
 
-        # Compute overlap of masks with each other
-        mask_shape = (masks.shape[0], image_shape[0], image_shape[1])
-        mask_image = np.zeros(mask_shape, dtype=dtype)
-
-        for j in range(masks.shape[0]):
-            mask = masks[j]
-            box = boxes[j].astype(int)
-            if box[3] > box[1] and box[2] > box[0]:
-                mask = resize(mask, (box[3] - box[1], box[2] - box[0]))
-                mask = (mask > binarize_threshold).astype(dtype)
-                mask_image[j, box[1]:box[3], box[0]:box[2]] = mask
-
-        ious = compute_iou(boxes, mask_image)
-
-        # Identify all the masks with no overlaps and
-        # add to the label matrix
-        summed_ious = np.sum(ious, axis=-1)
-        no_overlaps = np.where(summed_ious == 1)
-
-        masks_no_overlaps = mask_image[no_overlaps]
-        range_no_overlaps = np.arange(1, masks_no_overlaps.shape[0] + 1)
-        range_no_overlaps = np.expand_dims(range_no_overlaps, axis=-1)
-        masks_no_overlaps *= np.expand_dims(range_no_overlaps, axis=-1)
-
-        masks_concat = masks_no_overlaps
-
-        # If a mask has a big iou with two other masks, remove it
-        overlaps = np.where(summed_ious > 1)
-        bad_mask = np.sum(ious > multi_iou_threshold, axis=0)
-        good_overlaps = np.logical_and(summed_ious > 1, bad_mask < 3)
-        good_overlaps = np.where(good_overlaps == 1)
-
-        # Identify all the ambiguous pixels and resolve
-        # by performing marker based watershed using unambiguous
-        # pixels as the markers
-        masks_overlaps = mask_image[good_overlaps]
-        range_overlaps = np.arange(1, masks_overlaps.shape[0] + 1)
-        masks_overlaps_label = masks_overlaps * np.expand_dims(
-            np.expand_dims(range_overlaps, axis=-1), axis=-1)
-
-        masks_overlaps_sum = np.sum(masks_overlaps, axis=0)
-        ambiguous_pixels = np.where(masks_overlaps_sum > 1)
-        markers = np.sum(masks_overlaps_label, axis=0)
-
-        if np.sum(markers.flatten()) > 0:
-            markers[markers == 0] = -1
-            markers[ambiguous_pixels] = 0
-
-            foreground = masks_overlaps_sum > 0
-            segments = random_walker(foreground, markers)
-
-            masks_overlaps = np.zeros((np.amax(segments).astype(int),
-                                       masks_overlaps.shape[1], masks_overlaps.shape[2]))
-
-            for j in range(1, masks_overlaps.shape[0] + 1):
-                masks_overlaps[j - 1] = segments == j
-            range_overlaps = np.arange(masks_no_overlaps.shape[0] + 1,
-                                       masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
-            masks_overlaps *= np.expand_dims(np.expand_dims(range_overlaps, axis=-1), axis=-1)
-            masks_concat = np.concatenate([masks_concat, masks_overlaps], axis=0)
+        masks_concat, _, _ = _get_masks(
+            boxes, scores, masks, shape,
+            score_threshold=score_threshold,
+            multi_iou_threshold=multi_iou_threshold,
+            binarize_threshold=binarize_threshold)
 
         label_image = np.sum(masks_concat, axis=0).astype(int)
 
