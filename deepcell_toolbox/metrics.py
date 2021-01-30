@@ -53,9 +53,6 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-
 from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
@@ -1167,6 +1164,9 @@ def plot_errors(y_true, y_pred, error_dict):
         y_pred: 2D matrix of predicted labels returned by save_error_ids
         error_dict: dictionary returned by save_error_ids with IDs of all error cells
     """
+
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
 
     plotting_tif = assign_plot_values(y_true, y_pred, error_dict)
 

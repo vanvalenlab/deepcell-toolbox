@@ -8,11 +8,12 @@ on: [push, pull_request]
 jobs:
   tests:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v2
@@ -34,18 +35,24 @@ jobs:
           ${{ runner.os }}-
 
     - name: Install Dependencies
+      env:
+        MPLBACKEND: TkAgg
       run: |
         python -m pip install --upgrade pip
         pip install .[tests] coveralls
         python setup.py build_ext --inplace
-
-    - name: Run PyTest and Coveralls
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        COVERALLS_FLAG_NAME: python-${{ matrix.python-version }}
-        COVERALLS_PARALLEL: true
+  
+    - name: PyTest
       run: |
         pytest --cov deepcell_toolbox --pep8
+
+    - name: Coveralls
+      if: env.COVERALLS_REPO_TOKEN != null
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        COVERALLS_FLAG_NAME: python-${{ matrix.os }}-${{ matrix.python-version }}
+        COVERALLS_PARALLEL: true
+      run: |
         coveralls
 
   coveralls:
@@ -55,6 +62,9 @@ jobs:
     steps:
     - name: Coveralls Finished
       uses: coverallsapp/github-action@master
+      if: env.COVERALLS_REPO_TOKEN != null
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         parallel-finished: true
