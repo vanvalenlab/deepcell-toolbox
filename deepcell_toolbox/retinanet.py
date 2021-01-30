@@ -294,8 +294,11 @@ def retinamask_postprocess(outputs,
             foreground = masks_overlaps_sum > 0
             segments = random_walker(foreground, markers)
 
-            masks_overlaps = np.zeros((np.amax(segments).astype(int),
-                                       masks_overlaps.shape[1], masks_overlaps.shape[2]))
+            x = np.amax(segments).astype(int)
+
+            print(x)
+
+            masks_overlaps = np.zeros((x, masks_overlaps.shape[1], masks_overlaps.shape[2]))
 
             for j in range(1, masks_overlaps.shape[0] + 1):
                 masks_overlaps[j - 1] = segments == j
