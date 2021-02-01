@@ -116,7 +116,7 @@ setup(name=about['__title__'],
       long_description_content_type='text/markdown',
       packages=find_packages(),
       ext_modules=extensions,
-      setup_requires=['cython>=0.28', 'numpy>=1.16.4,<1.20.0'],
+      setup_requires=['cython>=0.28', 'numpy>=1.16.6,<1.20.0'],
       classifiers=[
           'Programming Language :: Python',
           'Programming Language :: Python :: 2',
