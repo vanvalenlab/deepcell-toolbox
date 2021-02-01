@@ -28,12 +28,9 @@ import os
 from codecs import open
 from distutils.command.build_ext import build_ext as DistUtilsBuildExt
 
-try:
-    from setuptools import Command, find_packages, setup
-    from setuptools import Extension
-except ImportError:
-    from distutils.core import Command, find_packages, setup
-    from distutils.extension import Extension
+import setuptools
+from setuptools import setup, find_packages
+from setuptools.extension import Extension
 
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -48,7 +45,7 @@ with open(os.path.join(here, 'README.md'), 'r', 'utf-8') as f:
     readme = f.read()
 
 
-class BuildExtension(Command):
+class BuildExtension(setuptools.Command):
     description = DistUtilsBuildExt.description
     user_options = DistUtilsBuildExt.user_options
     boolean_options = DistUtilsBuildExt.boolean_options
