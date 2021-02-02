@@ -159,7 +159,7 @@ def _sample2_2(w, h, imw, imh, merge=True, similar_size=False):
     im2[im2 == b] = a
 
     # ensure that output is sequential so it doesn't get subsequently relabeled
-    im2, _, _ = relabel_sequential(im2)
+    im2, _, _ = relabel_sequential(im2.astype('int'))
 
     # record which values of im1 were correctly assigned
     im1_wrong = {a, b}
