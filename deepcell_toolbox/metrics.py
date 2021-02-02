@@ -178,17 +178,17 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                              'is: {}.  Shape of y_true is: {}'.format(
                                  y_pred.shape, y_true.shape))
 
-        if np.issubdtype(y_true.dtype, np.integer):
+        if not np.issubdtype(y_true.dtype, np.integer):
             warnings.warn('Casting y_true from {} to int'.format(y_true.dtype))
             y_true = y_true.astype('int32')
 
-        if np.issubdtype(y_pred.dtype, np.integer):
+        if not np.issubdtype(y_pred.dtype, np.integer):
             warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
             y_pred = y_pred.astype('int32')
 
         # Relabel y_true and y_pred so the labels are consecutive
         y_true, _, _ = relabel_sequential(y_true)
-        y_pred, _, _ = relabel_sequential(y_pred.astype('int'))
+        y_pred, _, _ = relabel_sequential(y_pred)
 
         self.y_true = y_true
         self.y_pred = y_pred
