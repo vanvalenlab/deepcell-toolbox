@@ -105,7 +105,7 @@ setup(name=about['__title__'],
                         'numpy<1.17.0; python_version < "3"',
                         'numpy<1.20.0; python_version >= "3"',
                         'scipy',
-                        'scikit-image<0.17',
+                        'scikit-image>=0.14.5',
                         'scikit-learn'],
       extras_require={
           'tests': ['pytest<6',
