@@ -141,7 +141,7 @@ def _sample2(w, h, imw, imh, similar_size=False):
         xs = np.random.randint(1, w * 0.9)
         ys = np.random.randint(1, h * 0.9)
 
-    im = np.zeros((imw, imh))
+    im = np.zeros((imw, imh), dtype='int')
     im[0:2, 0:2] = 1
     im[x:x + xs, y:y + ys] = 2
     im[x + xs:x + w, y:y + ys] = 3
@@ -443,21 +443,21 @@ class TestObjectAccuracy():
         testing.assert_equal(o.empty_frame, False)
 
         # test errors thrown for improper ndim inputs
-        y_true = np.zeros(shape=(10))
+        y_true = np.zeros(shape=(10), dtype='int')
         with pytest.raises(ValueError):
             o = metrics.ObjectAccuracy(y_true, y_true, test=True)
 
-        y_true = np.zeros(shape=(10, 5, 5, 5))
+        y_true = np.zeros(shape=(10, 5, 5, 5), dtype='int')
         with pytest.raises(ValueError):
             o = metrics.ObjectAccuracy(y_true, y_true, test=True)
 
         # test errors thrown for improper ndim inputs with 3d data
-        y_true = np.zeros(shape=(10, 15))
+        y_true = np.zeros(shape=(10, 15), dtype='int')
         y_pred = y_true
         with pytest.raises(ValueError):
             o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
 
-        y_true = np.zeros(shape=(10, 15, 15, 10))
+        y_true = np.zeros(shape=(10, 15, 15, 10), dtype='int')
         y_pred = y_true
         with pytest.raises(ValueError):
             o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
