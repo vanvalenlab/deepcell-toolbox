@@ -101,32 +101,31 @@ def _get_masks(boxes, scores, masks, mask_shape, score_threshold=0.5,
     ambiguous_pixels = np.where(masks_overlaps_sum > 1)
     markers = np.sum(masks_overlaps_label, axis=0)
 
-    if np.sum(markers.flatten()) > 0:
-        markers[markers == 0] = -1
-        markers[ambiguous_pixels] = 0
+    markers[markers == 0] = -1
+    markers[ambiguous_pixels] = 0
 
-        foreground = masks_overlaps_sum > 0
-        segments = random_walker(foreground, markers)
+    foreground = masks_overlaps_sum > 0
+    segments = random_walker(foreground, markers)
 
-        if not (segments == -1).all():
+    if not (segments == -1).all():
 
-            masks_overlaps = np.zeros((
-                np.amax(segments).astype(int),
-                masks_overlaps.shape[1],
-                masks_overlaps.shape[2]
-            ))
+        masks_overlaps = np.zeros((
+            np.amax(segments).astype(int),
+            masks_overlaps.shape[1],
+            masks_overlaps.shape[2]
+        ))
 
-            for j in range(1, masks_overlaps.shape[0] + 1):
-                masks_overlaps[j - 1] = segments == j
+        for j in range(1, masks_overlaps.shape[0] + 1):
+            masks_overlaps[j - 1] = segments == j
 
-            range_overlaps = np.arange(
-                masks_no_overlaps.shape[0] + 1,
-                masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
+        range_overlaps = np.arange(
+            masks_no_overlaps.shape[0] + 1,
+            masks_no_overlaps.shape[0] + masks_overlaps.shape[0] + 1)
 
-            range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
-            range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
-            masks_overlaps *= range_overlaps
-            masks_concat = np.concatenate([masks_concat, masks_overlaps], axis=0)
+        range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
+        range_overlaps = np.epxnad_dims(range_overlaps, axis=-1)
+        masks_overlaps *= range_overlaps
+        masks_concat = np.concatenate([masks_concat, masks_overlaps], axis=0)
 
     return masks_concat, masks_overlaps, masks_no_overlaps
 
