@@ -87,14 +87,16 @@ def _retinamask_data(im, semantic=False):
 
 
 def test_retinamask_postprocess():
-    im = _sample1(10, 10, 40, 40)
-    out = _retinamask_data(im, semantic=False)
+    for _ in range(10):
+        im = _sample1(10, 10, 40, 40)
+        out = _retinamask_data(im, semantic=False)
 
-    label = retinanet.retinamask_postprocess(out, im.shape)
+        label = retinanet.retinamask_postprocess(out, im.shape)
 
 
 def test_retinamask_semantic_postprocess():
-    im = _sample1(10, 10, 40, 40)
-    out = _retinamask_data(im, semantic=True)
+    for _ in range(10):
+        im = _sample1(10, 10, 40, 40)
+        out = _retinamask_data(im, semantic=True)
 
-    label = retinanet.retinamask_semantic_postprocess(out)
+        label = retinanet.retinamask_semantic_postprocess(out)
