@@ -37,9 +37,6 @@ from deepcell_toolbox.processing import mibi
 from deepcell_toolbox.processing import watershed
 from deepcell_toolbox.processing import pixelwise
 
-from deepcell_toolbox.retinanet import retinamask_postprocess
-from deepcell_toolbox.retinanet import retinamask_semantic_postprocess
-
 from deepcell_toolbox.utils import correct_drift
 from deepcell_toolbox.utils import erode_edges
 
