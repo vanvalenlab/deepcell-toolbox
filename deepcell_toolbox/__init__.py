@@ -28,7 +28,6 @@ from __future__ import division
 from __future__ import print_function
 
 from deepcell_toolbox import processing
-from deepcell_toolbox import retinanet
 
 from deepcell_toolbox.processing import normalize
 from deepcell_toolbox.processing import phase_preprocess
@@ -37,18 +36,11 @@ from deepcell_toolbox.processing import mibi
 from deepcell_toolbox.processing import watershed
 from deepcell_toolbox.processing import pixelwise
 
-from deepcell_toolbox.retinanet import retinamask_postprocess
-from deepcell_toolbox.retinanet import retinamask_semantic_postprocess
-
 from deepcell_toolbox.utils import correct_drift
 from deepcell_toolbox.utils import erode_edges
 
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
 from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
-
-# alias for backwards compatibility
-retinanet_to_label_image = retinamask_postprocess
-retinanet_semantic_to_label_image = retinamask_semantic_postprocess
 
 del absolute_import
 del division
