@@ -779,7 +779,7 @@ class TestObjectAccuracy():
         columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
                    'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
                    'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
-                   'catastrophe', 'jaccard']
+                   'catastrophe', 'jaccard', 'precision', 'recall', 'f1']
         assert np.array_equal(sorted(columns), sorted(list(df.columns)))
 
         # Check seg True case
@@ -789,7 +789,7 @@ class TestObjectAccuracy():
         columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
                    'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
                    'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
-                   'catastrophe', 'seg', 'jaccard']
+                   'catastrophe', 'seg', 'jaccard', 'precision', 'recall', 'f1']
         assert np.array_equal(sorted(columns), sorted(list(df.columns)))
 
     def test_assign_plot_values(self):
