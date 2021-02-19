@@ -883,8 +883,8 @@ class Metrics(object):
 
             # check if labels aren't sequential, raise warning on first occurence if so
             true_batch, pred_batch = y_true[i], y_pred[i]
-            true_batch_relabel = relabel_sequential(true_batch)
-            pred_batch_relabel = relabel_sequential(pred_batch)
+            true_batch_relabel, _, _ = relabel_sequential(true_batch)
+            pred_batch_relabel, _, _ = relabel_sequential(pred_batch)
 
             if not (np.array_equal(true_batch, true_batch_relabel) and
                     np.array_equal(pred_batch, pred_batch_relabel)):
