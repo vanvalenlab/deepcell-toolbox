@@ -1,4 +1,4 @@
-# Copyright 2016-2019 The Van Valen Lab at the California Institute of
+# Copyright 2016-2021 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -23,18 +23,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import setuptools
-from os import path
+import os
+
+from codecs import open
 from distutils.command.build_ext import build_ext as DistUtilsBuildExt
+
+import setuptools
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 
-# read the contents of your README file
-with open(path.join(path.abspath(path.dirname(__file__)), 'README.md')) as f:
-    long_description = f.read()
+
+here = os.path.abspath(os.path.dirname(__file__))
 
 
-VERSION = '0.8.0'
+about = {}
+with open(os.path.join(here, 'deepcell_toolbox', '__version__.py'), 'r', 'utf-8') as f:
+    exec(f.read(), about)
+
+
+with open(os.path.join(here, 'README.md'), 'r', 'utf-8') as f:
+    readme = f.read()
 
 
 class BuildExtension(setuptools.Command):
@@ -79,34 +87,35 @@ extensions = [
     ),
 ]
 
-setup(name='Deepcell_Toolbox',
-      version=VERSION,
-      description='The pre- and post-processing functions module for '
-                  'deepcell-tf.',
-      author='Van Valen Lab',
-      author_email='vanvalenlab@gmail.com',
-      url='https://github.com/vanvalenlab/deepcell-toolbox',
-      download_url='https://github.com/vanvalenlab/'
-                   'deepcell-toolbox/tarball/{}'.format(VERSION),
-      license='LICENSE',
+setup(name=about['__title__'],
+      version=about['__version__'],
+      description=about['__description__'],
+      author=about['__author__'],
+      author_email=about['__author_email__'],
+      url=about['__url__'],
+      license=about['__license__'],
+      download_url='{}/tarball/{}'.format(
+          about['__url__'], about['__version__']),
       cmdclass={'build_ext': BuildExtension},
-      install_requires=['cython',
-                        'opencv-python<=3.4.9.31',
+      install_requires=['cython>=0.28.0',
+                        'opencv-python-headless<=4.2.0.32; python_version < "3"',
+                        'opencv-python-headless; python_version >= "3"',
                         'pandas',
                         'networkx>=2.1',
-                        'numpy',
+                        'numpy>=1.16.6,<1.20.0',
                         'scipy',
                         'scikit-image',
                         'scikit-learn'],
       extras_require={
-          'tests': ['pytest',
+          'tests': ['pytest<6',
                     'pytest-pep8',
-                    'pytest-cov']},
-      long_description=long_description,
+                    'pytest-cov',
+                    'pytest-mock']},
+      long_description=readme,
       long_description_content_type='text/markdown',
       packages=find_packages(),
       ext_modules=extensions,
-      setup_requires=['cython>=0.28', 'numpy>=1.16.4'],
+      setup_requires=['cython>=0.28', 'numpy>=1.16.6,<1.20.0'],
       classifiers=[
           'Programming Language :: Python',
           'Programming Language :: Python :: 2',

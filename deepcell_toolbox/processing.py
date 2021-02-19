@@ -1,4 +1,4 @@
-# Copyright 2016-2019 The Van Valen Lab at the California Institute of
+# Copyright 2016-2021 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -40,30 +40,39 @@ from skimage.exposure import rescale_intensity
 from skimage.measure import label
 
 
-def normalize(image):
+def normalize(image, epsilon=1e-07):
     """Normalize image data by dividing by the maximum pixel value
 
     Args:
         image (numpy.array): numpy array of image data
+        epsilon (float): fuzz factor used in numeric expressions.
 
     Returns:
         numpy.array: normalized image data
     """
+    if not np.issubdtype(image.dtype, np.floating):
+        logging.info('Converting image dtype to float')
+    image = image.astype('float32')
+
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             img = image[batch, ..., channel]
-            normal_image = (img - img.mean()) / img.std()
+            normal_image = (img - img.mean()) / (img.std() + epsilon)
             image[batch, ..., channel] = normal_image
     return image
 
 
-def histogram_normalization(image, kernel_size=64):
+def histogram_normalization(image, kernel_size=None):
     """Pre-process images using Contrast Limited Adaptive
     Histogram Equalization (CLAHE).
 
+    If one of the inputs is a constant-value array, it will
+    be normalized as an array of all zeros of the same shape.
+
     Args:
         image (numpy.array): numpy array of phase image data.
-        kernel_size (integer): Size of kernel for CLAHE.
+        kernel_size (integer): Size of kernel for CLAHE,
+            defaults to 1/8 of image size.
 
     Returns:
         numpy.array: Pre-processed image data with dtype float32.
@@ -75,8 +84,19 @@ def histogram_normalization(image, kernel_size=64):
     for batch in range(image.shape[0]):
         for channel in range(image.shape[-1]):
             X = image[batch, ..., channel]
-            X = rescale_intensity(X, out_range='float')
-            X = equalize_adapthist(X, kernel_size=(kernel_size, kernel_size))
+            sample_value = X[(0,) * X.ndim]
+            if (X == sample_value).all():
+                # TODO: Deal with constant value arrays
+                # https://github.com/scikit-image/scikit-image/issues/4596
+                logging.warning('Found constant value array in batch %s and '
+                                'channel %s. Normalizing as zeros.',
+                                batch, channel)
+                image[batch, ..., channel] = np.zeros_like(X)
+                continue
+
+            # X = rescale_intensity(X, out_range='float')
+            X = rescale_intensity(X, out_range=(0.0, 1.0))
+            X = equalize_adapthist(X, kernel_size=kernel_size)
             image[batch, ..., channel] = X
     return image
 
@@ -110,11 +130,6 @@ def percentile_threshold(image, percentile=99.9):
                 processed_image[img, ..., chan] = current_img
 
     return processed_image
-
-
-def phase_preprocess(image, kernel_size=64):
-    """Maintained for backwards compatability"""
-    return histogram_normalization(image=image, kernel_size=kernel_size)
 
 
 def mibi(prediction, edge_threshold=.25, interior_threshold=.25):
@@ -292,3 +307,7 @@ def correct_drift(X, y=None):
         return X, y
 
     return X
+
+
+# alias for backwards compatibility
+phase_preprocess = histogram_normalization

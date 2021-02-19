@@ -1,4 +1,4 @@
-# Copyright 2016-2019 The Van Valen Lab at the California Institute of
+# Copyright 2016-2021 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -28,6 +28,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import itertools
+
 import numpy as np
 
 import pytest
@@ -42,33 +44,95 @@ def _get_image(img_h=300, img_w=300):
     return img
 
 
+def _get_test_images(img_h, img_w):
+    image = _get_image(img_h, img_w)
+
+    # make rank 4 (batch, X, y, channel)
+    image = np.expand_dims(image, axis=0)
+    image = np.expand_dims(image, axis=-1)
+
+    # randomly flip sign of image values
+    negative_filter = (2 * np.random.randint(0, 2, size=image.shape) - 1)
+
+    # create a few other test inputs
+    test_images = [
+        image,
+        image.astype('uint16'),
+        image.astype('int16'),
+        image.astype('float16'),
+        image * negative_filter,
+        image.astype('int16') * negative_filter,
+        image.astype('float16') * negative_filter
+    ]
+    return test_images
+
+
 def test_normalize():
-    height, width = 300, 300
-    img = _get_image(height, width)
-    img = np.expand_dims(img, axis=0)
-    img = np.expand_dims(img, axis=-1)
-    normalized_img = processing.normalize(img)
-    np.testing.assert_almost_equal(normalized_img.mean(), 0)
-    np.testing.assert_almost_equal(normalized_img.var(), 1)
+    height, width = 30, 30
+
+    for img in _get_test_images(height, width):
+
+        normalized_img = processing.normalize(img)
+
+        indices = itertools.product(range(img.shape[0]), range(img.shape[-1]))
+
+        for (b, c) in indices:
+            normal = normalized_img[b, ..., c]
+            # 16-bit to float-32 bit conversion may lose some accuracy
+            # https://stackoverflow.com/a/56515598
+            np.testing.assert_almost_equal(normal.mean(), 0, decimal=6)
+            np.testing.assert_almost_equal(normal.var(), 1, decimal=6)
+
+    # test single-valued image is non NaN.
+    for i in range(-2, 3):
+        img = np.empty((1, height, width, 1))
+        img.fill(i)
+
+        indices = itertools.product(range(img.shape[0]), range(img.shape[-1]))
+
+        normalized_img = processing.normalize(img)
+
+        for (b, c) in indices:
+            np.testing.assert_almost_equal(normalized_img[b, ..., c].mean(), 0)
+            # no variance still as they are constant.
+            np.testing.assert_almost_equal(normalized_img[b, ..., c].var(), 0)
 
 
 def test_histogram_normalization():
-    height, width = 300, 300
-    img = _get_image(height, width)
+    height, width = 30, 30
 
-    # make rank 4 (batch, X, y, channel)
-    img = np.expand_dims(img, axis=0)
-    img = np.expand_dims(img, axis=-1)
+    for img in _get_test_images(height, width):
+        indices = itertools.product(range(img.shape[0]), range(img.shape[-1]))
 
-    preprocessed_img = processing.histogram_normalization(img)
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+        normalized_img = processing.histogram_normalization(img)
 
-    preprocessed_img = processing.histogram_normalization(img.astype('uint16'))
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+        for b, c in indices:
 
-    # test legacy version
-    preprocessed_img = processing.phase_preprocess(img)
-    assert (preprocessed_img <= 1).all() and (preprocessed_img >= -1).all()
+            # test min and max values of output
+            assert normalized_img[b, ..., c].min() == 0
+            assert normalized_img[b, ..., c].max() == 1
+
+        # test negative coordinates don't get clipped
+        negative_coords = (img < 0).nonzero()
+        if len(normalized_img[negative_coords]) > 0:
+            assert (normalized_img[negative_coords] >= 0).all()
+
+        # test legacy version
+        legacy_img = processing.phase_preprocess(img)
+        np.testing.assert_equal(legacy_img, normalized_img)
+
+    # test constant value arrays
+    # these won't have different min/max values or indices.
+    shape = (1, height, width, 1)
+    for k in range(-2, 3):
+        img = np.empty(shape)
+        img.fill(k)
+
+        preprocessed = processing.histogram_normalization(img)
+        assert preprocessed.min() >= 0 and preprocessed.max() <= 1
+        assert preprocessed.min() == preprocessed.max()
+        # TODO: change this test if the constant value workaround is fixed.
+        assert (preprocessed == 0).all()
 
 
 def test_percentile_threshold():

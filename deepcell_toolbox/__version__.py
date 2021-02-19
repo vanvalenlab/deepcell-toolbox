@@ -23,25 +23,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from deepcell_toolbox import processing
-
-from deepcell_toolbox.processing import normalize
-from deepcell_toolbox.processing import phase_preprocess
-from deepcell_toolbox.processing import histogram_normalization
-from deepcell_toolbox.processing import mibi
-from deepcell_toolbox.processing import watershed
-from deepcell_toolbox.processing import pixelwise
-
-from deepcell_toolbox.utils import correct_drift
-from deepcell_toolbox.utils import erode_edges
-
-from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
-from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
-
-del absolute_import
-del division
-del print_function
+__title__ = 'Deepcell_Toolbox'
+__description__ = 'The pre- and post-processing functions module for ' \
+    'deepcell-tf.'
+__url__ = 'https://github.com/vanvalenlab/deepcell-toolbox'
+__version__ = '0.8.6'
+__author__ = 'Van Valen Lab'
+__author_email__ = 'vanvalenlab@gmail.com'
+__license__ = 'LICENSE'
+__copyright__ = 'Copyright 2016-2021 The Van Valen Lab at the ' \
+    'California Institute of Technology (Caltech)'

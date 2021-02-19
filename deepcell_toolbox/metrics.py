@@ -1,4 +1,4 @@
-# Copyright 2016-2019 The Van Valen Lab at the California Institute of
+# Copyright 2016-2021 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -52,9 +52,6 @@ import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops
@@ -180,6 +177,14 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
             raise ValueError('Input shapes must match. Shape of prediction '
                              'is: {}.  Shape of y_true is: {}'.format(
                                  y_pred.shape, y_true.shape))
+
+        if not np.issubdtype(y_true.dtype, np.integer):
+            warnings.warn('Casting y_true from {} to int'.format(y_true.dtype))
+            y_true = y_true.astype('int32')
+
+        if not np.issubdtype(y_pred.dtype, np.integer):
+            warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
+            y_pred = y_pred.astype('int32')
 
         self.y_true = y_true
         self.y_pred = y_pred
@@ -1179,6 +1184,9 @@ def plot_errors(y_true, y_pred, error_dict):
         y_pred: 2D matrix of predicted labels returned by save_error_ids
         error_dict: dictionary returned by save_error_ids with IDs of all error cells
     """
+
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
 
     plotting_tif = assign_plot_values(y_true, y_pred, error_dict)
 
