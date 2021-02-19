@@ -181,18 +181,8 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                              'is: {}.  Shape of y_true is: {}'.format(
                                  y_pred.shape, y_true.shape))
 
-        # Relabel y_true and y_pred so the labels are consecutive
-        y_true_relabeled, _, _ = relabel_sequential(y_true)
-        y_pred_relabeled, _, _ = relabel_sequential(y_pred)
-
-        if not (np.array_equal(y_true, y_true_relabeled) and
-                np.array_equal(y_pred, y_pred_relabeled)):
-            warnings.warn('Provided data is being relabeled. Cell ids from metrics will not match '
-                          'cell ids in original data. Relabel your data prior to running the '
-                          'metrics package if you wish to maintain cell ids')
-
-        self.y_true = y_true_relabeled
-        self.y_pred = y_pred_relabeled
+        self.y_true = y_true
+        self.y_pred = y_pred
 
         self.n_true = len(np.unique(self.y_true[np.nonzero(self.y_true)]))
         self.n_pred = len(np.unique(self.y_pred[np.nonzero(self.y_pred)]))
@@ -882,9 +872,25 @@ class Metrics(object):
         self.stats = pd.DataFrame()
         self.predictions = []
 
+        # boolean so that warning only gets displayed once
+        warned = False
         for i in range(y_true.shape[0]):
-            o = ObjectAccuracy(y_true[i],
-                               y_pred[i],
+
+            # check if labels aren't sequential, raise warning on first occurence if so
+            true_batch, pred_batch = y_true[i], y_pred[i]
+            true_batch_relabel = relabel_sequential(true_batch)
+            pred_batch_relabel = relabel_sequential(pred_batch)
+
+            if not (np.array_equal(true_batch, true_batch_relabel) and
+                    np.array_equal(pred_batch, pred_batch_relabel)):
+                if not warned:
+                    warnings.warn(
+                        'Provided data is being relabeled. Cell ids from metrics will not match '
+                        'cell ids in original data. Relabel your data prior to running the '
+                        'metrics package if you wish to maintain cell ids')
+                    warned = True
+            o = ObjectAccuracy(true_batch_relabel,
+                               pred_batch_relabel,
                                cutoff1=self.cutoff1,
                                cutoff2=self.cutoff2,
                                seg=self.seg,
