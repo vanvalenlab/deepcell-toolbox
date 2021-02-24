@@ -372,6 +372,11 @@ class TestMetricsObject():
         with testing.assert_raises(ValueError):
             m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10, 10))
 
+        # data that needs to be relabeled raises a warning
+        with pytest.warns(UserWarning):
+            y_pred[0, 0, 0] = 40
+            m.calc_object_stats(y_true, y_pred)
+
     def test_save_to_json(self, tmpdir):
         name = 'test'
         tmpdir = str(tmpdir)

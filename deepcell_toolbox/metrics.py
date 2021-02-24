@@ -878,7 +878,7 @@ class Metrics(object):
         self.predictions = []
 
         # boolean so that warning only gets displayed once
-        warned = False
+        relabel_flag = False
         for i in range(y_true.shape[0]):
 
             # check if labels aren't sequential, raise warning on first occurence if so
@@ -888,12 +888,9 @@ class Metrics(object):
 
             if not (np.array_equal(true_batch, true_batch_relabel) and
                     np.array_equal(pred_batch, pred_batch_relabel)):
-                if not warned:
-                    warnings.warn(
-                        'Provided data is being relabeled. Cell ids from metrics will not match '
-                        'cell ids in original data. Relabel your data prior to running the '
-                        'metrics package if you wish to maintain cell ids')
-                    warned = True
+
+                    # segmentations were relabeled
+                    relabel_flag = True
             o = ObjectAccuracy(true_batch_relabel,
                                pred_batch_relabel,
                                cutoff1=self.cutoff1,
@@ -906,6 +903,12 @@ class Metrics(object):
             self.predictions.append(predictions)
             if i % 500 == 0:
                 logging.info('{} samples processed'.format(i))
+
+        if relabel_flag:
+            warnings.warn(
+                'Provided data is being relabeled. Cell ids from metrics will not match '
+                'cell ids in original data. Relabel your data prior to running the '
+                'metrics package if you wish to maintain cell ids')
 
         # Write out summed statistics
         for k, v in self.stats.iteritems():
