@@ -103,7 +103,7 @@ setup(name=about['__title__'],
                         'pandas',
                         'networkx>=2.1',
                         'numpy>=1.16.6,<1.20.0',
-                        'scipy',
+                        'scipy>=1.3.0',
                         'scikit-image',
                         'scikit-learn'],
       extras_require={
