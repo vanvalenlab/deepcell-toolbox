@@ -12,12 +12,8 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8]
         os: [ubuntu-latest, macos-latest, windows-latest]
-        exclude:
-          # excludes Python 2.7 on Windows due to C compiler issues.
-          - os: windows-latest
-            python-version: 2.7
 
     steps:
     - uses: actions/checkout@v2
