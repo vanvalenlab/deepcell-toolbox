@@ -186,10 +186,6 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
             warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
             y_pred = y_pred.astype('int32')
 
-        # Relabel y_true and y_pred so the labels are consecutive
-        y_true, _, _ = relabel_sequential(y_true)
-        y_pred, _, _ = relabel_sequential(y_pred)
-
         self.y_true = y_true
         self.y_pred = y_pred
 
@@ -881,9 +877,22 @@ class Metrics(object):
         self.stats = pd.DataFrame()
         self.predictions = []
 
+        # boolean so that warning only gets displayed once
+        relabel_flag = False
         for i in range(y_true.shape[0]):
-            o = ObjectAccuracy(y_true[i],
-                               y_pred[i],
+
+            # check if labels aren't sequential, raise warning on first occurence if so
+            true_batch, pred_batch = y_true[i], y_pred[i]
+            true_batch_relabel, _, _ = relabel_sequential(true_batch)
+            pred_batch_relabel, _, _ = relabel_sequential(pred_batch)
+
+            if not (np.array_equal(true_batch, true_batch_relabel) and
+                    np.array_equal(pred_batch, pred_batch_relabel)):
+
+                    # segmentations were relabeled
+                    relabel_flag = True
+            o = ObjectAccuracy(true_batch_relabel,
+                               pred_batch_relabel,
                                cutoff1=self.cutoff1,
                                cutoff2=self.cutoff2,
                                seg=self.seg,
@@ -894,6 +903,12 @@ class Metrics(object):
             self.predictions.append(predictions)
             if i % 500 == 0:
                 logging.info('{} samples processed'.format(i))
+
+        if relabel_flag:
+            warnings.warn(
+                'Provided data is being relabeled. Cell ids from metrics will not match '
+                'cell ids in original data. Relabel your data prior to running the '
+                'metrics package if you wish to maintain cell ids')
 
         # Write out summed statistics
         for k, v in self.stats.iteritems():
