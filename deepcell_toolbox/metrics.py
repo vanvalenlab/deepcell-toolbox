@@ -57,6 +57,7 @@ from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
+from scipy.stats import hmean
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
@@ -207,6 +208,10 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         self.missed_det_from_merge = 0
         self.true_det_in_catastrophe = 0
         self.pred_det_in_catastrophe = 0
+
+        self.precision = 0
+        self.recall = 0
+        self.f1 = 0
 
         # Initialize lists and dicts to store indices where errors occur
         self.correct_indices = {}
@@ -594,6 +599,11 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         Returns:
             pandas.DataFrame: Single row dataframe with error types as columns
         """
+
+        self.precision = self.correct_detections / self.n_pred
+        self.recall = self.correct_detections / self.n_true
+        self.f1 = hmean([self.recall, self.precision])
+
         D = {
             'n_pred': self.n_pred,
             'n_true': self.n_true,
@@ -606,7 +616,10 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
             'pred_det_in_catastrophe': self.pred_det_in_catastrophe,
             'merge': self.merge,
             'split': self.split,
-            'catastrophe': self.catastrophe
+            'catastrophe': self.catastrophe,
+            'precision': self.precision,
+            'recall': self.recall,
+            'f1': self.f1
         }
 
         if self.seg is True:
