@@ -265,10 +265,3 @@ def deep_watershed_3D(outputs,
     label_images = np.stack(label_images, axis=0)
 
     return label_images
-
-
-# Import old functions for backwards compatibility
-# pylint: disable=wrong-import-position,unused-import
-from deepcell_toolbox.multiplex_utils import format_output_multiplex
-from deepcell_toolbox.multiplex_utils import \
-    multiplex_postprocess as deep_watershed_subcellular
