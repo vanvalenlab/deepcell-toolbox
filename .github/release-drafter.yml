@@ -1,4 +1,4 @@
-name-template: '$RESOLVED_VERSION 🌈'
+name-template: '$RESOLVED_VERSION'
 
 tag-template: '$RESOLVED_VERSION'
 
@@ -20,7 +20,7 @@ categories:
       - 'chore'
   - title: '📚️ Documentation'
     labels:
-    - 'documentation'
+      - 'documentation'
 
 change-template: |
   <details>
