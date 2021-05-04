@@ -422,6 +422,12 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
     window_size = (tile_size_x, tile_size_y)
     image = np.zeros(image_shape, dtype=np.float)
 
+    window_cache = {}
+    for x, y in zip(overlaps_x, overlaps_y):
+        if (x, y) not in window_cache:
+            w = window_2D(window_size, overlap_x=x, overlap_y=y, power=power)
+            window_cache[(x, y)] = w
+
     for tile, batch, x_start, x_end, y_start, y_end, overlap_x, overlap_y in zip(
             tiles, batches, x_starts, x_ends, y_starts, y_ends, overlaps_x, overlaps_y):
 
@@ -431,8 +437,7 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
         if (min_tile_size <= tile_size_x < image_shape[1] and
                 min_tile_size <= tile_size_y < image_shape[2] and
                 stride_ratio >= min_stride_ratio):
-            window = window_2D(window_size, overlap_x=overlap_x,
-                               overlap_y=overlap_y, power=power)
+            window = window_cache[(overlap_x, overlap_y)]
             image[batch, x_start:x_end, y_start:y_end, :] += tile * window
         else:
             image[batch, x_start:x_end, y_start:y_end, :] = tile
