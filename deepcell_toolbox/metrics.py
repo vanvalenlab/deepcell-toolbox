@@ -599,12 +599,16 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         Returns:
             pandas.DataFrame: Single row dataframe with error types as columns
         """
-        if self.n_pred == 0:
-            self.precision = 0
-        else:
+        try:
             self.precision = self.correct_detections / self.n_pred
+        except ZeroDivisionError:
+            self.precision = 0
 
-        self.recall = self.correct_detections / self.n_true
+        try:
+            self.recall = self.correct_detections / self.n_true
+        except ZeroDivisionError:
+            self.recall = 0
+
         self.f1 = hmean([self.recall, self.precision])
 
         D = {
