@@ -368,6 +368,10 @@ class TestMetricsObject():
         # Check data added to output
         assert before != len(m.output)
 
+        m.calc_object_stats(np.zeros_like(y_true), np.zeros_like(y_pred))
+        assert m.stats['precision'].sum() == 0
+        assert m.stats['recall'].sum() == 0
+
         # Raise input size error
         with testing.assert_raises(ValueError):
             m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10, 10))
