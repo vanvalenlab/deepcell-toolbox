@@ -295,7 +295,7 @@ class TestDetection():
         true_idx, pred_idx = [1, 2], [2, 3]
         detection = metrics.Detection(true_idx, pred_idx)
         assert detection.is_catastrophe
-    
+
     def test_hash(self):
         # test that Detections get hashed appropriately
         detection_set = set()
@@ -306,7 +306,7 @@ class TestDetection():
         assert d2 is not d1
         # should be in the set since d2 == d1
         assert d2 in detection_set
-    
+
     def test_eq(self):
         # test Detection equality comparisons
         detection_set = set()
@@ -317,12 +317,13 @@ class TestDetection():
         assert d2 is not d1
         assert d2 == d1
 
-        assert d1 != None
+        assert d1 is not None
 
         print(d1)  # test that __repr__ is called
 
 
 class TestPixelMetrics():
+
     def test_init(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
 
@@ -332,10 +333,10 @@ class TestPixelMetrics():
         # Test mismatched input size
         with pytest.raises(ValueError):
             metrics.PixelMetrics(y_true, y_true[0])
-        
+
         # using float dtype warns but still works
         o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
-    
+
     def test_y_true_equals_y_pred(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
         y_pred = y_true.copy()
@@ -360,7 +361,7 @@ class TestPixelMetrics():
         assert o.precision == 0
         assert o.f1 == 0
         assert o.jaccard == 0
-    
+
     def test_y_true_empty(self):
         y_pred, _ = _sample1(10, 10, 30, 30, True)
 
@@ -398,11 +399,11 @@ class TestObjectMetrics():
         y_true = np.zeros(shape=(10, 15, 15, 10))  # too many dimensions
         with pytest.raises(ValueError):
             metrics.ObjectMetrics(y_true, y_true, is_3d=True)
-        
+
         # Test mismatched input size
         with pytest.raises(ValueError):
             metrics.ObjectMetrics(y_true, y_true[0])
-        
+
         # using float dtype warns but still works
         o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
 
@@ -446,7 +447,7 @@ class TestObjectMetrics():
         assert o.precision == 0
         assert o.f1 == 0
         assert o.jaccard == 0
-    
+
     def test_y_true_empty(self):
         y_pred, _ = _sample1(10, 10, 30, 30, True)
 

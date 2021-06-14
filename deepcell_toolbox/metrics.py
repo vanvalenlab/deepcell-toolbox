@@ -63,8 +63,6 @@ from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
 from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 
-# TODO: store the object/pixel metrics on Metrics better
-# TODO: clean up print functions
 
 class Detection(object):  # pylint: disable=useless-object-inheritance
     """Object to hold relevant information about a given detection."""
@@ -92,7 +90,7 @@ class Detection(object):  # pylint: disable=useless-object-inheritance
     def __hash__(self):
         """Custom hasher, allow Detections to be hashable."""
         return tuple((self.true_index, self.pred_index)).__hash__()
-    
+
     def __repr__(self):
         return 'Detection({}, {})'.format(self.true_index, self.pred_index)
 
@@ -178,10 +176,10 @@ class BaseMetrics(object):  # pylint: disable=useless-object-inheritance
         if not np.issubdtype(y_pred.dtype, np.integer):
             warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
             y_pred = y_pred.astype('int32')
-        
+
         self.y_true = y_true
         self.y_pred = y_pred
-    
+
     def to_dict(self):
         return dict()
 
@@ -256,7 +254,7 @@ class PixelMetrics(BaseMetrics):
         except ZeroDivisionError:
             _precision = 0
         return _precision
-    
+
     @property
     def f1(self):
         _recall = self.recall
@@ -365,7 +363,7 @@ class ObjectMetrics(BaseMetrics):
             raise ValueError('Expected dimensions for y_true (2D data) are 2 '
                              '(x, y) and 3 (x, y, chan). '
                              'Got ndim: {}'.format(y_true.ndim))
-        
+
         elif is_3d and y_true.ndim != 3:
             raise ValueError('Expected dimensions for y_true (3D data) is 3.'
                              'Requires format is: (z, x, y)'
@@ -501,7 +499,7 @@ class ObjectMetrics(BaseMetrics):
             force_event_links (:obj:`bool'): Whether to modify IOU values of
                 large objects if they have been split or merged by
                 a small object.
-        
+
         Returns:
             np.array: The modified IoU matrix.
         """
@@ -520,8 +518,10 @@ class ObjectMetrics(BaseMetrics):
             pred_mask = self.y_pred == pred_label
 
             # fraction of true cell that is contained within pred cell, vice versa
-            true_in_pred = np.count_nonzero(self.y_true[pred_mask] == true_label) / np.sum(true_mask)
-            pred_in_true = np.count_nonzero(self.y_pred[true_mask] == pred_label) / np.sum(pred_mask)
+            true_in_pred = np.count_nonzero(
+                self.y_true[pred_mask] == true_label) / np.sum(true_mask)
+            pred_in_true = np.count_nonzero(
+                self.y_pred[true_mask] == pred_label) / np.sum(pred_mask)
 
             iou_val = self.iou[true_idx, pred_idx]
             max_val = np.max([true_in_pred, pred_in_true])
@@ -981,7 +981,7 @@ class Metrics(object):
         Args:
             y_true (numpy.array): Ground truth annotations after transform
             y_pred (numpy.array): Model predictions without labeling
-        
+
         Returns:
             list: list of dictionaries with each stat being a key.
 
@@ -1079,7 +1079,7 @@ class Metrics(object):
 
         all_object_metrics = []  # store all calculated metrics
         is_batch_relabeled = False  # used to warn if batches were relabeled
-        
+
         for i in tqdm(range(y_true.shape[0]), disable=not progbar):
             # check if labels aren't sequential, raise warning on first occurence if so
             true_batch, pred_batch = y_true[i], y_pred[i]
@@ -1136,7 +1136,7 @@ class Metrics(object):
         }
         for k in errors:
             errors[k] = int(object_metrics[k].sum())
-        
+
         bad_detections = [
             'gained_det_from_split',
             'missed_det_from_merge',
