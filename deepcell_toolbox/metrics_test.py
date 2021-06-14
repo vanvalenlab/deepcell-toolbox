@@ -387,6 +387,11 @@ class TestObjectMetrics():
             y_true.astype('float'),
             y_true.astype('float'))
 
+        # Test _get_props with invalid detection type
+        o = metrics.ObjectMetrics(y_true, y_true)
+        with pytest.raises(ValueError):
+            o._get_props('invalid_type')
+
         # test errors thrown for improper ndim inputs
         y_true = np.zeros(shape=(10))  # too few dimensions
         with pytest.raises(ValueError):
@@ -459,6 +464,8 @@ class TestObjectMetrics():
         assert o.true_det_in_catastrophe == 0
         assert o.pred_det_in_catastrophe == 0
 
+        assert o.gained_props == []
+
     def test_y_true_empty(self):
         y_pred, _ = _sample1(10, 10, 30, 30, True)
 
@@ -477,6 +484,8 @@ class TestObjectMetrics():
         assert o.missed_det_from_merge == 0
         assert o.true_det_in_catastrophe == 0
         assert o.pred_det_in_catastrophe == 0
+
+        assert o.missed_props == []
 
     def test_calc_iou(self):
         # TODO: test correctness

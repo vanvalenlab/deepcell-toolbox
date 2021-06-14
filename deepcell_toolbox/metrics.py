@@ -669,27 +669,27 @@ class ObjectMetrics(BaseMetrics):
             )
 
     def _get_props(self, detection_type):
-        valid_types = {
-            'splits': 0,
-            'merges': 0,
-            'missed': 0,
-            'gained': 1,
+        prediction_types = {
+            'gained',
         }
         try:
             attrname = '_{}'.format(detection_type)
-            # get the relevant set of indices
-            all_indices = getattr(self, attrname)
-            # determine if we want true or pred indices
-            tp_index = valid_types[detection_type]
             # filter out the relevant indices and select the data
-            indices = [idx[tp_index] for idx in all_indices]
-            arr = self.y_true if tp_index == 0 else self.y_pred
-
-        except (AttributeError, KeyError):
+            indices = []
+            for det in getattr(self, attrname):
+                if detection_type in prediction_types:
+                    indices.append(det.pred_index)
+                else:
+                    indices.append(det.true_index)
+            if detection_type in prediction_types:
+                arr = self.y_pred
+            else:
+                arr = self.y_true
+        except AttributeError:
             raise ValueError('Invalid detection_type: {}'.format(
                 detection_type))
 
-        label_image = np.where(arr == indices, indices, 0)
+        label_image = np.where(arr == indices, arr, 0)
 
         return regionprops(label_image)
 
