@@ -263,6 +263,60 @@ def _dense_sample():
     return true.astype('int'), pred.astype('int')
 
 
+class TestDetection():
+
+    def test_init(self):
+        # test correct detection
+        true_idx, pred_idx = 1, 1
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_correct
+
+        # test missed detection
+        true_idx, pred_idx = 1, None
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_missed
+
+        # test gained detection
+        true_idx, pred_idx = None, 1
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_gained
+
+        # test split detection
+        true_idx, pred_idx = 1, [1, 2]
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_split
+
+        # test merge detection
+        true_idx, pred_idx = [1, 2], 1
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_merge
+
+        # test catastrophe
+        true_idx, pred_idx = [1, 2], [2, 3]
+        detection = metrics.Detection(true_idx, pred_idx)
+        assert detection.is_catastrophe
+    
+    def test_hash(self):
+        # test that Detections get hashed appropriately
+        detection_set = set()
+        d1 = metrics.Detection(1, 1)
+        detection_set.add(d1)
+
+        d2 = metrics.Detection(1, 1)
+        assert d2 is not d1
+        assert d2 in d1
+    
+    def test_eq(self):
+        # test Detection equality comparisons
+        detection_set = set()
+        d1 = metrics.Detection(1, 1)
+        detection_set.add(d1)
+
+        d2 = metrics.Detection(1, 1)
+        assert d2 is not d1
+        assert d2 == d1
+
+
 class TestMetricFunctions():
 
     def test_pixelstats_output(self):
