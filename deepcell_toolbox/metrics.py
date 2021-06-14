@@ -914,7 +914,8 @@ class Metrics(object):
                  feature_key=[],
                  json_notes='',
                  force_event_links=False,
-                 is_3d=False):
+                 is_3d=False,
+                 **kwargs):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -927,8 +928,11 @@ class Metrics(object):
         self.force_event_links = force_event_links
         self.is_3d = is_3d
 
+        if 'seg' in kwargs:
+            warnings.warn('seg is deprecated and will be removed '
+                          'in a future release', DeprecationWarning)
+
         # Initialize output list to collect stats
-        self.output = []
         self.object_metrics = []
         self.pixel_metrics = []
 
