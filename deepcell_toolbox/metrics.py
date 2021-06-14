@@ -67,7 +67,7 @@ from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 # TODO: store the object/pixel metrics on Metrics better
 # TODO: clean up print functions
 
-class Detection(object):
+class Detection(object):  # pylint: disable=useless-object-inheritance
     """Object to hold relevant information about a given detection."""
 
     def __init__(self, true_index=None, pred_index=None):
@@ -162,7 +162,7 @@ class Detection(object):
         return is_many_true and is_many_pred
 
 
-class BaseMetrics(object):
+class BaseMetrics(object):  # pylint: disable=useless-object-inheritance
 
     """Base class for Metrics classes."""
 
@@ -220,32 +220,41 @@ class PixelMetrics(BaseMetrics):
         self._y_pred_sum = np.count_nonzero(self.y_pred)
 
         # Calculations for IOU
-        self._intersection = np.sum(np.logical_and(self.y_true, self.y_pred))
-        self._union = np.sum(np.logical_or(self.y_true, self.y_pred))
+        self._intersection = np.count_nonzero(np.logical_and(self.y_true, self.y_pred))
+        self._union = np.count_nonzero(np.logical_or(self.y_true, self.y_pred))
 
     @property
     def recall(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=RuntimeWarning)
+        try:
             _recall = self._intersection / self._y_true_sum
+        except ZeroDivisionError:
+            _recall = np.nan
         return _recall
 
     @property
     def precision(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=RuntimeWarning)
+        try:
             _precision = self._intersection / self._y_pred_sum
+        except ZeroDivisionError:
+            _precision = 0
         return _precision
     
     @property
     def f1(self):
-        f_measure = hmean([self.recall, self.precision])
-        # f_measure = (2 * precision * recall) / (precision + recall)
+        _recall = self.recall
+        _precision = self.precision
+
+        # f1 is nan if recall is nan and no false negatives
+        if np.isnan(_recall) and _precision == 0:
+            return np.nan
+
+        f_measure = hmean([_recall, _precision])
+        # f_measure = (2 * _precision * _recall) / (_precision + _recall)
         return f_measure
 
     @property
     def dice(self):
-        y_sum = self.y_true_sum + self.y_pred_sum
+        y_sum = self._y_true_sum + self._y_pred_sum
         if y_sum == 0:
             warnings.warn('DICE score is technically 1.0, '
                           'but prediction and truth arrays are empty.')
@@ -255,9 +264,10 @@ class PixelMetrics(BaseMetrics):
 
     @property
     def jaccard(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=RuntimeWarning)
+        try:
             _jaccard = self._intersection / self._union
+        except ZeroDivisionError:
+            _jaccard = np.nan
         return _jaccard
 
     def to_dict(self):
@@ -289,7 +299,7 @@ def get_box_labels(arr):
     return boxes, labels
 
 
-class ObjectMetrics(BaseMetrics):  # pylint: disable=useless-object-inheritance
+class ObjectMetrics(BaseMetrics):
     """Classifies object prediction errors as TP, FP, FN, merge or split
 
     The schema for this analysis was adopted from the description of
@@ -338,10 +348,10 @@ class ObjectMetrics(BaseMetrics):  # pylint: disable=useless-object-inheritance
                              '(x, y) and 3 (x, y, chan). '
                              'Got ndim: {}'.format(y_true.ndim))
         
-        elif is_3d and self.y_true.ndim != 3:
+        elif is_3d and y_true.ndim != 3:
             raise ValueError('Expected dimensions for y_true (3D data) is 3.'
                              'Requires format is: (z, x, y)'
-                             'Got ndim: {}'.format(self.y_true.ndim))
+                             'Got ndim: {}'.format(y_true.ndim))
 
         super(ObjectMetrics, self).__init__(y_true=y_true, y_pred=y_pred)
 
@@ -1184,7 +1194,7 @@ class Metrics(object):
             if not name.endswith('s'):
                 name += 's'
             print('{name}: {val}{tab}Perc Error {percent}%'.format(
-                name=name, val=v, percent=v / total_err,
+                name=name, val=v, percent=to_percent(v / total_err),
                 tab='\t' * (2 if ' ' in name else 1)))
 
         for k in bad_detections:
