@@ -351,6 +351,10 @@ class TestPixelMetrics():
         assert o.jaccard == 1
         assert o.dice == 1
 
+        # test both empty
+        o = metrics.PixelMetrics(np.zeros_like(y_true), np.zeros_like(y_pred))
+        assert o.dice == 1
+
     def test_y_pred_empty(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
 

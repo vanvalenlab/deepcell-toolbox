@@ -180,9 +180,6 @@ class BaseMetrics(object):  # pylint: disable=useless-object-inheritance
         self.y_true = y_true
         self.y_pred = y_pred
 
-    def to_dict(self):
-        return dict()
-
 
 class PixelMetrics(BaseMetrics):
     """Calculates pixel-based statistics.
