@@ -47,7 +47,6 @@ import logging
 import operator
 import os
 import warnings
-import timeit
 
 import numpy as np
 import pandas as pd
@@ -223,6 +222,25 @@ class PixelMetrics(BaseMetrics):
         self._intersection = np.count_nonzero(np.logical_and(self.y_true, self.y_pred))
         self._union = np.count_nonzero(np.logical_or(self.y_true, self.y_pred))
 
+    @classmethod
+    def get_confusion_matrix(cls, y_true, y_pred, axis=-1):
+        """Calculate confusion matrix for pixel classification data.
+
+        Args:
+            y_true (numpy.array): Ground truth annotations after any
+                necessary transformations
+            y_pred (numpy.array): Prediction array
+            axis (int): The channel axis of the input arrays.
+
+        Returns:
+            numpy.array: nxn confusion matrix determined by number of features.
+        """
+        # Argmax collapses on feature dimension to assign class to each pixel
+        # Flatten is required for confusion matrix
+        y_true = y_true.argmax(axis=axis).flatten()
+        y_pred = y_pred.argmax(axis=axis).flatten()
+        return confusion_matrix(y_true, y_pred)
+
     @property
     def recall(self):
         try:
@@ -275,7 +293,7 @@ class PixelMetrics(BaseMetrics):
             'jaccard': self.jaccard,
             'recall': self.recall,
             'precision': self.precision,
-            'Fmeasure': self.f1,
+            'f1': self.f1,
             'dice': self.dice,
         }
 
@@ -883,14 +901,8 @@ class Metrics(object):
     Examples:
         >>> from deepcell import metrics
         >>> m = metrics.Metrics('model_name')
-        >>> m.run_all(
-                y_true_lbl,
-                y_pred_lbl,
-                y_true_unlbl,
-                y_true_unlbl)
-        >>> m.all_pixel_stats(y_true_unlbl, y_pred_unlbl)
-        >>> m.calc_obj_stats(y_true_lbl, y_pred_lbl)
-        >>> m.save_to_json(m.output)
+        >>> all_metrics = m.run_all(y_true, y_pred)
+        >>> m.save_to_json(all_metrics)
     """
     def __init__(self, model_name,
                  outdir='',
@@ -919,101 +931,13 @@ class Metrics(object):
         self.output = []
         self.object_metrics = []
         self.pixel_metrics = []
-    
-    def calc_pixel_stats(self, y_true, y_pred):
-        """Calculate pixel statistics for each feature.
 
-        y_true should have the appropriate transform applied to match y_pred.
-        Each channel is converted to binary using the threshold
-        'pixel_threshold' prior to calculation of accuracy metrics.
-
-        Args:
-            y_true (numpy.array): Ground truth annotations after transform
-            y_pred (numpy.array): Model predictions without labeling
-
-        Raises:
-            ValueError: If y_true and y_pred are not the same shape
-        """
-        n_features = y_pred.shape[-1]
-
-        # Intialize df to collect pixel stats
-        pixel_df = pd.DataFrame()
-
-        # Set numeric feature key if existing key is not write length
-        if n_features != len(self.feature_key):
-            self.feature_key = range(n_features)
-
-        pixel_metrics = []
-        for i, k in enumerate(self.feature_key):
-            yt = y_true[:, :, :, i] > self.pixel_threshold
-            yp = y_pred[:, :, :, i] > self.pixel_threshold
-            stats = PixelMetrics(yt, yp).to_dict()
-            pixel_df = pixel_df.append(
-                pd.DataFrame(stats, index=[k]))
-
-        # Save stats to output dictionary
-        self.output = self.output + self.pixel_df_to_dict(pixel_df)
-
-        # Calculate confusion matrix
-        cm = self.calc_pixel_confusion_matrix(y_true, y_pred)
-        self.output.append(dict(
-            name='confusion_matrix',
-            value=cm.tolist(),
-            feature='all',
-            stat_type='pixel'
-        ))
-
-        self.print_pixel_report()
-
-    def all_pixel_stats(self, y_true, y_pred):
-        """Collect pixel statistics for each feature.
-
-        y_true should have the appropriate transform applied to match y_pred.
-        Each channel is converted to binary using the threshold
-        'pixel_threshold' prior to calculation of accuracy metrics.
-
-        Args:
-            y_true (numpy.array): Ground truth annotations after transform
-            y_pred (numpy.array): Model predictions without labeling
-
-        Raises:
-            ValueError: If y_true and y_pred are not the same shape
-        """
-        n_features = y_pred.shape[-1]
-
-        # Intialize df to collect pixel stats
-        pixel_df = pd.DataFrame()
-
-        # Set numeric feature key if existing key is not write length
-        if n_features != len(self.feature_key):
-            self.feature_key = range(n_features)
-
-        for i, k in enumerate(self.feature_key):
-            yt = y_true[:, :, :, i] > self.pixel_threshold
-            yp = y_pred[:, :, :, i] > self.pixel_threshold
-            stats = PixelMetrics(yt, yp).to_dict()
-            pixel_df = pixel_df.append(
-                pd.DataFrame(stats, index=[k]))
-
-        # Save stats to output dictionary
-        self.output = self.output + self.pixel_df_to_dict(pixel_df)
-
-        # Calculate confusion matrix
-        cm = self.calc_pixel_confusion_matrix(y_true, y_pred)
-        self.output.append(dict(
-            name='confusion_matrix',
-            value=cm.tolist(),
-            feature='all',
-            stat_type='pixel'
-        ))
-
-        self.print_pixel_report()
-
-    def pixel_df_to_dict(self, df):
+    def df_to_dict(self, df, stat_type='pixel'):
         """Output pandas df as a list of dictionary objects
 
         Args:
             df (pandas.DataFrame): Dataframe of statistics for each channel
+            stat_type (str): Category of statistic.
 
         Returns:
             list: List of dictionaries
@@ -1028,7 +952,7 @@ class Metrics(object):
                 name=k,
                 value=v,
                 feature='average',
-                stat_type='pixel'
+                stat_type=stat_type,
             ))
 
         # Save individual stats to list
@@ -1038,13 +962,64 @@ class Metrics(object):
                     name=k,
                     value=v,
                     feature=i,
-                    stat_type='pixel'
+                    stat_type=stat_type,
                 ))
 
         return L
 
+    def calc_pixel_stats(self, y_true, y_pred, axis=-1):
+        """Calculate pixel statistics for each feature.
+
+        ``y_true`` should have the appropriate transform applied to match
+        ``y_pred``. Each channel is converted to binary using the threshold
+        ``pixel_threshold`` prior to calculation of accuracy metrics.
+
+        Args:
+            y_true (numpy.array): Ground truth annotations after transform
+            y_pred (numpy.array): Model predictions without labeling
+        
+        Returns:
+            list: list of dictionaries with each stat being a key.
+
+        Raises:
+            ValueError: If y_true and y_pred are not the same shape
+        """
+        n_features = y_pred.shape[axis]
+
+        pixel_metrics = []
+
+        slc = [slice(None)] * y_pred.ndim
+        for i in range(n_features):
+            slc[axis] = slice(i, i + 1)
+            yt = y_true[slc] > self.pixel_threshold
+            yp = y_pred[slc] > self.pixel_threshold
+            pm = PixelMetrics(yt, yp)
+            pixel_metrics.append(pm.to_dict())
+
+        pixel_df = pd.DataFrame.from_records(pixel_metrics)
+
+        # Calculate confusion matrix
+        cm = PixelMetrics.get_confusion_matrix(y_true, y_pred, axis=axis)
+
+        print('\n____________Pixel-based statistics____________\n')
+        print(pixel_df)
+        print('\nConfusion Matrix')
+        print(cm)
+
+        output = self.df_to_dict(pixel_df)
+
+        output.append(dict(
+            name='confusion_matrix',
+            value=cm.tolist(),
+            feature='all',
+            stat_type='pixel'
+        ))
+        return output
+
     def calc_pixel_confusion_matrix(self, y_true, y_pred, axis=-1):
-        """Calculate confusion matrix for pixel classification data.
+        """DEPRECATED: Use ``PixelMetrics.get_confusion_matrix``.
+
+        Calculate confusion matrix for pixel classification data.
 
         Args:
             y_true (numpy.array): Ground truth annotations after any
@@ -1055,18 +1030,7 @@ class Metrics(object):
         Returns:
             numpy.array: nxn confusion matrix determined by number of features.
         """
-        # Argmax collapses on feature dimension to assign class to each pixel
-        # Flatten is required for confusion matrix
-        y_true = y_true.argmax(axis=axis).flatten()
-        y_pred = y_pred.argmax(axis=axis).flatten()
-        return confusion_matrix(y_true, y_pred)
-
-    def print_pixel_report(self):
-        """Print report of pixel based statistics"""
-        print('\n____________Pixel-based statistics____________\n')
-        print(self.pixel_df)
-        print('\nConfusion Matrix')
-        print(self.cm)
+        return PixelMetrics.get_confusion_matrix(y_true, y_pred, axis=axis)
 
     def calc_object_stats(self, y_true, y_pred, progbar=True):
         """Calculate object statistics and save to output
@@ -1079,6 +1043,9 @@ class Metrics(object):
             y_true (numpy.array): Labeled ground truth annotations
             y_pred (numpy.array): Labeled prediction mask
             progbar (bool): Whether to show the progress tqdm progress bar
+
+        Returns:
+            list: list of dictionaries with each stat being a key.
 
         Raises:
             ValueError: If y_true and y_pred are not the same shape
@@ -1106,7 +1073,7 @@ class Metrics(object):
                                  'Required format is: (batch, z, x, y) '
                                  'Got ndim: {}'.format(y_true.ndim))
 
-        self.object_metrics = []  # replace existing metrics
+        all_object_metrics = []  # store all calculated metrics
         is_batch_relabeled = False  # used to warn if batches were relabeled
         
         for i in tqdm(range(y_true.shape[0]), disable=not progbar):
@@ -1130,7 +1097,7 @@ class Metrics(object):
                 force_event_links=self.force_event_links,
                 is_3d=self.is_3d)
 
-            self.object_metrics.append(o)
+            all_object_metrics.append(o)
 
         if is_batch_relabeled:
             warnings.warn(
@@ -1138,21 +1105,23 @@ class Metrics(object):
                 'cell ids in original data. Relabel your data prior to running the '
                 'metrics package if you wish to maintain cell ids. ')
 
-        self.print_object_report()
-
-    def print_object_report(self):
-        """Print neat report of object based statistics
-        """
-
-        _ = timeit.default_timer()
-        stats = pd.DataFrame.from_records([
-            o.to_dict() for o in self.object_metrics
+        # print the object report
+        object_metrics = pd.DataFrame.from_records([
+            o.to_dict() for o in all_object_metrics
         ])
-        print('converted to df:', timeit.default_timer() - _)
+        self.print_object_report(object_metrics)
+        output = self.df_to_dict(object_metrics, stat_type='object')
+        return output
 
-        correct_detections = int(stats['correct_detections'].sum())
-        n_true = int(stats['n_true'].sum())
-        n_pred = int(stats['n_pred'].sum())
+    def print_object_report(self, object_metrics):
+        """Print neat report of object based statistics
+
+        Args:
+            object_metrics (pd.DataFrame): DataFrame of all calculated metrics
+        """
+        correct_detections = int(object_metrics['correct_detections'].sum())
+        n_true = int(object_metrics['n_true'].sum())
+        n_pred = int(object_metrics['n_pred'].sum())
 
         errors = {
             'gained_detections': 0,
@@ -1162,7 +1131,7 @@ class Metrics(object):
             'catastrophe': 0
         }
         for k in errors:
-            errors[k] = int(stats[k].sum())
+            errors[k] = int(object_metrics[k].sum())
         
         bad_detections = [
             'gained_det_from_split',
@@ -1171,8 +1140,14 @@ class Metrics(object):
             'pred_det_in_catastrophe',
         ]
 
-        recall = correct_detections / n_true
-        precision = correct_detections / n_pred
+        try:
+            recall = correct_detections / n_true
+        except ZeroDivisionError:
+            recall = np.nan
+        try:
+            precision = correct_detections / n_pred
+        except ZeroDivisionError:
+            precision = 0
 
         total_err = sum(errors.values())
 
@@ -1193,43 +1168,29 @@ class Metrics(object):
             name = k.replace('_', ' ').capitalize()
             if not name.endswith('s'):
                 name += 's'
+            try:
+                err_fraction = v / total_err
+            except ZeroDivisionError:
+                err_fraction = 0
             print('{name}: {val}{tab}Perc Error {percent}%'.format(
-                name=name, val=v, percent=to_percent(v / total_err),
-                tab='\t' * (2 if ' ' in name else 1)))
+                name=name, val=v, percent=to_percent(err_fraction),
+                tab='\t' * (1 if ' ' in name else 2)))
 
         for k in bad_detections:
             name = k.replace('_', ' ').capitalize().replace(' det ', ' detections')
-            val = int(stats[k].sum())
+            val = int(object_metrics[k].sum())
             print('{name}: {val}'.format(name=name, val=val))
 
-        print('SEG:', round(stats['seg'].mean(), self.ndigits), '\n')
+        print('SEG:', round(object_metrics['seg'].mean(), self.ndigits), '\n')
 
         print('Average Pixel IOU (Jaccard Index):',
-              round(stats['jaccard'].mean(), self.ndigits), '\n')
+              round(object_metrics['jaccard'].mean(), self.ndigits), '\n')
 
-    def run_all(self,
-                y_true_lbl,
-                y_pred_lbl,
-                y_true_unlbl,
-                y_pred_unlbl):
-        """Runs pixel and object base statistics and ouputs to file
-
-        Args:
-            y_true_lbl (numpy.array): Labeled ground truth annotation,
-                (sample, x, y)
-            y_pred_lbl (numpy.array): Labeled prediction mask,
-                (sample, x, y)
-            y_true_unlbl (numpy.array): Ground truth annotation after necessary
-                transforms, (sample, x, y, feature)
-            y_pred_unlbl (numpy.array): Predictions, (sample, x, y, feature)
-        """
-        logging.info('Starting pixel based statistics')
-        self.all_pixel_stats(y_true_unlbl, y_pred_unlbl)
-
-        logging.info('Starting object based statistics')
-        self.calc_object_stats(y_true_lbl, y_pred_lbl)
-
-        self.save_to_json(self.output)
+    def run_all(self, y_true, y_pred, axis=-1):
+        object_metrics = self.calc_object_stats(y_true, y_pred)
+        pixel_metrics = self.calc_pixel_stats(y_true, y_pred, axis=axis)
+        all_output = object_metrics + pixel_metrics
+        self.save_to_json(all_output)
 
     def save_to_json(self, L):
         """Save list of dictionaries to json file with file metadata
@@ -1238,23 +1199,26 @@ class Metrics(object):
             L (list): List of metric dictionaries
         """
         todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        outname = '{}_{}.json'.format(self.model_name, todays_date)
-        outpath = os.path.join(self.outdir, outname)
+        outname = os.path.join(
+            self.outdir, self.model_name + '_' + todays_date + '.json')
 
         # Configure final output
-        D = {
-            'metadata': {
-                'model_name': self.model_name,
-                'date': todays_date,
-                'notes': self.json_notes,
-            },
-            'metrics': L
-        }
+        D = {}
 
-        with open(outpath, 'w') as outfile:
+        # Record metadata
+        D['metadata'] = dict(
+            model_name=self.model_name,
+            date=todays_date,
+            notes=self.json_notes
+        )
+
+        # Record metrics
+        D['metrics'] = L
+
+        with open(outname, 'w') as outfile:
             json.dump(D, outfile)
 
-        logging.info('Saved to {}'.format(outpath))
+        logging.info('Saved to {}'.format(outname))
 
 
 def split_stack(arr, batch, n_split1, axis1, n_split2, axis2):

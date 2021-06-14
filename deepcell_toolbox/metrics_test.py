@@ -304,7 +304,8 @@ class TestDetection():
 
         d2 = metrics.Detection(1, 1)
         assert d2 is not d1
-        assert d2 in d1
+        # should be in the set since d2 == d1
+        assert d2 in detection_set
     
     def test_eq(self):
         # test Detection equality comparisons
@@ -316,90 +317,201 @@ class TestDetection():
         assert d2 is not d1
         assert d2 == d1
 
+        assert d1 != None
 
-class TestMetricFunctions():
+        print(d1)  # test that __repr__ is called
 
-    def test_pixelstats_output(self):
-        y_true = _get_image()
-        y_pred = _get_image()
 
-        out2 = metrics.stats_pixelbased(y_true, y_pred)
-        assert isinstance(out2, dict)
+class TestPixelMetrics():
+    def test_init(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
 
-        # Test mistmatch size error
+        # Test basic initialization
+        o = metrics.PixelMetrics(y_true, y_true)
+
+        # Test mismatched input size
         with pytest.raises(ValueError):
-            metrics.stats_pixelbased(np.ones((10, 10)), np.ones((20, 20)))
+            metrics.PixelMetrics(y_true, y_true[0])
+        
+        # using float dtype warns but still works
+        o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
+    
+    def test_y_true_equals_y_pred(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
+        y_pred = y_true.copy()
 
-        # Test empty input arguments
-        y_true = np.zeros_like(y_true)
-        y_pred = np.zeros_like(y_pred)
+        # Test basic initialization
+        o = metrics.PixelMetrics(y_true, y_pred)
 
-        with pytest.warns(UserWarning):
-            out3 = metrics.stats_pixelbased(y_true, y_pred)
+        # metrics should be perfect since y_true == y_pred
+        assert o.recall == 1
+        assert o.precision == 1
+        assert o.f1 == 1
+        assert o.jaccard == 1
+        assert o.dice == 1
 
-    def test_split_stack(self):
-        # Test batch True condition
-        arr = np.ones((10, 100, 100, 1))
-        out = metrics.split_stack(arr, True, 10, 1, 10, 2)
-        outshape = (10 * 10 * 10, 100 / 10, 100 / 10, 1)
-        testing.assert_equal(outshape, out.shape)
+    def test_y_pred_empty(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
 
-        # Test batch False condition
-        arr = np.ones((100, 100, 1))
-        out = metrics.split_stack(arr, False, 10, 0, 10, 1)
-        outshape = (10 * 10, 100 / 10, 100 / 10, 1)
-        testing.assert_equal(outshape, out.shape)
+        # Test basic initialization with empty array y_pred
+        o = metrics.PixelMetrics(y_true, np.zeros_like(y_true))
 
-        # Test splitting in only one axis
-        out = metrics.split_stack(arr, False, 10, 0, 1, 1)
-        outshape = (10 * 1, 100 / 10, 100 / 1, 1)
-        testing.assert_equal(outshape, out.shape)
+        assert o.recall == 0
+        assert o.precision == 0
+        assert o.f1 == 0
+        assert o.jaccard == 0
+    
+    def test_y_true_empty(self):
+        y_pred, _ = _sample1(10, 10, 30, 30, True)
 
-        out = metrics.split_stack(arr, False, 1, 0, 10, 1)
-        outshape = (10 * 1, 100 / 1, 100 / 10, 1)
-        testing.assert_equal(outshape, out.shape)
+        # Test basic initialization with empty array y_pred
+        o = metrics.PixelMetrics(np.zeros_like(y_pred), y_pred)
 
-        # Raise errors for uneven division
+        assert np.isnan(o.recall)
+        assert o.precision == 0
+        assert np.isnan(o.f1)
+        assert o.jaccard == 0
+
+
+class TestObjectMetrics():
+
+    def test_init(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
+
+        # Test basic initialization
+        o = metrics.ObjectMetrics(y_true, y_true)
+
+        # test errors thrown for improper ndim inputs
+        y_true = np.zeros(shape=(10))  # too few dimensions
         with pytest.raises(ValueError):
-            metrics.split_stack(arr, False, 11, 0, 10, 1)
+            metrics.ObjectMetrics(y_true, y_true)
+
+        y_true = np.zeros(shape=(10, 5, 5, 5))  # too many dimensions
         with pytest.raises(ValueError):
-            metrics.split_stack(arr, False, 10, 0, 11, 1)
+            metrics.ObjectMetrics(y_true, y_true)
+
+        # test errors thrown for improper ndim inputs with 3d data
+        y_true = np.zeros(shape=(10, 15))  # too few dimensions
+        with pytest.raises(ValueError):
+            metrics.ObjectMetrics(y_true, y_true, is_3d=True)
+
+        y_true = np.zeros(shape=(10, 15, 15, 10))  # too many dimensions
+        with pytest.raises(ValueError):
+            metrics.ObjectMetrics(y_true, y_true, is_3d=True)
+        
+        # Test mismatched input size
+        with pytest.raises(ValueError):
+            metrics.ObjectMetrics(y_true, y_true[0])
+        
+        # using float dtype warns but still works
+        o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
+
+    def test_y_true_equals_y_pred(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
+        y_pred = y_true.copy()
+
+        # Test basic initialization
+        o = metrics.ObjectMetrics(y_true, y_pred)
+
+        # Check that object numbers are integers
+        assert isinstance(o.n_true, int)
+        assert isinstance(o.n_pred, int)
+        assert o.n_true == o.n_pred
+
+        # metrics should be perfect since y_true == y_pred
+        assert o.recall == 1
+        assert o.precision == 1
+        assert o.f1 == 1
+        assert o.jaccard == 1
+        assert o.dice == 1
+
+        # test other properties
+        assert o.correct_detections == o.n_pred
+        assert o.missed_detections == 0
+        assert o.gained_detections == 0
+        assert o.splits == 0
+        assert o.merges == 0
+        assert o.catastrophes == 0
+
+    def test_y_pred_empty(self):
+        y_true, _ = _sample1(10, 10, 30, 30, True)
+
+        # Test basic initialization with empty array y_pred
+        o = metrics.ObjectMetrics(y_true, np.zeros_like(y_true))
+
+        assert o.n_pred == 0
+        assert o.correct_detections == 0
+        assert o.missed_detections == o.n_true
+        assert o.recall == 0
+        assert o.precision == 0
+        assert o.f1 == 0
+        assert o.jaccard == 0
+    
+    def test_y_true_empty(self):
+        y_pred, _ = _sample1(10, 10, 30, 30, True)
+
+        # Test basic initialization with empty array y_pred
+        o = metrics.ObjectMetrics(np.zeros_like(y_pred), y_pred)
+
+        assert o.n_true == 0
+        assert o.correct_detections == 0
+        assert o.gained_detections == o.n_pred
+        assert o.recall == 0
+        assert o.precision == 0
+        assert o.f1 == 0
+        assert o.jaccard == 0
+
+    def test_calc_iou(self):
+        # TODO: test correctness
+        y_true, y_pred = _sample1(10, 10, 30, 30, True)
+        o = metrics.ObjectMetrics(y_true, y_pred)
+
+        # Check that it is not equal to initial value
+        assert np.count_nonzero(o.iou) != 0
+        assert np.count_nonzero(o.seg_thresh) != 0
+
+        # check that image without any background passes
+        y_true, y_pred = _dense_sample()
+        o = metrics.ObjectMetrics(y_true=y_true, y_pred=y_pred)
+
+        # Check that it is not equal to initial value
+        assert np.count_nonzero(o.iou) != 0
+        assert np.count_nonzero(o.seg_thresh) != 0
+
+    def test_calc_iou_3D(self):
+        # TODO: test correctness
+        y_true, y_pred = _sample1_3D(10, 10, 30, 30, True, 8)
+        o = metrics.ObjectMetrics(y_true, y_pred, is_3d=True)
+
+        # Check that it is not equal to initial value
+        assert np.count_nonzero(o.iou) != 0
+        assert np.count_nonzero(o.seg_thresh) != 0
 
 
-class TestMetricsObject():
-
-    def test_Metrics_init(self):
-        m = metrics.Metrics('test')
-
-        testing.assert_equal(hasattr(m, 'output'), True)
-
-    def test_all_pixel_stats(self):
-        m = metrics.Metrics('test')
-
-        before = len(m.output)
-
-        y_true = _generate_stack_4d()
-        y_pred = _generate_stack_4d()
-
-        m.all_pixel_stats(y_true, y_pred)
-
-        # Check that items were added to output
-        assert before != len(m.output)
-
-        # Check mismatch error
-        testing.assert_raises(ValueError, m.all_pixel_stats, np.ones(
-            (10, 10, 10, 1)), np.ones((5, 5, 5, 1)))
+class TestMetrics():
 
     def test_df_to_dict(self):
         m = metrics.Metrics('test')
         df = _generate_df()
 
-        L = m.pixel_df_to_dict(df)
+        L = m.df_to_dict(df)
 
         # Check output types
         assert len(L) != 0
         assert isinstance(L, list)
         assert isinstance(L[0], dict)
+
+    def test_calc_pixel_stats(self):
+        m = metrics.Metrics('test')
+
+        y_true = _generate_stack_4d()
+        y_pred = _generate_stack_4d()
+
+        pixel_stats = m.calc_pixel_stats(y_true, y_pred)
+
+        for stat in pixel_stats:
+            assert 'name' in stat
+            assert 'stat_type' in stat
 
     def test_confusion_matrix(self):
         y_true = _generate_stack_4d()
@@ -415,16 +527,20 @@ class TestMetricsObject():
         y_pred = label(_generate_stack_3d())
 
         m = metrics.Metrics('test')
-        before = len(m.output)
 
-        m.calc_object_stats(y_true, y_pred)
+        object_metrics = m.calc_object_stats(y_true, y_pred)
 
-        # Check data added to output
-        assert before != len(m.output)
+        for stat in object_metrics:
+            assert 'name' in stat
 
-        m.calc_object_stats(np.zeros_like(y_true), np.zeros_like(y_pred))
-        assert m.stats['precision'].sum() == 0
-        assert m.stats['recall'].sum() == 0
+        object_metrics = m.calc_object_stats(
+            np.zeros_like(y_true), np.zeros_like(y_pred))
+
+        for metric in object_metrics:
+            if metric['name'] == 'precision':
+                assert metric['value'] == 0
+            if metric['name'] == 'recall':
+                assert metric['value'] == 0
 
         # Raise input size error
         with testing.assert_raises(ValueError):
@@ -434,6 +550,16 @@ class TestMetricsObject():
         with pytest.warns(UserWarning):
             y_pred[0, 0, 0] = 40
             m.calc_object_stats(y_true, y_pred)
+
+    def test_run_all(self, tmpdir):
+        tmpdir = str(tmpdir)
+        y_true = label(_generate_stack_3d())
+        y_pred = label(_generate_stack_3d())
+
+        name = 'test'
+        m = metrics.Metrics(name, outdir=tmpdir)
+
+        m.run_all(y_true, y_pred)
 
     def test_save_to_json(self, tmpdir):
         name = 'test'
@@ -467,412 +593,31 @@ class TestMetricsObject():
         assert isinstance(data['metrics'], list)
         assert isinstance(data['metadata'], dict)
 
-    def test_run_all(self, tmpdir):
-        tmpdir = str(tmpdir)
-        y_true_lbl = label(_generate_stack_3d())
-        y_pred_lbl = label(_generate_stack_3d())
-        y_true_unlbl = _generate_stack_4d()
-        y_pred_unlbl = _generate_stack_4d()
 
-        name = 'test'
-        for seg in [True, False]:
-            m = metrics.Metrics(name, outdir=tmpdir, seg=seg)
-
-            before = len(m.output)
-
-            m.run_all(y_true_lbl, y_pred_lbl, y_true_unlbl, y_pred_unlbl)
-
-            # Assert that data was added to output
-            assert len(m.output) != before
-
-            # Check output file
-            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
-            outname = os.path.join(tmpdir, name + '_' + todays_date + '.json')
-            testing.assert_equal(os.path.isfile(outname), True)
-
-
-class TestObjectAccuracy():
-
-    def test_init(self):
-        y_true, _ = _sample1(10, 10, 30, 30, True)
-
-        # Test basic initialization
-        o = metrics.ObjectAccuracy(y_true, y_true, test=True)
-
-        # Check that object numbers are integers
-        assert isinstance(o.n_true, int)
-        assert isinstance(o.n_pred, int)
-
-        testing.assert_equal(o.empty_frame, False)
-
-        # test errors thrown for improper ndim inputs
-        y_true = np.zeros(shape=(10))
-        with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
-
-        y_true = np.zeros(shape=(10, 5, 5, 5))
-        with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_true, test=True)
-
-        # test errors thrown for improper ndim inputs with 3d data
-        y_true = np.zeros(shape=(10, 15))
-        y_pred = y_true
-        with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
-
-        y_true = np.zeros(shape=(10, 15, 15, 10))
-        y_pred = y_true
-        with pytest.raises(ValueError):
-            o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
-
-    def test_init_wrongsize(self):
-        # Test mismatched input size
-        y_true = label(_get_image())
-        y_wrong = label(_get_image(img_h=200, img_w=200))
-        testing.assert_raises(ValueError, metrics.ObjectAccuracy, y_true, y_wrong)
-
-    def test_init_emptyframe(self):
-        y_true, y_empty = _sample1(10, 10, 30, 30, True)
-
-        # Check handling of empty frames
-        y_empty[:, :] = 0
-        y_empty = y_empty.astype('int')
-
-        oempty = metrics.ObjectAccuracy(y_true, y_empty)
-        testing.assert_equal(oempty.empty_frame, 'n_pred')
-        oempty = metrics.ObjectAccuracy(y_empty, y_true)
-        testing.assert_equal(oempty.empty_frame, 'n_true')
-
-    def test_init_noloners(self):
-        # Generate split error and use single cell in true for both pred/true
-        y_true, y_pred = _sample1(10, 10, 30, 30, False)
-
-        o = metrics.ObjectAccuracy(y_true, y_true)
-
-        # Look for creation of `self.n_pred2` which indicates assignloners ran inccorectly
-        testing.assert_equal(hasattr(o, 'n_pred2'), False)
-
-    def test_calc_iou(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-
-        o._calc_iou()
-
-        # Check that iou was created
-        assert hasattr(o, 'iou')
-
-        # Check that it is not equal to initial value
-        assert np.count_nonzero(o.iou) != 0
-
-        # Test seg_thresh creation
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
-        o._calc_iou()
-
-        assert hasattr(o, 'seg_thresh')
-
-        # check that image without any background passes
-        y_true, y_pred = _dense_sample()
-        o = metrics.ObjectAccuracy(y_true=y_true, y_pred=y_pred, test=False)
-
-        o._calc_iou()
-
-    def test_calc_iou_3D(self):
-        y_true, y_pred = _sample1_3D(10, 10, 30, 30, True, 8)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, is_3d=True)
-
-        o._calc_iou()
-
-        # Check that iou was created
-        assert hasattr(o, 'iou')
-
-        # Check that it is not equal to initial value
-        assert np.count_nonzero(o.iou) != 0
-
-        # Test seg_thresh creation
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
-        o._calc_iou()
-
-        assert hasattr(o, 'seg_thresh')
-
-        m = metrics.Metrics('test', is_3d=True)
-
-        # test errors thrown for improper ndim inputs
-        y_true = np.zeros(shape=(10, 15, 11))
-        with pytest.raises(ValueError):
-            m.calc_object_stats(y_true, y_true)
-
-        y_true = np.zeros(shape=(10, 15, 15, 10, 15))
-        with pytest.raises(ValueError):
-            m.calc_object_stats(y_true, y_true)
-
-        y_true = np.zeros(shape=(2, 3, 5, 2))
-        y_pred = np.zeros(shape=(1, 4, 11, 2))
-        with pytest.raises(ValueError):
-            m.calc_object_stats(y_true, y_pred)
-
-    def test_modify_iou(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-
-        # Check that modified_iou was created
-        assert hasattr(o, 'iou_modified')
-
-    def test_make_matrix(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-
-        o._make_matrix()
-
-        assert hasattr(o, 'cm')
-
-        assert np.count_nonzero(o.cm) != 0
-
-    def test_linear_assignment(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-        o._make_matrix()
-
-        o._linear_assignment()
-
-        cols = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'gained_detections',
-                'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
-                'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe']
-
-        for obj in cols:
-            assert hasattr(o, obj)
-
-        # Test condition where seg = True
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True, seg=True)
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-        o._make_matrix()
-        o._linear_assignment()
-
-        for obj in ['results', 'cm_res', 'seg_score']:
-            assert hasattr(o, obj)
-
-    def test_assign_loners(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-        o._make_matrix()
-        o._linear_assignment()
-
-        o._assign_loners()
-        assert hasattr(o, 'cost_l_bin')
-
-    def test_array_to_graph(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, test=True)
-        o._calc_iou()
-        o._modify_iou(force_event_links=False)
-        o._make_matrix()
-        o._linear_assignment()
-        o._assign_loners()
-
-        o._array_to_graph()
-        assert hasattr(o, 'G')
-
-    def test_classify_graph(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        # Test that complete run through is succesful
-        _ = metrics.ObjectAccuracy(y_true, y_pred)
-
-        # Test for 0 degree graph
-        y_true, y_pred = _sample4_loner(10, 10, 30, 30, True)
-        _ = metrics.ObjectAccuracy(y_true, y_pred)
-        y_true, y_pred = _sample4_loner(10, 10, 30, 30, False)
-        _ = metrics.ObjectAccuracy(y_true, y_pred)
-
-        # Test for splits in 1 degree graph
-        y_true, y_pred = _sample1(10, 10, 30, 30, False)
-        _ = metrics.ObjectAccuracy(y_true, y_pred)
-
-        # Test for catastrophic errors
-        y_true, y_pred = _sample3(10, 10, 30, 30)
-        _ = metrics.ObjectAccuracy(y_true, y_pred)
-
-    def test_save_error_ids(self):
-
-        # cell 1 in assigned correctly, cells 2 and 3 have been merged
-        y_true, y_pred = _sample1(10, 10, 30, 30, merge=True)
-        o = metrics.ObjectAccuracy(y_true, y_pred)
-        label_dict, _, _ = o.save_error_ids()
-        assert label_dict['correct']['y_true'] == [1]
-        assert label_dict['correct']['y_pred'] == [1]
-        assert set(label_dict['merges']['y_true']) == {2, 3}
-        assert label_dict['merges']['y_pred'] == [2]
-
-        # cell 1 in assigned correctly, cell 2 has been split
-        y_true, y_pred = _sample1(10, 10, 30, 30, merge=False)
-        o = metrics.ObjectAccuracy(y_true, y_pred)
-        label_dict, _, _ = o.save_error_ids()
-        assert label_dict['correct']['y_true'] == [1]
-        assert label_dict['correct']['y_pred'] == [1]
-        assert set(label_dict['splits']['y_pred']) == {2, 3}
-        assert label_dict['splits']['y_true'] == [2]
-
-        # gained cell in predictions
-        y_true, y_pred = _sample4_loner(10, 10, 30, 30, gain=True)
-        o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1)
-        label_dict, _, _ = o.save_error_ids()
-        assert label_dict['correct']['y_true'] == [1]
-        assert label_dict['correct']['y_pred'] == [1]
-        assert label_dict['gains']['y_pred'] == [2]
-
-        # missed cell in true
-        y_true, y_pred = _sample4_loner(10, 10, 30, 30, gain=False)
-        o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1)
-        label_dict, _, _ = o.save_error_ids()
-        assert label_dict['correct']['y_true'] == [1]
-        assert label_dict['correct']['y_pred'] == [1]
-        assert label_dict['misses']['y_true'] == [2]
-
-        # catastrophe between 3 cells
-        y_true, y_pred = _sample3(10, 10, 30, 30)
-        o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1)
-        label_dict, _, _ = o.save_error_ids()
-        assert set(label_dict['catastrophes']['y_true']) == set(np.unique(y_true[y_true > 0]))
-        assert set(label_dict['catastrophes']['y_pred']) == set(np.unique(y_pred[y_pred > 0]))
-
-        # The tests below are more stochastic, and should be run multiple times
-        for _ in range(10):
-
-            # 3 cells merged together, with forced event links to ensure accurate assignment
-            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=False)
-            o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=True,
-                                       cutoff1=0.2, cutoff2=0.1)
-            label_dict, _, _ = o.save_error_ids()
-            assert label_dict['correct']['y_true'] == [1]
-            assert label_dict['correct']['y_pred'] == [1]
-            assert set(label_dict['merges']['y_true']) == {2, 3, 4}
-            assert label_dict['merges']['y_pred'] == [2]
-
-            # 3 cells merged together, without forced event links. Cells must be similar size
-            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=True, similar_size=True)
-            o = metrics.ObjectAccuracy(y_true, y_pred, force_event_links=False,
-                                       cutoff1=0.2, cutoff2=0.1)
-            label_dict, _, _ = o.save_error_ids()
-            assert label_dict['correct']['y_true'] == [1]
-            assert label_dict['correct']['y_pred'] == [1]
-            assert set(label_dict['merges']['y_true']) == {2, 3, 4}
-            assert label_dict['merges']['y_pred'] == [2]
-
-            # 2 of 3 cells merged together, with forced event links to ensure accurate assignment
-            y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
-                _sample2_2(10, 10, 30, 30, similar_size=False)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=True)
-            label_dict, _, _ = o.save_error_ids()
-            assert set(label_dict['correct']['y_true']) == y_true_correct
-            assert set(label_dict['correct']['y_pred']) == y_pred_correct
-            assert set(label_dict['merges']['y_true']) == y_true_merge
-            assert set(label_dict['merges']['y_pred']) == y_pred_merge
-
-            # 2 of 3 cells merged together, without forced event links. Cells must be similar size
-            y_true, y_pred, y_true_merge, y_true_correct, y_pred_merge, y_pred_correct = \
-                _sample2_2(10, 10, 30, 30, similar_size=True)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=False)
-            label_dict, _, _ = o.save_error_ids()
-            assert set(label_dict['correct']['y_true']) == y_true_correct
-            assert set(label_dict['correct']['y_pred']) == y_pred_correct
-            assert set(label_dict['merges']['y_true']) == y_true_merge
-            assert set(label_dict['merges']['y_pred']) == y_pred_merge
-
-            # 1 cell split into three pieces, with forced event links to ensure accurate assignment
-            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=False)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=True)
-            label_dict, _, _ = o.save_error_ids()
-            assert label_dict['correct']['y_true'] == [1]
-            assert label_dict['correct']['y_pred'] == [1]
-            assert label_dict['splits']['y_true'] == [2]
-            assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
-
-            # 1 cell split in three pieces, without forced event links. Cells must be similar size
-            y_true, y_pred = _sample2_3(10, 10, 30, 30, merge=False, similar_size=True)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=False)
-            label_dict, _, _ = o.save_error_ids()
-            assert label_dict['correct']['y_true'] == [1]
-            assert label_dict['correct']['y_pred'] == [1]
-            assert label_dict['splits']['y_true'] == [2]
-            assert set(label_dict['splits']['y_pred']) == {2, 3, 4}
-
-            # 1 cell split into two pieces, one small accurate cell, with forced event links
-            y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
-                _sample2_2(10, 10, 30, 30, merge=False, similar_size=False)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=True)
-            label_dict, _, _ = o.save_error_ids()
-            assert set(label_dict['correct']['y_true']) == y_true_correct
-            assert set(label_dict['correct']['y_pred']) == y_pred_correct
-            assert set(label_dict['splits']['y_true']) == y_true_split
-            assert set(label_dict['splits']['y_pred']) == y_pred_split
-
-            # 1 cell split into two pieces, one small accurate cell, without forced event links
-            y_true, y_pred, y_true_split, y_true_correct, y_pred_split, y_pred_correct = \
-                _sample2_2(10, 10, 30, 30, merge=False, similar_size=True)
-            o = metrics.ObjectAccuracy(y_true, y_pred, cutoff1=0.2, cutoff2=0.1,
-                                       force_event_links=False)
-            label_dict, _, _ = o.save_error_ids()
-            assert set(label_dict['correct']['y_true']) == y_true_correct
-            assert set(label_dict['correct']['y_pred']) == y_pred_correct
-            assert set(label_dict['splits']['y_true']) == y_true_split
-            assert set(label_dict['splits']['y_pred']) == y_pred_split
-
-    def test_optional_outputs(self):
-        y_true, y_pred = _sample1(10, 10, 30, 30, True)
-        o = metrics.ObjectAccuracy(y_true, y_pred)
-
-        o.print_report()
-
-        df = o.save_to_dataframe()
-        assert isinstance(df, pd.DataFrame)
-
-        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
-                   'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
-                   'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
-                   'catastrophe', 'jaccard', 'precision', 'recall', 'f1']
-        assert np.array_equal(sorted(columns), sorted(list(df.columns)))
-
-        # Check seg True case
-        o = metrics.ObjectAccuracy(y_true, y_pred, seg=True)
-        o.print_report()
-        df = o.save_to_dataframe()
-        columns = ['n_pred', 'n_true', 'correct_detections', 'missed_detections',
-                   'gained_detections', 'missed_det_from_merge', 'gained_det_from_split',
-                   'true_det_in_catastrophe', 'pred_det_in_catastrophe', 'merge', 'split',
-                   'catastrophe', 'seg', 'jaccard', 'precision', 'recall', 'f1']
-        assert np.array_equal(sorted(columns), sorted(list(df.columns)))
-
-    def test_assign_plot_values(self):
-        y_true, _ = random_shapes(image_shape=(200, 200), max_shapes=30, min_shapes=15,
-                                  min_size=10, multichannel=False)
-
-        # invert background
-        y_true[y_true == 255] = 0
-        y_true, _, _ = relabel_sequential(y_true)
-
-        error_dict = {'misses': {'y_true': [1, 2]}, 'splits': {'y_pred': [3, 4]},
-                      'merges': {'y_pred': [5, 6]}, 'gains': {'y_pred': [7, 8]},
-                      'catastrophes': {'y_pred': [9, 10]}, 'correct': {'y_pred': [11, 12]}}
-
-        plotting_tiff = metrics.assign_plot_values(y_true, y_true, error_dict)
-
-        # erode edges so that shape matches shape in plotting tiff
-        y_true = erode_edges(y_true, 1)
-
-        for error_type in error_dict.keys():
-            vals = list(error_dict[error_type].values())
-            mask = np.isin(y_true, vals)
-            assert len(np.unique(plotting_tiff[mask])) == 1
+def test_split_stack():
+    # Test batch True condition
+    arr = np.ones((10, 100, 100, 1))
+    out = metrics.split_stack(arr, True, 10, 1, 10, 2)
+    outshape = (10 * 10 * 10, 100 / 10, 100 / 10, 1)
+    testing.assert_equal(outshape, out.shape)
+
+    # Test batch False condition
+    arr = np.ones((100, 100, 1))
+    out = metrics.split_stack(arr, False, 10, 0, 10, 1)
+    outshape = (10 * 10, 100 / 10, 100 / 10, 1)
+    testing.assert_equal(outshape, out.shape)
+
+    # Test splitting in only one axis
+    out = metrics.split_stack(arr, False, 10, 0, 1, 1)
+    outshape = (10 * 1, 100 / 10, 100 / 1, 1)
+    testing.assert_equal(outshape, out.shape)
+
+    out = metrics.split_stack(arr, False, 1, 0, 10, 1)
+    outshape = (10 * 1, 100 / 1, 100 / 10, 1)
+    testing.assert_equal(outshape, out.shape)
+
+    # Raise errors for uneven division
+    with pytest.raises(ValueError):
+        metrics.split_stack(arr, False, 11, 0, 10, 1)
+    with pytest.raises(ValueError):
+        metrics.split_stack(arr, False, 10, 0, 11, 1)
