@@ -317,7 +317,7 @@ class TestDetection():
         assert d2 is not d1
         assert d2 == d1
 
-        assert d1 is not None
+        assert d1 != 1
 
         print(d1)  # test that __repr__ is called
 
@@ -382,6 +382,11 @@ class TestObjectMetrics():
         # Test basic initialization
         o = metrics.ObjectMetrics(y_true, y_true)
 
+        # Test using float dtype warns but still works
+        o = metrics.ObjectMetrics(
+            y_true.astype('float'),
+            y_true.astype('float'))
+
         # test errors thrown for improper ndim inputs
         y_true = np.zeros(shape=(10))  # too few dimensions
         with pytest.raises(ValueError):
@@ -404,15 +409,12 @@ class TestObjectMetrics():
         with pytest.raises(ValueError):
             metrics.ObjectMetrics(y_true, y_true[0])
 
-        # using float dtype warns but still works
-        o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
-
     def test_y_true_equals_y_pred(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
         y_pred = y_true.copy()
 
         # Test basic initialization
-        o = metrics.ObjectMetrics(y_true, y_pred)
+        o = metrics.ObjectMetrics(y_true, y_pred, force_event_links=True)
 
         # Check that object numbers are integers
         assert isinstance(o.n_true, int)
@@ -433,12 +435,17 @@ class TestObjectMetrics():
         assert o.splits == 0
         assert o.merges == 0
         assert o.catastrophes == 0
+        assert o.gained_det_from_split == 0
+        assert o.missed_det_from_merge == 0
+        assert o.true_det_in_catastrophe == 0
+        assert o.pred_det_in_catastrophe == 0
 
     def test_y_pred_empty(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
 
         # Test basic initialization with empty array y_pred
-        o = metrics.ObjectMetrics(y_true, np.zeros_like(y_true))
+        o = metrics.ObjectMetrics(y_true, np.zeros_like(y_true),
+                                  force_event_links=True)
 
         assert o.n_pred == 0
         assert o.correct_detections == 0
@@ -447,12 +454,17 @@ class TestObjectMetrics():
         assert o.precision == 0
         assert o.f1 == 0
         assert o.jaccard == 0
+        assert o.gained_det_from_split == 0
+        assert o.missed_det_from_merge == 0
+        assert o.true_det_in_catastrophe == 0
+        assert o.pred_det_in_catastrophe == 0
 
     def test_y_true_empty(self):
         y_pred, _ = _sample1(10, 10, 30, 30, True)
 
         # Test basic initialization with empty array y_pred
-        o = metrics.ObjectMetrics(np.zeros_like(y_pred), y_pred)
+        o = metrics.ObjectMetrics(np.zeros_like(y_pred), y_pred,
+                                  force_event_links=True)
 
         assert o.n_true == 0
         assert o.correct_detections == 0
@@ -461,6 +473,10 @@ class TestObjectMetrics():
         assert o.precision == 0
         assert o.f1 == 0
         assert o.jaccard == 0
+        assert o.gained_det_from_split == 0
+        assert o.missed_det_from_merge == 0
+        assert o.true_det_in_catastrophe == 0
+        assert o.pred_det_in_catastrophe == 0
 
     def test_calc_iou(self):
         # TODO: test correctness
@@ -523,7 +539,7 @@ class TestMetrics():
         cm = m.calc_pixel_confusion_matrix(y_true, y_pred)
         testing.assert_equal(cm.shape[0], y_true.shape[-1])
 
-    def test_metric_object_stats(self):
+    def test_calc_object_stats(self):
         y_true = label(_generate_stack_3d())
         y_pred = label(_generate_stack_3d())
 
@@ -547,10 +563,20 @@ class TestMetrics():
         with testing.assert_raises(ValueError):
             m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10, 10))
 
+        # Raise error if y_pred.shape != y_true.shape
+        with testing.assert_raises(ValueError):
+            m.calc_object_stats(np.random.rand(10, 10), np.random.rand(10,))
+
         # data that needs to be relabeled raises a warning
         with pytest.warns(UserWarning):
             y_pred[0, 0, 0] = 40
             m.calc_object_stats(y_true, y_pred)
+
+        # Raise error if is_3d and ndim !=4
+        with testing.assert_raises(ValueError):
+            m3d = metrics.Metrics('test', is_3d=True)
+            m3d.calc_object_stats(np.random.random((32, 32, 1)),
+                                  np.random.random((32, 32, 1)))
 
     def test_run_all(self, tmpdir):
         tmpdir = str(tmpdir)
