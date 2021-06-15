@@ -64,6 +64,14 @@ from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=
 from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 
 
+def _cast_to_tuple(x):
+    try:
+        tup_x = tuple(x)
+    except TypeError:
+        tup_x = () if x is None else (x,)
+    return tup_x
+
+
 class Detection(object):  # pylint: disable=useless-object-inheritance
     """Object to hold relevant information about a given detection."""
 
@@ -669,24 +677,22 @@ class ObjectMetrics(BaseMetrics):
         prediction_types = {
             'gained',
         }
+        is_pred_type = detection_type in prediction_types
+        arr = self.y_pred if is_pred_type else self.y_true
+        label_image = np.zeros_like(arr)
+        attrname = '_{}'.format(detection_type)
+
         try:
-            attrname = '_{}'.format(detection_type)
-            # filter out the relevant indices and select the data
-            indices = []
-            for det in getattr(self, attrname):
-                if detection_type in prediction_types:
-                    indices.append(det.pred_index)
-                else:
-                    indices.append(det.true_index)
-            if detection_type in prediction_types:
-                arr = self.y_pred
-            else:
-                arr = self.y_true
+            detections = getattr(self, attrname)
         except AttributeError:
             raise ValueError('Invalid detection_type: {}'.format(
                 detection_type))
 
-        label_image = np.where(arr == indices, arr, 0)
+        for det in detections:
+            idx = det.pred_index if is_pred_type else det.true_index
+            idx = idx if isinstance(idx, tuple) else (idx,)
+            for i in idx:
+                label_image[arr == i] = i
 
         return regionprops(label_image)
 
@@ -745,14 +751,8 @@ class ObjectMetrics(BaseMetrics):
     def gained_det_from_split(self):
         gained_dets = 0
         for det in self._splits:
-            try:
-                true_idx = tuple(det.true_index)
-            except TypeError:
-                true_idx = tuple()
-            try:
-                pred_idx = tuple(det.pred_index)
-            except TypeError:
-                pred_idx = tuple()
+            true_idx = _cast_to_tuple(det.true_index)
+            pred_idx = _cast_to_tuple(det.pred_index)
             gained_dets += len(true_idx) + len(pred_idx) - 2
         return gained_dets
 
@@ -760,14 +760,8 @@ class ObjectMetrics(BaseMetrics):
     def missed_det_from_merge(self):
         missed_dets = 0
         for det in self._merges:
-            try:
-                true_idx = tuple(det.true_index)
-            except TypeError:
-                true_idx = tuple()
-            try:
-                pred_idx = tuple(det.pred_index)
-            except TypeError:
-                pred_idx = tuple()
+            true_idx = _cast_to_tuple(det.true_index)
+            pred_idx = _cast_to_tuple(det.pred_index)
             missed_dets += len(true_idx) + len(pred_idx) - 2
         return missed_dets
 
