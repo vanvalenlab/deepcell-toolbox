@@ -602,19 +602,17 @@ class TestMetrics():
 
         m = metrics.Metrics('test')
 
+        # test that metrics are generated
         object_metrics = m.calc_object_stats(y_true, y_pred)
-
-        for stat in object_metrics:
-            assert 'name' in stat
+        # each row of metrics corresponds to a batch
+        assert len(object_metrics) == len(y_true)
 
         object_metrics = m.calc_object_stats(
             np.zeros_like(y_true), np.zeros_like(y_pred))
 
-        for metric in object_metrics:
-            if metric['name'] == 'precision':
-                assert metric['value'] == 0
-            if metric['name'] == 'recall':
-                assert metric['value'] == 0
+        # test accuracy of metrics with blank predictions
+        assert object_metrics['precision'].sum() == 0
+        assert object_metrics['recall'].sum() == 0
 
         # Raise input size error
         with testing.assert_raises(ValueError):
@@ -639,19 +637,17 @@ class TestMetrics():
 
         m = metrics.Metrics('test', is_3d=True)
 
+        # test that metrics are generated
         object_metrics = m.calc_object_stats(y_true, y_pred)
+        # each row of metrics corresponds to a batch
+        assert len(object_metrics) == len(y_true)
 
-        for stat in object_metrics:
-            assert 'name' in stat
-
+        # test accuracy of metrics with blank predictions
         object_metrics = m.calc_object_stats(
             np.zeros_like(y_true), np.zeros_like(y_pred))
 
-        for metric in object_metrics:
-            if metric['name'] == 'precision':
-                assert metric['value'] == 0
-            if metric['name'] == 'recall':
-                assert metric['value'] == 0
+        assert object_metrics['precision'].sum() == 0
+        assert object_metrics['recall'].sum() == 0
 
         # Raise error if is_3d and ndim !=4
         with testing.assert_raises(ValueError):
