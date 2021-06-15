@@ -1112,6 +1112,8 @@ class Metrics(object):
         n_true = int(df['n_true'].sum())
         n_pred = int(df['n_pred'].sum())
 
+        _round = lambda x: round(x, self.ndigits)
+
         seg = df['seg'].mean()
         jaccard = df['jaccard'].mean()
 
@@ -1143,10 +1145,10 @@ class Metrics(object):
             'correct_detections': correct_detections,
             'n_true': n_true,
             'n_pred': n_pred,
-            'recall': recall,
-            'precision': precision,
-            'seg': seg,
-            'jaccard': jaccard,
+            'recall': _round(recall),
+            'precision': _round(precision * 100),
+            'seg': _round(seg * 100),
+            'jaccard': _round(jaccard),
             'total_errors': 0,
         }
         # update bad detections
@@ -1181,19 +1183,16 @@ class Metrics(object):
             'pred_det_in_catastrophe',
         ]
 
-        to_percent = lambda x: round(100 * x, self.ndigits)
-
         print('\n____________Object-based statistics____________\n')
         print('Number of true cells:\t\t', summary['n_true'])
         print('Number of predicted cells:\t', summary['n_pred'])
 
         print('\nCorrect detections:  {}\tRecall: {}%'.format(
-            summary['correct_detections'],
-            to_percent(summary['recall'])))
+            summary['correct_detections'], summary['recall']))
 
         print('Incorrect detections: {}\tPrecision: {}%'.format(
             summary['n_pred'] - summary['correct_detections'],
-            to_percent(summary['precision'])))
+            summary['precision']))
 
         print('\n')
         for k in errors:
@@ -1208,7 +1207,8 @@ class Metrics(object):
                 err_fraction = 0
 
             print('{name}: {val}{tab}Perc Error {percent}%'.format(
-                name=name, val=v, percent=to_percent(err_fraction),
+                name=name, val=v,
+                percent=round(100 * err_fraction, self.ndigits),
                 tab='\t' * (1 if ' ' in name else 2)))
 
         for k in bad_detections:
