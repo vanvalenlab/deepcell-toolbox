@@ -1105,35 +1105,15 @@ class Metrics(object):
             o.to_dict() for o in all_object_metrics
         ])
         self.print_object_report(object_metrics)
-        output = self.df_to_dict(object_metrics, stat_type='object')
-        return output
+        return object_metrics
 
-    def print_object_report(self, object_metrics):
-        """Print neat report of object based statistics
+    def summarize_object_metrics_df(self, df):
+        correct_detections = int(df['correct_detections'].sum())
+        n_true = int(df['n_true'].sum())
+        n_pred = int(df['n_pred'].sum())
 
-        Args:
-            object_metrics (pd.DataFrame): DataFrame of all calculated metrics
-        """
-        correct_detections = int(object_metrics['correct_detections'].sum())
-        n_true = int(object_metrics['n_true'].sum())
-        n_pred = int(object_metrics['n_pred'].sum())
-
-        errors = {
-            'gained_detections': 0,
-            'missed_detections': 0,
-            'split': 0,
-            'merge': 0,
-            'catastrophe': 0
-        }
-        for k in errors:
-            errors[k] = int(object_metrics[k].sum())
-
-        bad_detections = [
-            'gained_det_from_split',
-            'missed_det_from_merge',
-            'true_det_in_catastrophe',
-            'pred_det_in_catastrophe',
-        ]
+        seg = df['seg'].mean()
+        jaccard = df['jaccard'].mean()
 
         try:
             recall = correct_detections / n_true
@@ -1144,47 +1124,108 @@ class Metrics(object):
         except ZeroDivisionError:
             precision = 0
 
-        total_err = sum(errors.values())
+        errors = [
+            'gained_detections',
+            'missed_detections',
+            'split',
+            'merge',
+            'catastrophe',
+        ]
+
+        bad_detections = [
+            'gained_det_from_split',
+            'missed_det_from_merge',
+            'true_det_in_catastrophe',
+            'pred_det_in_catastrophe',
+        ]
+
+        summary = {
+            'correct_detections': correct_detections,
+            'n_true': n_true,
+            'n_pred': n_pred,
+            'recall': recall,
+            'precision': precision,
+            'seg': seg,
+            'jaccard': jaccard,
+            'total_errors': 0,
+        }
+        # update bad detections
+        for k in bad_detections:
+            summary[k] = int(df[k].sum())
+        # update error counts
+        for k in errors:
+            count = int(df[k].sum())
+            summary[k] = count
+            summary['total_errors'] += count
+        return summary
+
+    def print_object_report(self, object_metrics):
+        """Print neat report of object based statistics
+
+        Args:
+            object_metrics (pd.DataFrame): DataFrame of all calculated metrics
+        """
+        summary = self.summarize_object_metrics_df(object_metrics)
+        errors = [
+            'gained_detections',
+            'missed_detections',
+            'split',
+            'merge',
+            'catastrophe'
+        ]
+
+        bad_detections = [
+            'gained_det_from_split',
+            'missed_det_from_merge',
+            'true_det_in_catastrophe',
+            'pred_det_in_catastrophe',
+        ]
 
         to_percent = lambda x: round(100 * x, self.ndigits)
 
         print('\n____________Object-based statistics____________\n')
-        print('Number of true cells:\t\t', n_true)
-        print('Number of predicted cells:\t', n_pred)
+        print('Number of true cells:\t\t', summary['n_true'])
+        print('Number of predicted cells:\t', summary['n_pred'])
 
         print('\nCorrect detections:  {}\tRecall: {}%'.format(
-            correct_detections, to_percent(recall)))
+            summary['correct_detections'],
+            to_percent(summary['recall'])))
 
         print('Incorrect detections: {}\tPrecision: {}%'.format(
-            n_pred - correct_detections, to_percent(precision)))
+            summary['n_pred'] - summary['correct_detections'],
+            to_percent(summary['precision'])))
 
         print('\n')
-        for k, v in errors.items():
+        for k in errors:
+            v = summary[k]
             name = k.replace('_', ' ').capitalize()
             if not name.endswith('s'):
                 name += 's'
+
             try:
-                err_fraction = v / total_err
+                err_fraction = v / summary['total_errors']
             except ZeroDivisionError:
                 err_fraction = 0
+
             print('{name}: {val}{tab}Perc Error {percent}%'.format(
                 name=name, val=v, percent=to_percent(err_fraction),
                 tab='\t' * (1 if ' ' in name else 2)))
 
         for k in bad_detections:
             name = k.replace('_', ' ').capitalize().replace(' det ', ' detections')
-            val = int(object_metrics[k].sum())
-            print('{name}: {val}'.format(name=name, val=val))
+            print('{name}: {val}'.format(name=name, val=summary[k]))
 
-        print('SEG:', round(object_metrics['seg'].mean(), self.ndigits), '\n')
+        print('SEG:', round(summary['seg'], self.ndigits), '\n')
 
         print('Average Pixel IOU (Jaccard Index):',
-              round(object_metrics['jaccard'].mean(), self.ndigits), '\n')
+              round(summary['jaccard'], self.ndigits), '\n')
 
     def run_all(self, y_true, y_pred, axis=-1):
         object_metrics = self.calc_object_stats(y_true, y_pred)
         pixel_metrics = self.calc_pixel_stats(y_true, y_pred, axis=axis)
-        all_output = object_metrics + pixel_metrics
+
+        object_list = self.df_to_dict(object_metrics, stat_type='object')
+        all_output = object_list + pixel_metrics
         self.save_to_json(all_output)
 
     def save_to_json(self, L):
@@ -1195,7 +1236,7 @@ class Metrics(object):
         """
         todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
         outname = os.path.join(
-            self.outdir, self.model_name + '_' + todays_date + '.json')
+            self.outdir, '{}_{}.json'.format(self.model_name, todays_date))
 
         # Configure final output
         D = {}
