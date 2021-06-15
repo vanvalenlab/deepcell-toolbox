@@ -42,7 +42,6 @@ from __future__ import print_function
 from __future__ import division
 
 import datetime
-import decimal
 import json
 import logging
 import operator
@@ -54,18 +53,144 @@ import pandas as pd
 import networkx as nx
 
 from scipy.optimize import linear_sum_assignment
+from scipy.stats import hmean
 from skimage.measure import regionprops
 from skimage.segmentation import relabel_sequential
 from sklearn.metrics import confusion_matrix
-from scipy.stats import hmean
+from tqdm import tqdm
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
 from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
 
 
-def stats_pixelbased(y_true, y_pred):
-    """Calculates pixel-based statistics
+def _cast_to_tuple(x):
+    try:
+        tup_x = tuple(x)
+    except TypeError:
+        tup_x = () if x is None else (x,)
+    return tup_x
+
+
+class Detection(object):  # pylint: disable=useless-object-inheritance
+    """Object to hold relevant information about a given detection."""
+
+    def __init__(self, true_index=None, pred_index=None):
+        # cast the indices as tuples if possible to make them immutable
+        try:
+            self.true_index = tuple(true_index)
+        except TypeError:
+            self.true_index = true_index
+        try:
+            self.pred_index = tuple(pred_index)
+        except TypeError:
+            self.pred_index = pred_index
+
+    def __eq__(self, other):
+        """Custom comparator. Detections with the same indices are the same."""
+        try:
+            is_true_same = self.true_index == other.true_index
+            is_pred_same = self.pred_index == other.pred_index
+            return is_true_same and is_pred_same
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        """Custom hasher, allow Detections to be hashable."""
+        return tuple((self.true_index, self.pred_index)).__hash__()
+
+    def __repr__(self):
+        return 'Detection({}, {})'.format(self.true_index, self.pred_index)
+
+    @property
+    def is_correct(self):
+        is_linked = self.true_index is not None and self.pred_index is not None
+        return is_linked and not self.is_split and not self.is_merge
+
+    @property
+    def is_gained(self):
+        return self.true_index is None and self.pred_index is not None
+
+    @property
+    def is_missed(self):
+        return self.true_index is not None and self.pred_index is None
+
+    @property
+    def is_split(self):
+        if self.is_gained or self.is_missed:
+            return False
+
+        try:
+            is_many_pred = len(self.pred_index) > 1
+        except TypeError:
+            is_many_pred = False
+
+        try:
+            is_single_true = len(tuple(self.true_index)) == 1
+        except TypeError:
+            is_single_true = isinstance(self.true_index, int)
+
+        return is_single_true and is_many_pred
+
+    @property
+    def is_merge(self):
+        if self.is_gained or self.is_missed:
+            return False
+
+        try:
+            is_many_true = len(self.true_index) > 1
+        except TypeError:
+            is_many_true = False
+
+        try:
+            is_single_pred = len(tuple(self.pred_index)) == 1
+        except TypeError:
+            is_single_pred = isinstance(self.pred_index, int)
+
+        return is_single_pred and is_many_true
+
+    @property
+    def is_catastrophe(self):
+        if self.is_gained or self.is_missed:
+            return False
+
+        try:
+            is_many_true = len(self.true_index) > 1
+        except TypeError:
+            is_many_true = False
+
+        try:
+            is_many_pred = len(self.pred_index) > 1
+        except TypeError:
+            is_many_pred = False
+
+        return is_many_true and is_many_pred
+
+
+class BaseMetrics(object):  # pylint: disable=useless-object-inheritance
+
+    """Base class for Metrics classes."""
+
+    def __init__(self, y_true, y_pred):
+        if y_pred.shape != y_true.shape:
+            raise ValueError('Input shapes must match. Shape of prediction '
+                             'is: {}.  Shape of y_true is: {}'.format(
+                                 y_pred.shape, y_true.shape))
+
+        if not np.issubdtype(y_true.dtype, np.integer):
+            warnings.warn('Casting y_true from {} to int'.format(y_true.dtype))
+            y_true = y_true.astype('int32')
+
+        if not np.issubdtype(y_pred.dtype, np.integer):
+            warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
+            y_pred = y_pred.astype('int32')
+
+        self.y_true = y_true
+        self.y_pred = y_pred
+
+
+class PixelMetrics(BaseMetrics):
+    """Calculates pixel-based statistics.
     (Dice, Jaccard, Precision, Recall, F-measure)
 
     Takes in raw prediction and truth data in order to calculate accuracy
@@ -80,9 +205,6 @@ def stats_pixelbased(y_true, y_pred):
         y_pred (numpy.array): Binary predictions for a single feature,
             (batch,x,y)
 
-    Returns:
-        dict: Containing a set of calculated statistics
-
     Raises:
         ValueError: Shapes of y_true and y_pred do not match.
 
@@ -91,39 +213,114 @@ def stats_pixelbased(y_true, y_pred):
         Make sure to input the same type of data for y_true and y_pred
     """
 
-    if y_pred.shape != y_true.shape:
-        raise ValueError('Shape of inputs need to match. Shape of prediction '
-                         'is: {}.  Shape of y_true is: {}'.format(
-                             y_pred.shape, y_true.shape))
+    def __init__(self, y_true, y_pred):
+        super(PixelMetrics, self).__init__(
+            y_true=(y_true != 0).astype('int'),
+            y_pred=(y_pred != 0).astype('int'))
 
-    pred = y_pred
-    truth = y_true
+        self._y_true_sum = np.count_nonzero(self.y_true)
+        self._y_pred_sum = np.count_nonzero(self.y_pred)
 
-    if pred.sum() == 0 and truth.sum() == 0:
-        warnings.warn('DICE score is technically 1.0, '
-                      'but prediction and truth arrays are empty. ')
+        # Calculations for IOU
+        self._intersection = np.count_nonzero(np.logical_and(self.y_true, self.y_pred))
+        self._union = np.count_nonzero(np.logical_or(self.y_true, self.y_pred))
 
-    # Calculations for IOU
-    intersection = np.logical_and(pred, truth)
-    union = np.logical_or(pred, truth)
+    @classmethod
+    def get_confusion_matrix(cls, y_true, y_pred, axis=-1):
+        """Calculate confusion matrix for pixel classification data.
 
-    # Sum gets count of positive pixels
-    dice = (2 * intersection.sum() / (pred.sum() + truth.sum()))
-    jaccard = intersection.sum() / union.sum()
-    precision = intersection.sum() / pred.sum()
-    recall = intersection.sum() / truth.sum()
-    Fmeasure = (2 * precision * recall) / (precision + recall)
+        Args:
+            y_true (numpy.array): Ground truth annotations after any
+                necessary transformations
+            y_pred (numpy.array): Prediction array
+            axis (int): The channel axis of the input arrays.
 
-    return {
-        'dice': dice,
-        'jaccard': jaccard,
-        'precision': precision,
-        'recall': recall,
-        'Fmeasure': Fmeasure
-    }
+        Returns:
+            numpy.array: nxn confusion matrix determined by number of features.
+        """
+        # Argmax collapses on feature dimension to assign class to each pixel
+        # Flatten is required for confusion matrix
+        y_true = y_true.argmax(axis=axis).flatten()
+        y_pred = y_pred.argmax(axis=axis).flatten()
+        return confusion_matrix(y_true, y_pred)
+
+    @property
+    def recall(self):
+        try:
+            _recall = self._intersection / self._y_true_sum
+        except ZeroDivisionError:
+            _recall = np.nan
+        return _recall
+
+    @property
+    def precision(self):
+        try:
+            _precision = self._intersection / self._y_pred_sum
+        except ZeroDivisionError:
+            _precision = 0
+        return _precision
+
+    @property
+    def f1(self):
+        _recall = self.recall
+        _precision = self.precision
+
+        # f1 is nan if recall is nan and no false negatives
+        if np.isnan(_recall) and _precision == 0:
+            return np.nan
+
+        f_measure = hmean([_recall, _precision])
+        # f_measure = (2 * _precision * _recall) / (_precision + _recall)
+        return f_measure
+
+    @property
+    def dice(self):
+        y_sum = self._y_true_sum + self._y_pred_sum
+        if y_sum == 0:
+            warnings.warn('DICE score is technically 1.0, '
+                          'but prediction and truth arrays are empty.')
+            return 1.0
+
+        return 2.0 * self._intersection / y_sum
+
+    @property
+    def jaccard(self):
+        try:
+            _jaccard = self._intersection / self._union
+        except ZeroDivisionError:
+            _jaccard = np.nan
+        return _jaccard
+
+    def to_dict(self):
+        return {
+            'jaccard': self.jaccard,
+            'recall': self.recall,
+            'precision': self.precision,
+            'f1': self.f1,
+            'dice': self.dice,
+        }
 
 
-class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
+def get_box_labels(arr):
+    """Get the bounding box and label for all objects in the image.
+
+    Args:
+        arr (np.array): integer label array of objects.
+
+    Returns:
+        tuple(list(np.array), list(int)): A tuple of bounding boxes and
+            the corresponding integer labels.
+    """
+    props = regionprops(np.squeeze(arr.astype('int')), cache=False)
+    boxes, labels = [], []
+    for prop in props:
+        boxes.append(np.array(prop.bbox))
+        labels.append(int(prop.label))
+    boxes = np.array(boxes).astype('double')
+    return boxes, labels
+
+
+class ObjectMetrics(BaseMetrics):
     """Classifies object prediction errors as TP, FP, FN, merge or split
 
     The schema for this analysis was adopted from the description of
@@ -145,8 +342,6 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
             smaller values are more conservative, default 0.4
         cutoff2 (:obj:`float`, optional): Threshold for overlap in unassigned
             cells, smaller values are better, default 0.1
-        test (:obj:`bool`, optional): Utility variable to control running
-            analysis during testing
         seg (:obj:`bool`, optional): Calculates SEG score for cell tracking
             competition
         force_event_links(:obj:'bool, optional): Flag that determines whether to modify IOU
@@ -165,216 +360,197 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
                  y_pred,
                  cutoff1=0.4,
                  cutoff2=0.1,
-                 test=False,
-                 seg=False,
                  force_event_links=False,
                  is_3d=False):
+
+        # If 2D, dimensions can be 3 or 4 (with or without channel dimension)
+        if not is_3d and y_true.ndim not in {2, 3}:
+            raise ValueError('Expected dimensions for y_true (2D data) are 2 '
+                             '(x, y) and 3 (x, y, chan). '
+                             'Got ndim: {}'.format(y_true.ndim))
+
+        elif is_3d and y_true.ndim != 3:
+            raise ValueError('Expected dimensions for y_true (3D data) is 3.'
+                             'Requires format is: (z, x, y)'
+                             'Got ndim: {}'.format(y_true.ndim))
+
+        super(ObjectMetrics, self).__init__(y_true=y_true, y_pred=y_pred)
+
         self.cutoff1 = cutoff1
         self.cutoff2 = cutoff2
-        self.seg = seg
         self.is_3d = is_3d
 
-        if y_pred.shape != y_true.shape:
-            raise ValueError('Input shapes must match. Shape of prediction '
-                             'is: {}.  Shape of y_true is: {}'.format(
-                                 y_pred.shape, y_true.shape))
-
-        if not np.issubdtype(y_true.dtype, np.integer):
-            warnings.warn('Casting y_true from {} to int'.format(y_true.dtype))
-            y_true = y_true.astype('int32')
-
-        if not np.issubdtype(y_pred.dtype, np.integer):
-            warnings.warn('Casting y_pred from {} to int'.format(y_pred.dtype))
-            y_pred = y_pred.astype('int32')
-
-        self.y_true = y_true
-        self.y_pred = y_pred
+        self.compute_overlap = compute_overlap_3D if is_3d else compute_overlap
 
         self.n_true = len(np.unique(self.y_true[np.nonzero(self.y_true)]))
         self.n_pred = len(np.unique(self.y_pred[np.nonzero(self.y_pred)]))
 
-        self.n_obj = self.n_true + self.n_pred
+        # keep track of every pair of objects through the detections dict
+        # using tuple(true_index, pred_index): Detection as a key/vaue pair
+        self._detections = set()
 
-        # Initialize error counters
-        self.correct_detections = 0
-        self.missed_detections = 0
-        self.gained_detections = 0
+        # store the keys of relevant Detections in a set for easy fetching
+        # types of detections
+        self._splits = set()
+        self._gained = set()
+        self._missed = set()
+        # types of errors
+        self._merges = set()
+        self._catastrophes = set()
+        self._correct = set()
 
-        self.merge = 0
-        self.split = 0
-        self.catastrophe = 0
+        # IoU: used to determine relative overlap of y_pred and y_true
+        self.iou = np.zeros((self.n_true, self.n_pred))
 
-        self.gained_det_from_split = 0
-        self.missed_det_from_merge = 0
-        self.true_det_in_catastrophe = 0
-        self.pred_det_in_catastrophe = 0
-
-        self.precision = 0
-        self.recall = 0
-        self.f1 = 0
-
-        # Initialize lists and dicts to store indices where errors occur
-        self.correct_indices = {}
-        self.correct_indices['y_true'] = []
-        self.correct_indices['y_pred'] = []
-
-        self.missed_indices = {}
-        self.missed_indices['y_true'] = []
-
-        self.gained_indices = {}
-        self.gained_indices['y_pred'] = []
-
-        self.merge_indices = {
-            'y_true': [],
-            'y_pred': []
-        }
-
-        self.split_indices = {
-            'y_true': [],
-            'y_pred': []
-        }
-
-        self.catastrophe_indices = {
-            'y_true': []
-        }
-        self.catastrophe_indices['y_pred'] = []
-
-        # If 2D, dimensions can be 2 or 3 (with or without channel dimension)
-        if not self.is_3d:
-            if self.y_true.ndim not in {2, 3}:
-                raise ValueError('Expected dimensions for y_true (2D data) are 2 and 3'
-                                 'Accepts: (x, y), or (x, y, chan)'
-                                 'Got ndim: {}'.format(self.y_true.ndim))
-
-        # If 3D, inputs must have 3 dimensions (batch, z, x, y) - cannot have channel dimension or
-        # _classify_graph breaks, as it expects input to be 2D or 3D
-        # TODO - add compatibility for multi-channel 3D-data
-        else:
-            if self.y_true.ndim != 3:
-                raise ValueError('Expected dimensions for y_true (3D data) is 3.'
-                                 'Requires format is: (z, x, y)'
-                                 'Got ndim: {}'.format(self.y_true.ndim))
+        # used to determine seg score
+        self.seg_thresh = np.zeros((self.n_true, self.n_pred))
 
         # Check if either frame is empty before proceeding
         if self.n_true == 0:
             logging.info('Ground truth frame is empty')
-            self.gained_detections += self.n_pred
-            self.empty_frame = 'n_true'
-        elif self.n_pred == 0:
-            logging.info('Prediction frame is empty')
-            self.missed_detections += self.n_true
-            self.empty_frame = 'n_pred'
-        elif test is False:
-            self.empty_frame = False
-            self._calc_iou()
-            self._modify_iou(force_event_links)
-            self._make_matrix()
-            self._linear_assignment()
 
-            # Check if there are loners before proceeding
-            if (self.loners_pred.shape[0] == 0) & (self.loners_true.shape[0] == 0):
-                pass
-            else:
-                self._assign_loners()
-                self._array_to_graph()
-                self._classify_graph()
-        else:
-            self.empty_frame = False
+        if self.n_pred == 0:
+            logging.info('Prediction frame is empty')
+
+        self._calc_iou()  # set self.iou and update self.seg_thresh
+
+        self.iou_modified = self._get_modified_iou(force_event_links)
+
+        matrix = self._linear_assignment()
+
+        # Identify direct matches as true positives
+        correct_index = np.nonzero(matrix[:self.n_true, :self.n_pred])
+
+        for i, j in zip(correct_index[0], correct_index[1]):
+            self._add_detection(true_index=int(i), pred_index=int(j))
+
+        # Calc seg score for true positives if requested
+        iou_mask = np.where(self.seg_thresh == 0, self.iou, np.nan)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=RuntimeWarning)
+            # correct_index may be empty, suppress mean of empty slice warning
+            self.seg_score = np.nanmean(iou_mask[correct_index])
+
+        # Classify other errors using a graph
+        G = self._array_to_graph(matrix)
+        self._classify_graph(G)
+
+        # Calculate pixel-level stats
+        self.pixel_stats = PixelMetrics(y_true, y_pred)
+
+    def _add_detection(self, true_index=None, pred_index=None):
+        detection = Detection(true_index=true_index, pred_index=pred_index)
+
+        self._detections.add(detection)
+
+        # keep track of all error types
+        # TODO: better way to do this?
+        if detection.is_correct:
+            self._correct.add(detection)
+        if detection.is_gained:
+            self._gained.add(detection)
+        if detection.is_missed:
+            self._missed.add(detection)
+        if detection.is_split:
+            self._splits.add(detection)
+        if detection.is_merge:
+            self._merges.add(detection)
+        if detection.is_catastrophe:
+            self._catastrophes.add(detection)
 
     def _calc_iou(self):
         """Calculates IoU matrix for each pairwise comparison between true and
         predicted. Additionally, if seg is True, records a 1 for each pair of
         objects where $|Tbigcap P| > 0.5 * |T|$
         """
-
-        def get_box_labels(images):
-            props = regionprops(np.squeeze(images))
-            boxes, labels = [], []
-            for prop in props:
-                boxes.append(np.array(prop.bbox))
-                labels.append(int(prop.label))
-            boxes = np.array(boxes).astype('double')
-
-            return boxes, labels
-
-        self.iou = np.zeros((self.n_true, self.n_pred))
-
-        if self.seg:
-            self.seg_thresh = np.zeros((self.n_true, self.n_pred))
-
         # Use bounding boxes to find masks that are likely to overlap
-        y_true_boxes, y_true_labels = get_box_labels(self.y_true.astype('int'))
-        y_pred_boxes, y_pred_labels = get_box_labels(self.y_pred.astype('int'))
+        y_true_boxes, y_true_labels = get_box_labels(self.y_true)
+        y_pred_boxes, y_pred_labels = get_box_labels(self.y_pred)
+
+        if not y_true_boxes.shape[0] or not y_pred_boxes.shape[0]:
+            return  # cannot compute overlaps of nothing
 
         # has the form [gt_bbox, res_bbox]
-        if self.is_3d:
-            overlaps = compute_overlap_3D(y_true_boxes, y_pred_boxes)
-        else:
-            overlaps = compute_overlap(y_true_boxes, y_pred_boxes)
+        overlaps = self.compute_overlap(y_true_boxes, y_pred_boxes)
 
-        # Find the bboxes that have overlap at all
+        # Find the bboxes that have any overlap
         # (ind_ corresponds to box number - starting at 0)
         ind_true, ind_pred = np.nonzero(overlaps)
 
+        # TODO: this accounts for ~50+% of the time spent on calc_iou
         for index in range(ind_true.shape[0]):
-
             iou_y_true_idx = y_true_labels[ind_true[index]]
             iou_y_pred_idx = y_pred_labels[ind_pred[index]]
-            intersection = np.logical_and(self.y_true == iou_y_true_idx,
-                                          self.y_pred == iou_y_pred_idx)
-            union = np.logical_or(self.y_true == iou_y_true_idx,
-                                  self.y_pred == iou_y_pred_idx)
-            # Subtract 1 from index to account for skipping 0
-            self.iou[iou_y_true_idx - 1, iou_y_pred_idx - 1] = intersection.sum() / union.sum()
 
-            if (self.seg) & \
-               (intersection.sum() > 0.5 * np.sum(self.y_true == index)):
+            is_true = self.y_true == iou_y_true_idx
+            is_pred = self.y_pred == iou_y_pred_idx
+
+            intersection = np.count_nonzero(np.logical_and(is_true, is_pred))
+            union = np.count_nonzero(np.logical_or(is_true, is_pred))
+
+            iou = intersection / union
+
+            # Subtract 1 from index to account for skipping 0
+            self.iou[iou_y_true_idx - 1, iou_y_pred_idx - 1] = iou
+
+            if intersection > 0.5 * np.count_nonzero(self.y_true == index):
                 self.seg_thresh[iou_y_true_idx - 1, iou_y_pred_idx - 1] = 1
 
-    def _modify_iou(self, force_event_links):
-        """Modifies the IOU matrix to boost the value for small cells.
+    def _get_modified_iou(self, force_event_links):
+        """Modifies the IoU matrix to boost the value for small cells.
 
         Args:
-            force_event_links (:obj:`bool'): flag that determines whether to modify IOU values of
-             large cells if a small cell has been split or merged with them.
+            force_event_links (:obj:`bool'): Whether to modify IOU values of
+                large objects if they have been split or merged by
+                a small object.
+
+        Returns:
+            np.array: The modified IoU matrix.
         """
-
         # identify cells that have matches in IOU but may be too small
-        true_labels, pred_labels = np.where(np.logical_and(self.iou > 0,
-                                                           self.iou < (1 - self.cutoff1)))
+        true_labels, pred_labels = np.nonzero(
+            np.logical_and(self.iou > 0, self.iou < 1 - self.cutoff1)
+        )
 
-        self.iou_modified = self.iou.copy()
+        iou_modified = self.iou.copy()
 
         for idx in range(len(true_labels)):
             # add 1 to get back to original label id
-            true_label, pred_label = true_labels[idx] + 1, pred_labels[idx] + 1
+            true_idx, pred_idx = true_labels[idx], pred_labels[idx]
+            true_label, pred_label = true_idx + 1, pred_idx + 1
             true_mask = self.y_true == true_label
             pred_mask = self.y_pred == pred_label
 
             # fraction of true cell that is contained within pred cell, vice versa
-            true_in_pred = np.sum(self.y_true[pred_mask] == true_label) / np.sum(true_mask)
-            pred_in_true = np.sum(self.y_pred[true_mask] == pred_label) / np.sum(pred_mask)
+            true_in_pred = np.count_nonzero(
+                self.y_true[pred_mask] == true_label) / np.sum(true_mask)
+            pred_in_true = np.count_nonzero(
+                self.y_pred[true_mask] == pred_label) / np.sum(pred_mask)
 
-            iou_val = self.iou[true_label - 1, pred_label - 1]
+            iou_val = self.iou[true_idx, pred_idx]
             max_val = np.max([true_in_pred, pred_in_true])
 
             # if this cell has a small IOU due to its small size,
             # but is at least half contained within the big cell,
             # we bump its IOU value up so it doesn't get dropped from the graph
             if iou_val <= self.cutoff1 and max_val > 0.5:
-                self.iou_modified[true_label - 1, pred_label - 1] = self.cutoff2
+                iou_modified[true_idx, pred_idx] = self.cutoff2
 
-                # optionally, we can also decrease the IOU value of the cell that
-                # swallowed up the small cell so that it doesn't directly match a different cell
-                if force_event_links:
-                    if true_in_pred > 0.5:
-                        fix_idx = np.where(self.iou[:, pred_label - 1] >= 1 - self.cutoff1)
-                        self.iou_modified[fix_idx, pred_label - 1] = 1 - self.cutoff1 - 0.01
-                    elif pred_in_true > 0.5:
-                        fix_idx = np.where(self.iou[true_label - 1, :] >= 1 - self.cutoff1)
-                        self.iou_modified[true_label - 1, fix_idx] = 1 - self.cutoff1 - 0.01
+                # optionally, we can also decrease the IOU value of the cell
+                # that swallowed up the small cell so that it doesn't directly
+                # match a different cell
+                if force_event_links and true_in_pred > 0.5:
+                    fix_idx = np.nonzero(self.iou[:, pred_idx] >= 1 - self.cutoff1)
+                    iou_modified[fix_idx, pred_idx] = 1 - self.cutoff1 - 0.01
 
-    def _make_matrix(self):
+                if force_event_links and pred_in_true > 0.5:
+                    fix_idx = np.nonzero(self.iou[true_idx, :] >= 1 - self.cutoff1)
+                    iou_modified[true_idx, fix_idx] = 1 - self.cutoff1 - 0.01
+
+        return iou_modified
+
+    def _get_cost_matrix(self):
         """Assembles cost matrix using the iou matrix and cutoff1
 
         The previously calculated iou matrix is cast into the top left and
@@ -383,109 +559,81 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         value of cutoff1 the more likely it is for the linear sum assignment
         to pick unmatched assignments for objects.
         """
-
-        self.cm = np.ones((self.n_obj, self.n_obj))
+        n_obj = self.n_true + self.n_pred
+        matrix = np.ones((n_obj, n_obj))
 
         # Assign 1 - iou to top left and bottom right
-        self.cm[:self.n_true, :self.n_pred] = 1 - self.iou_modified
-        self.cm[-self.n_pred:, -self.n_true:] = 1 - self.iou_modified.T
+        cost = 1 - self.iou_modified
+        matrix[:self.n_true, :self.n_pred] = cost
+        matrix[n_obj - self.n_pred:, n_obj - self.n_true:] = cost.T
 
         # Calculate diagonal corners
-        bl = self.cutoff1 * \
-            np.eye(self.n_pred) + np.ones((self.n_pred, self.n_pred)) - \
-            np.eye(self.n_pred)
-        tr = self.cutoff1 * \
-            np.eye(self.n_true) + np.ones((self.n_true, self.n_true)) - \
-            np.eye(self.n_true)
+        bl = (self.cutoff1 * np.eye(self.n_pred)
+              + np.ones((self.n_pred, self.n_pred))
+              - np.eye(self.n_pred))
+        tr = (self.cutoff1 * np.eye(self.n_true)
+              + np.ones((self.n_true, self.n_true))
+              - np.eye(self.n_true))
 
         # Assign diagonals to cm
-        self.cm[-self.n_pred:, :self.n_pred] = bl
-        self.cm[:self.n_true, -self.n_true:] = tr
+        matrix[n_obj - self.n_pred:, :self.n_pred] = bl
+        matrix[:self.n_true, n_obj - self.n_true:] = tr
+        return matrix
 
     def _linear_assignment(self):
-        """Runs linear sun assignment on cost matrix, identifies true positives
-        and unassigned true and predicted cells.
+        """Runs linear sun assignment on cost matrix, identifies true
+        positives and unassigned true and predicted cells.
 
         True positives correspond to assignments in the top left or bottom
         right corner. There are two possible unassigned positions: true cell
         unassigned in bottom left or predicted cell unassigned in top right.
         """
+        cost_matrix = self._get_cost_matrix()
 
-        self.results = linear_sum_assignment(self.cm)
+        results = linear_sum_assignment(cost_matrix)
 
         # Map results onto cost matrix
-        self.cm_res = np.zeros(self.cm.shape)
-        self.cm_res[self.results[0], self.results[1]] = 1
+        assignment_matrix = np.zeros_like(cost_matrix)
+        assignment_matrix[results] = 1
+        return assignment_matrix
 
-        # Identify direct matches as true positives
-        correct_index = np.where(self.cm_res[:self.n_true, :self.n_pred] == 1)
-        self.correct_detections += len(correct_index[0])
-        self.correct_indices['y_true'].extend(list(correct_index[0] + 1))
-        self.correct_indices['y_pred'].extend(list(correct_index[1] + 1))
-
-        # Calc seg score for true positives if requested
-        if self.seg is True:
-            iou_mask = self.iou.copy()
-            iou_mask[self.seg_thresh == 0] = np.nan
-            self.seg_score = np.nanmean(iou_mask[correct_index[0], correct_index[1]])
-
-        # Collect unassigned cells
-        self.loners_pred, _ = np.where(
-            self.cm_res[-self.n_pred:, :self.n_pred] == 1)
-        self.loners_true, _ = np.where(
-            self.cm_res[:self.n_true, -self.n_true:] == 1)
-
-    def _assign_loners(self):
-        """Generate an iou matrix for the subset unassigned cells
-        """
-
-        self.n_pred2 = len(self.loners_pred)
-        self.n_true2 = len(self.loners_true)
-        self.n_obj2 = self.n_pred2 + self.n_true2
-
-        self.cost_l = np.zeros((self.n_true2, self.n_pred2))
-
-        for i, t in enumerate(self.loners_true):
-            for j, p in enumerate(self.loners_pred):
-                self.cost_l[i, j] = self.iou_modified[t, p]
-
-        self.cost_l_bin = self.cost_l >= self.cutoff2
-
-    def _array_to_graph(self):
+    def _array_to_graph(self, matrix):
         """Transform matrix for unassigned cells into a graph object
 
         In order to cast the iou matrix into a graph form, we treat each
         unassigned cell as a node. The iou values for each pair of cells is
         treated as an edge between nodes/cells. Any iou values equal to 0 are
         dropped because they indicate no overlap between cells.
+
+        Args:
+            matrix (np.array): Assignment matrix.
         """
+        # Collect unassigned objects
+        x, y = matrix.shape
+        gained, _ = np.nonzero(matrix[x - self.n_pred:, :self.n_pred])
+        missed, _ = np.nonzero(matrix[:self.n_true, y - self.n_true:])
 
-        # Use meshgrid to get true and predicted cell index for each val
-        tt, pp = np.meshgrid(self.loners_true, self.loners_pred, indexing='ij')
+        # Use meshgrid to get true and predicted object index for each val
+        tt, pp = np.meshgrid(missed, gained, indexing='ij')
 
-        df = pd.DataFrame({
-            'true': tt.flatten(),
-            'pred': pp.flatten(),
-            'weight': self.cost_l_bin.flatten()
-        })
+        true_nodes = tt.flatten()
+        pred_nodes = pp.flatten()
 
-        # Change cell index to str names
-        df['true'] = 'true_' + df['true'].astype('str')
-        df['pred'] = 'pred_' + df['pred'].astype('str')
+        # construct list of edges for networkx
+        G = nx.Graph()
 
-        # Drop 0 weights to only retain overlapping cells
-        dfedge = df.drop(df[df['weight'] == 0].index)
-
-        # Create graph from edges
-        self.G = nx.from_pandas_edgelist(dfedge, source='true', target='pred')
+        for t, p in zip(true_nodes, pred_nodes):
+            # edges between overlapping objects only
+            if self.iou_modified[t, p] >= self.cutoff2:
+                G.add_edge('true_{}'.format(t), 'pred_{}'.format(p))
 
         # Add nodes to ensure all cells are included
-        nodes_true = ['true_' + str(node) for node in self.loners_true]
-        nodes_pred = ['pred_' + str(node) for node in self.loners_pred]
-        nodes = nodes_true + nodes_pred
-        self.G.add_nodes_from(nodes)
+        G.add_nodes_from(('true_{}'.format(n) for n in missed))
+        G.add_nodes_from(('pred_{}'.format(n) for n in gained))
 
-    def _classify_graph(self):
+        return G
+
+    def _classify_graph(self, G):
         """Assign each node in graph to an error type
 
         Nodes with a degree (connectivity) of 0 correspond to either false
@@ -497,121 +645,64 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
         error. If the top level node is a predicted cell, this indicates a merge
         event. If the top level node is a true cell, this indicates a split event.
         """
-
         # Find subgraphs, e.g. merge/split
-        for g in (self.G.subgraph(c) for c in nx.connected_components(self.G)):
+        for g in (G.subgraph(c) for c in nx.connected_components(G)):
             # Get the highest degree node
-            k = max(dict(g.degree).items(), key=operator.itemgetter(1))[0]
+            _, max_d = max(dict(g.degree).items(), key=operator.itemgetter(1))
 
-            # Map index back to original cost matrix, adjust for 1-based indexing in labels
-            index = int(k.split('_')[-1]) + 1
-            # Process degree 0 nodes
-            if g.degree[k] == 0:
-                if 'pred' in k:
-                    self.gained_detections += 1
-                    self.gained_indices['y_pred'].append(index)
-                if 'true' in k:
-                    self.missed_detections += 1
-                    self.missed_indices['y_true'].append(index)
+            true_indices, pred_indices = [], []
 
-            # Process degree 1 nodes
-            if g.degree[k] == 1:
-                for node in g.nodes:
-                    node_index = int(node.split('_')[-1]) + 1
-                    if 'pred' in node:
-                        self.gained_detections += 1
-                        self.gained_indices['y_pred'].append(node_index)
-                    if 'true' in node:
-                        self.missed_detections += 1
-                        self.missed_indices['y_true'].append(node_index)
+            for node in g.nodes:
+                node_type, index = node.split('_')
+                index = int(index) + 1
 
-            # Process multi-degree nodes
-            elif g.degree[k] > 1:
-                node_type = k.split('_')[0]
-                nodes = g.nodes()
-                # Check whether the subgraph has multiple types of the
-                # highest degree node (true or pred)
-                n_node_type = np.sum([node_type in node for node in nodes])
-                # If there is only one of the high degree node type in the
-                # sub graph, then we have either a merge or a split
-                if n_node_type == 1:
-                    # Check for merges
-                    if 'pred' in node_type:
-                        self.merge += 1
-                        self.missed_det_from_merge += len(nodes) - 2
-                        true_merge_indices = [int(node.split('_')[-1]) + 1
-                                              for node in nodes if 'true' in node]
-                        self.merge_indices['y_true'] += true_merge_indices
-                        self.merge_indices['y_pred'].append(index)
-                    # Check for splits
-                    elif 'true' in node_type:
-                        self.split += 1
-                        self.gained_det_from_split += len(nodes) - 2
-                        self.split_indices['y_true'].append(index)
-                        pred_split_indices = [int(node.split('_')[-1]) + 1
-                                              for node in nodes if 'pred' in node]
-                        self.split_indices['y_pred'] += pred_split_indices
+                if node_type == 'true':
+                    if max_d > 1:
+                        true_indices.append(index)
+                    else:
+                        self._add_detection(true_index=index)
 
-                # If there are multiple types of the high degree node,
-                # then we have a catastrophe
-                else:
-                    self.catastrophe += 1
-                    true_indices = [int(node.split('_')[-1]) + 1
-                                    for node in nodes if 'true' in node]
-                    pred_indices = [int(node.split('_')[-1]) + 1
-                                    for node in nodes if 'pred' in node]
+                if node_type == 'pred':
+                    if max_d > 1:
+                        pred_indices.append(index)
+                    else:
+                        self._add_detection(pred_index=index)
 
-                    self.true_det_in_catastrophe = len(true_indices)
-                    self.pred_det_in_catastrophe = len(pred_indices)
+            self._add_detection(
+                true_index=tuple(true_indices) if true_indices else None,
+                pred_index=tuple(pred_indices) if pred_indices else None,
+            )
 
-                    self.catastrophe_indices['y_true'] += true_indices
-                    self.catastrophe_indices['y_pred'] += pred_indices
-
-            # Save information about the cells involved in the different error types
-            gained_label_image = np.zeros_like(self.y_pred)
-            for l in self.gained_indices['y_pred']:
-                gained_label_image[self.y_pred == l] = l
-            self.gained_props = regionprops(gained_label_image)
-
-            missed_label_image = np.zeros_like(self.y_true)
-            for l in self.missed_indices['y_true']:
-                missed_label_image[self.y_true == l] = l
-            self.missed_props = regionprops(missed_label_image)
-
-            merge_label_image = np.zeros_like(self.y_true)
-            for l in self.merge_indices['y_true']:
-                merge_label_image[self.y_true == l] = l
-            self.merge_props = regionprops(merge_label_image)
-
-            split_label_image = np.zeros_like(self.y_true)
-            for l in self.split_indices['y_true']:
-                split_label_image[self.y_true == l] = l
-            self.split_props = regionprops(split_label_image)
-
-    def print_report(self):
-        """Print report of error types and frequency
-        """
-        print(self.save_to_dataframe())
-
-    def save_to_dataframe(self):
-        """Save error results to a pandas dataframe
-
-        Returns:
-            pandas.DataFrame: Single row dataframe with error types as columns
-        """
-        try:
-            self.precision = self.correct_detections / self.n_pred
-        except ZeroDivisionError:
-            self.precision = 0
+    def _get_props(self, detection_type):
+        prediction_types = {
+            'gained',
+        }
+        is_pred_type = detection_type in prediction_types
+        arr = self.y_pred if is_pred_type else self.y_true
+        label_image = np.zeros_like(arr)
+        attrname = '_{}'.format(detection_type)
 
         try:
-            self.recall = self.correct_detections / self.n_true
-        except ZeroDivisionError:
-            self.recall = 0
+            detections = getattr(self, attrname)
+        except AttributeError:
+            raise ValueError('Invalid detection_type: {}'.format(
+                detection_type))
 
-        self.f1 = hmean([self.recall, self.precision])
+        for det in detections:
+            idx = det.pred_index if is_pred_type else det.true_index
+            idx = idx if isinstance(idx, tuple) else (idx,)
+            for i in idx:
+                label_image[arr == i] = i
 
-        D = {
+        return regionprops(label_image)
+
+    def __repr__(self):
+        """Format the calculated statistics as a ``pd.DataFrame``."""
+        return json.dumps(self.to_dict())
+
+    def to_dict(self):
+        """Return a dictionary representation of the calclulated metrics."""
+        return {
             'n_pred': self.n_pred,
             'n_true': self.n_true,
             'correct_detections': self.correct_detections,
@@ -621,63 +712,162 @@ class ObjectAccuracy(object):  # pylint: disable=useless-object-inheritance
             'gained_det_from_split': self.gained_det_from_split,
             'true_det_in_catastrophe': self.true_det_in_catastrophe,
             'pred_det_in_catastrophe': self.pred_det_in_catastrophe,
-            'merge': self.merge,
-            'split': self.split,
-            'catastrophe': self.catastrophe,
+            'merge': self.merges,
+            'split': self.splits,
+            'catastrophe': self.catastrophes,
             'precision': self.precision,
             'recall': self.recall,
-            'f1': self.f1
+            'f1': self.f1,
+            'seg': self.seg_score,
+            'jaccard': self.jaccard,
+            'dice': self.dice,
         }
 
-        if self.seg is True:
-            D['seg'] = self.seg_score
+    @property
+    def correct_detections(self):
+        return len(self._correct)
 
-        # Calculate jaccard index for pixel classification
-        pixel_stats = stats_pixelbased(self.y_true != 0, self.y_pred != 0)
-        D['jaccard'] = pixel_stats['jaccard']
+    @property
+    def missed_detections(self):
+        return len(self._missed)
 
-        df = pd.DataFrame(D, index=[0], dtype='float64')
+    @property
+    def gained_detections(self):
+        return len(self._gained)
 
-        # Change appropriate columns to int dtype
-        col = ['n_pred', 'n_true', 'correct_detections', 'missed_detections', 'gained_detections',
-               'missed_det_from_merge', 'gained_det_from_split', 'true_det_in_catastrophe',
-               'pred_det_in_catastrophe', 'merge', 'split', 'catastrophe']
-        df[col] = df[col].astype('int')
+    @property
+    def splits(self):
+        return len(self._splits)
 
-        return df
+    @property
+    def merges(self):
+        return len(self._merges)
 
-    def save_error_ids(self):
-        """Saves the ids of cells in each error category for subsequent visualization
+    @property
+    def catastrophes(self):
+        return len(self._catastrophes)
 
-        Returns:
-            error_dict: dictionary containing {category_name: id list} pairs
+    @property
+    def gained_det_from_split(self):
+        gained_dets = 0
+        for det in self._splits:
+            true_idx = _cast_to_tuple(det.true_index)
+            pred_idx = _cast_to_tuple(det.pred_index)
+            gained_dets += len(true_idx) + len(pred_idx) - 2
+        return gained_dets
+
+    @property
+    def missed_det_from_merge(self):
+        missed_dets = 0
+        for det in self._merges:
+            true_idx = _cast_to_tuple(det.true_index)
+            pred_idx = _cast_to_tuple(det.pred_index)
+            missed_dets += len(true_idx) + len(pred_idx) - 2
+        return missed_dets
+
+    @property
+    def true_det_in_catastrophe(self):
+        return sum([len(d.true_index) for d in self._catastrophes])
+
+    @property
+    def pred_det_in_catastrophe(self):
+        return sum([len(d.pred_index) for d in self._catastrophes])
+
+    @property
+    def split_props(self):
+        return self._get_props('splits')
+
+    @property
+    def merge_props(self):
+        return self._get_props('merges')
+
+    @property
+    def missed_props(self):
+        return self._get_props('missed')
+
+    @property
+    def gained_props(self):
+        return self._get_props('gained')
+
+    @property
+    def recall(self):
+        try:
+            recall = self.correct_detections / self.n_true
+        except ZeroDivisionError:
+            recall = 0
+        return recall
+
+    @property
+    def precision(self):
+        try:
+            precision = self.correct_detections / self.n_pred
+        except ZeroDivisionError:
+            precision = 0
+        return precision
+
+    @property
+    def f1(self):
+        return hmean([self.recall, self.precision])
+
+    @property
+    def jaccard(self):
+        return self.pixel_stats.jaccard
+
+    @property
+    def dice(self):
+        return self.pixel_stats.jaccard
+
+    def plot_errors(self):
+        """Plots the errors identified from linear assignment code.
+
+        This must be run with sequentially relabeled data.
+
+        TODO: this is not working!
         """
 
-        error_dict = {'splits': self.split_indices,
-                      'merges': self.merge_indices,
-                      'gains': self.gained_indices,
-                      'misses': self.missed_indices,
-                      'catastrophes': self.catastrophe_indices,
-                      'correct': self.correct_indices}
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
 
-        return error_dict, self.y_true, self.y_pred
+        # erode edges for easier visualization of adjacent cells
+        y_true = erode_edges(self.y_true.copy(), 1)
+        y_pred = erode_edges(self.y_pred.copy(), 1)
 
+        # semantic labels for each error
+        categories = ['Background', 'missed', 'splits', 'merges',
+                      'gained', 'catastrophes', 'correct']
 
-def to_precision(x, p):
-    """
-    returns a string representation of x formatted with a precision of p
+        # Background is set to zero
+        plotting_tif = np.zeros_like(y_true)
 
-    Based on the webkit javascript implementation taken from here:
-    https://code.google.com/p/webkit-mirror/source/browse/JavaScriptCore/kjs/number_object.cpp
-    """
-    decimal.getcontext().prec = p
-    dec = decimal.Decimal(x)
+        # missed detections are tracked with true labels
+        misses = [d.true_index for d in self._missed]
+        plotting_tif[np.isin(y_true, misses)] = 1
 
-    return round(float(dec), p)
+        # skip background and misses, already done
+        for i, category in enumerate(categories[2:]):
+            # the rest are all on y_pred
+            labels = list(getattr(self, '_{}'.format(category)))
+            plotting_tif[np.isin(y_pred, labels)] = i + 2
+
+        plotting_colors = ['Black', 'Pink', 'Blue', 'Green',
+                           'tan', 'Red', 'Grey']
+
+        cmap = mpl.colors.ListedColormap(plotting_colors)
+
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        mat = ax.imshow(plotting_tif, cmap=cmap,
+                        vmin=np.min(plotting_tif) - .5,
+                        vmax=np.max(plotting_tif) + .5)
+
+        # tell the colorbar to tick at integers
+        ticks = np.arange(len(categories))
+        cbar = fig.colorbar(mat, ticks=ticks)
+        cbar.ax.set_yticklabels(categories)
+        fig.tight_layout()
 
 
 class Metrics(object):
-    """Class to calculate and save various classification metrics
+    """Class to calculate and save various segmentation metrics.
 
     Args:
         model_name (str): Name of the model which determines output file names
@@ -693,8 +883,6 @@ class Metrics(object):
         feature_key (:obj:`list`, optional): List of strings, feature names
         json_notes (:obj:`str`, optional): Str providing any additional
             information about the model
-        seg (:obj:`bool`, optional): Calculates SEG score for
-            cell tracking competition
         force_event_links(:obj:`bool`, optional): Flag that determines whether to modify IOU
             calculation so that merge or split events with cells of very different sizes are
             never misclassified as misses/gains.
@@ -704,16 +892,9 @@ class Metrics(object):
     Examples:
         >>> from deepcell import metrics
         >>> m = metrics.Metrics('model_name')
-        >>> m.run_all(
-                y_true_lbl,
-                y_pred_lbl,
-                y_true_unlbl,
-                y_true_unlbl)
-        >>> m.all_pixel_stats(y_true_unlbl,y_pred_unlbl)
-        >>> m.calc_obj_stats(y_true_lbl,y_pred_lbl)
-        >>> m.save_to_json(m.output)
+        >>> all_metrics = m.run_all(y_true, y_pred)
+        >>> m.save_to_json(all_metrics)
     """
-
     def __init__(self, model_name,
                  outdir='',
                  cutoff1=0.4,
@@ -721,12 +902,11 @@ class Metrics(object):
                  pixel_threshold=0.5,
                  ndigits=4,
                  crop_size=None,
-                 return_iou=False,
                  feature_key=[],
                  json_notes='',
-                 seg=False,
                  force_event_links=False,
-                 is_3d=False):
+                 is_3d=False,
+                 **kwargs):
         self.model_name = model_name
         self.outdir = outdir
         self.cutoff1 = cutoff1
@@ -734,71 +914,25 @@ class Metrics(object):
         self.pixel_threshold = pixel_threshold
         self.ndigits = ndigits
         self.crop_size = crop_size
-        self.return_iou = return_iou
         self.feature_key = feature_key
         self.json_notes = json_notes
-        self.seg = seg
         self.force_event_links = force_event_links
         self.is_3d = is_3d
 
+        if 'seg' in kwargs:
+            warnings.warn('seg is deprecated and will be removed '
+                          'in a future release', DeprecationWarning)
+
         # Initialize output list to collect stats
-        self.output = []
+        self.object_metrics = []
+        self.pixel_metrics = []
 
-    def all_pixel_stats(self, y_true, y_pred):
-        """Collect pixel statistics for each feature.
-
-        y_true should have the appropriate transform applied to match y_pred.
-        Each channel is converted to binary using the threshold
-        'pixel_threshold' prior to calculation of accuracy metrics.
-
-        Args:
-            y_true (numpy.array): Ground truth annotations after transform
-            y_pred (numpy.array): Model predictions without labeling
-
-        Raises:
-            ValueError: If y_true and y_pred are not the same shape
-        """
-
-        if y_pred.shape != y_true.shape:
-            raise ValueError('Input shapes need to match. Shape of prediction '
-                             'is: {}.  Shape of y_true is: {}'.format(
-                                 y_pred.shape, y_true.shape))
-
-        n_features = y_pred.shape[-1]
-
-        # Intialize df to collect pixel stats
-        self.pixel_df = pd.DataFrame()
-
-        # Set numeric feature key if existing key is not write length
-        if n_features != len(self.feature_key):
-            self.feature_key = range(n_features)
-
-        for i, k in enumerate(self.feature_key):
-            yt = y_true[:, :, :, i] > self.pixel_threshold
-            yp = y_pred[:, :, :, i] > self.pixel_threshold
-            stats = stats_pixelbased(yt, yp)
-            self.pixel_df = self.pixel_df.append(
-                pd.DataFrame(stats, index=[k]))
-
-        # Save stats to output dictionary
-        self.output = self.output + self.pixel_df_to_dict(self.pixel_df)
-
-        # Calculate confusion matrix
-        self.cm = self.calc_pixel_confusion_matrix(y_true, y_pred)
-        self.output.append(dict(
-            name='confusion_matrix',
-            value=self.cm.tolist(),
-            feature='all',
-            stat_type='pixel'
-        ))
-
-        self.print_pixel_report()
-
-    def pixel_df_to_dict(self, df):
+    def df_to_dict(self, df, stat_type='pixel'):
         """Output pandas df as a list of dictionary objects
 
         Args:
             df (pandas.DataFrame): Dataframe of statistics for each channel
+            stat_type (str): Category of statistic.
 
         Returns:
             list: List of dictionaries
@@ -813,7 +947,7 @@ class Metrics(object):
                 name=k,
                 value=v,
                 feature='average',
-                stat_type='pixel'
+                stat_type=stat_type,
             ))
 
         # Save individual stats to list
@@ -823,40 +957,77 @@ class Metrics(object):
                     name=k,
                     value=v,
                     feature=i,
-                    stat_type='pixel'
+                    stat_type=stat_type,
                 ))
 
         return L
 
-    def calc_pixel_confusion_matrix(self, y_true, y_pred):
-        """Calculate confusion matrix for pixel classification data.
+    def calc_pixel_stats(self, y_true, y_pred, axis=-1):
+        """Calculate pixel statistics for each feature.
+
+        ``y_true`` should have the appropriate transform applied to match
+        ``y_pred``. Each channel is converted to binary using the threshold
+        ``pixel_threshold`` prior to calculation of accuracy metrics.
+
+        Args:
+            y_true (numpy.array): Ground truth annotations after transform
+            y_pred (numpy.array): Model predictions without labeling
+
+        Returns:
+            list: list of dictionaries with each stat being a key.
+
+        Raises:
+            ValueError: If y_true and y_pred are not the same shape
+        """
+        n_features = y_pred.shape[axis]
+
+        pixel_metrics = []
+
+        slc = [slice(None)] * y_pred.ndim
+        for i in range(n_features):
+            slc[axis] = slice(i, i + 1)
+            yt = y_true[slc] > self.pixel_threshold
+            yp = y_pred[slc] > self.pixel_threshold
+            pm = PixelMetrics(yt, yp)
+            pixel_metrics.append(pm.to_dict())
+
+        pixel_df = pd.DataFrame.from_records(pixel_metrics)
+
+        # Calculate confusion matrix
+        cm = PixelMetrics.get_confusion_matrix(y_true, y_pred, axis=axis)
+
+        print('\n____________Pixel-based statistics____________\n')
+        print(pixel_df)
+        print('\nConfusion Matrix')
+        print(cm)
+
+        output = self.df_to_dict(pixel_df)
+
+        output.append(dict(
+            name='confusion_matrix',
+            value=cm.tolist(),
+            feature='all',
+            stat_type='pixel'
+        ))
+        return output
+
+    def calc_pixel_confusion_matrix(self, y_true, y_pred, axis=-1):
+        """DEPRECATED: Use ``PixelMetrics.get_confusion_matrix``.
+
+        Calculate confusion matrix for pixel classification data.
 
         Args:
             y_true (numpy.array): Ground truth annotations after any
                 necessary transformations
             y_pred (numpy.array): Prediction array
+            axis (int): The channel axis of the input arrays.
 
         Returns:
             numpy.array: nxn confusion matrix determined by number of features.
         """
+        return PixelMetrics.get_confusion_matrix(y_true, y_pred, axis=axis)
 
-        # Argmax collapses on feature dimension to assign class to each pixel
-        # Flatten is requiremed for confusion matrix
-        y_true = y_true.argmax(axis=-1).flatten()
-        y_pred = y_pred.argmax(axis=-1).flatten()
-
-        return confusion_matrix(y_true, y_pred)
-
-    def print_pixel_report(self):
-        """Print report of pixel based statistics
-        """
-
-        print('\n____________Pixel-based statistics____________\n')
-        print(self.pixel_df)
-        print('\nConfusion Matrix')
-        print(self.cm)
-
-    def calc_object_stats(self, y_true, y_pred):
+    def calc_object_stats(self, y_true, y_pred, progbar=True):
         """Calculate object statistics and save to output
 
         Loops over each frame in the zeroth dimension, which should pass in
@@ -866,13 +1037,16 @@ class Metrics(object):
         Args:
             y_true (numpy.array): Labeled ground truth annotations
             y_pred (numpy.array): Labeled prediction mask
+            progbar (bool): Whether to show the progress tqdm progress bar
+
+        Returns:
+            list: list of dictionaries with each stat being a key.
 
         Raises:
             ValueError: If y_true and y_pred are not the same shape
             ValueError: If data_type is 2D, if input shape does not have ndim 3 or 4
             ValueError: If data_type is 3D, if input shape does not have ndim 4
         """
-
         if y_pred.shape != y_true.shape:
             raise ValueError('Input shapes need to match. Shape of prediction '
                              'is: {}.  Shape of y_true is: {}'.format(
@@ -890,143 +1064,169 @@ class Metrics(object):
         # TODO - add compatibility for multi-channel 3D-data
         else:
             if y_true.ndim != 4:
-                raise ValueError('Expected dimensions for y_true (3D data) is 4.'
-                                 'Required format is: (batch, z, x, y)'
+                raise ValueError('Expected dimensions for y_true (3D data) is 4. '
+                                 'Required format is: (batch, z, x, y) '
                                  'Got ndim: {}'.format(y_true.ndim))
 
-        self.stats = pd.DataFrame()
-        self.predictions = []
+        all_object_metrics = []  # store all calculated metrics
+        is_batch_relabeled = False  # used to warn if batches were relabeled
 
-        # boolean so that warning only gets displayed once
-        relabel_flag = False
-        for i in range(y_true.shape[0]):
-
+        for i in tqdm(range(y_true.shape[0]), disable=not progbar):
             # check if labels aren't sequential, raise warning on first occurence if so
             true_batch, pred_batch = y_true[i], y_pred[i]
             true_batch_relabel, _, _ = relabel_sequential(true_batch)
             pred_batch_relabel, _, _ = relabel_sequential(pred_batch)
 
-            if not (np.array_equal(true_batch, true_batch_relabel) and
-                    np.array_equal(pred_batch, pred_batch_relabel)):
+            # check if segmentations were relabeled
+            if not is_batch_relabeled:  # only one True is required
+                is_batch_relabeled = not (
+                    np.array_equal(true_batch, true_batch_relabel)
+                    and np.array_equal(pred_batch, pred_batch_relabel)
+                )
 
-                    # segmentations were relabeled
-                    relabel_flag = True
-            o = ObjectAccuracy(true_batch_relabel,
-                               pred_batch_relabel,
-                               cutoff1=self.cutoff1,
-                               cutoff2=self.cutoff2,
-                               seg=self.seg,
-                               force_event_links=self.force_event_links,
-                               is_3d=self.is_3d)
-            self.stats = self.stats.append(o.save_to_dataframe())
-            predictions = o.save_error_ids()
-            self.predictions.append(predictions)
-            if i % 500 == 0:
-                logging.info('{} samples processed'.format(i))
+            o = ObjectMetrics(
+                true_batch_relabel,
+                pred_batch_relabel,
+                cutoff1=self.cutoff1,
+                cutoff2=self.cutoff2,
+                force_event_links=self.force_event_links,
+                is_3d=self.is_3d)
 
-        if relabel_flag:
+            all_object_metrics.append(o)
+
+        if is_batch_relabeled:
             warnings.warn(
                 'Provided data is being relabeled. Cell ids from metrics will not match '
                 'cell ids in original data. Relabel your data prior to running the '
-                'metrics package if you wish to maintain cell ids')
+                'metrics package if you wish to maintain cell ids. ')
 
-        # Write out summed statistics
-        for k, v in self.stats.iteritems():
-            if k == 'seg':
-                self.output.append(dict(
-                    name=k,
-                    value=v.mean(),
-                    feature='mean',
-                    stat_type='object'
-                ))
-            else:
-                self.output.append(dict(
-                    name=k,
-                    value=v.sum().astype('float64'),
-                    feature='sum',
-                    stat_type='object'
-                ))
+        # print the object report
+        object_metrics = pd.DataFrame.from_records([
+            o.to_dict() for o in all_object_metrics
+        ])
+        self.print_object_report(object_metrics)
+        return object_metrics
 
-        self.print_object_report()
+    def summarize_object_metrics_df(self, df):
+        correct_detections = int(df['correct_detections'].sum())
+        n_true = int(df['n_true'].sum())
+        n_pred = int(df['n_pred'].sum())
 
-    def print_object_report(self):
+        _round = lambda x: round(x, self.ndigits)
+
+        seg = df['seg'].mean()
+        jaccard = df['jaccard'].mean()
+
+        try:
+            recall = correct_detections / n_true
+        except ZeroDivisionError:
+            recall = np.nan
+        try:
+            precision = correct_detections / n_pred
+        except ZeroDivisionError:
+            precision = 0
+
+        errors = [
+            'gained_detections',
+            'missed_detections',
+            'split',
+            'merge',
+            'catastrophe',
+        ]
+
+        bad_detections = [
+            'gained_det_from_split',
+            'missed_det_from_merge',
+            'true_det_in_catastrophe',
+            'pred_det_in_catastrophe',
+        ]
+
+        summary = {
+            'correct_detections': correct_detections,
+            'n_true': n_true,
+            'n_pred': n_pred,
+            'recall': _round(recall),
+            'precision': _round(precision * 100),
+            'seg': _round(seg * 100),
+            'jaccard': _round(jaccard),
+            'total_errors': 0,
+        }
+        # update bad detections
+        for k in bad_detections:
+            summary[k] = int(df[k].sum())
+        # update error counts
+        for k in errors:
+            count = int(df[k].sum())
+            summary[k] = count
+            summary['total_errors'] += count
+        return summary
+
+    def print_object_report(self, object_metrics):
         """Print neat report of object based statistics
-        """
-
-        print('\n____________Object-based statistics____________\n')
-        print('Number of true cells:\t\t', self.stats['n_true'].sum())
-        print('Number of predicted cells:\t', self.stats['n_pred'].sum())
-
-        print('\nCorrect detections:  {}\tRecall: {}%'.format(
-            int(self.stats['correct_detections'].sum()),
-            to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_true'].sum(),
-                         self.ndigits)))
-        print('Incorrect detections: {}\tPrecision: {}%'.format(
-            int(self.stats['n_pred'].sum() - self.stats['correct_detections'].sum()),
-            to_precision(100 * self.stats['correct_detections'].sum() / self.stats['n_pred'].sum(),
-                         self.ndigits)))
-
-        total_err = (self.stats['gained_detections'].sum()
-                     + self.stats['missed_detections'].sum()
-                     + self.stats['split'].sum()
-                     + self.stats['merge'].sum()
-                     + self.stats['catastrophe'].sum())
-
-        print('\nGained detections: {}\tPerc Error: {}%'.format(
-            int(self.stats['gained_detections'].sum()),
-            to_precision(100 * self.stats['gained_detections'].sum() / total_err, self.ndigits)))
-        print('Missed detections: {}\tPerc Error: {}%'.format(
-            int(self.stats['missed_detections'].sum()),
-            to_precision(100 * self.stats['missed_detections'].sum() / total_err, self.ndigits)))
-        print('Merges: {}\t\tPerc Error: {}%'.format(
-            int(self.stats['merge'].sum()),
-            to_precision(100 * self.stats['merge'].sum() / total_err, self.ndigits)))
-        print('Splits: {}\t\tPerc Error: {}%'.format(
-            int(self.stats['split'].sum()),
-            to_precision(100 * self.stats['split'].sum() / total_err, self.ndigits)))
-        print('Catastrophes: {}\t\tPerc Error: {}%\n'.format(
-            int(self.stats['catastrophe'].sum()),
-            to_precision(100 * self.stats['catastrophe'].sum() / total_err, self.ndigits)))
-
-        print('Gained detections from splits: {}'.format(
-            int(self.stats['gained_det_from_split'].sum())))
-        print('Missed detections from merges: {}'.format(
-            int(self.stats['missed_det_from_merge'].sum())))
-        print('True detections involved in catastrophes: {}'.format(
-            int(self.stats['true_det_in_catastrophe'].sum())))
-        print('Predicted detections involved in catastrophes: {}'.format(
-            int(self.stats['pred_det_in_catastrophe'].sum())), '\n')
-
-        if self.seg is True:
-            print('SEG:', to_precision(self.stats['seg'].mean(), self.ndigits), '\n')
-
-        print('Average Pixel IOU (Jaccard Index):',
-              to_precision(self.stats['jaccard'].mean(), self.ndigits), '\n')
-
-    def run_all(self,
-                y_true_lbl,
-                y_pred_lbl,
-                y_true_unlbl,
-                y_pred_unlbl):
-        """Runs pixel and object base statistics and ouputs to file
 
         Args:
-            y_true_lbl (numpy.array): Labeled ground truth annotation,
-                (sample, x, y)
-            y_pred_lbl (numpy.array): Labeled prediction mask,
-                (sample, x, y)
-            y_true_unlbl (numpy.array): Ground truth annotation after necessary
-                transforms, (sample, x, y, feature)
-            y_pred_unlbl (numpy.array): Predictions, (sample, x, y, feature)
+            object_metrics (pd.DataFrame): DataFrame of all calculated metrics
         """
+        summary = self.summarize_object_metrics_df(object_metrics)
+        errors = [
+            'gained_detections',
+            'missed_detections',
+            'split',
+            'merge',
+            'catastrophe'
+        ]
 
-        logging.info('Starting pixel based statistics')
-        self.all_pixel_stats(y_true_unlbl, y_pred_unlbl)
+        bad_detections = [
+            'gained_det_from_split',
+            'missed_det_from_merge',
+            'true_det_in_catastrophe',
+            'pred_det_in_catastrophe',
+        ]
 
-        logging.info('Starting object based statistics')
-        self.calc_object_stats(y_true_lbl, y_pred_lbl)
+        print('\n____________Object-based statistics____________\n')
+        print('Number of true cells:\t\t', summary['n_true'])
+        print('Number of predicted cells:\t', summary['n_pred'])
 
-        self.save_to_json(self.output)
+        print('\nCorrect detections:  {}\tRecall: {}%'.format(
+            summary['correct_detections'], summary['recall']))
+
+        print('Incorrect detections: {}\tPrecision: {}%'.format(
+            summary['n_pred'] - summary['correct_detections'],
+            summary['precision']))
+
+        print('\n')
+        for k in errors:
+            v = summary[k]
+            name = k.replace('_', ' ').capitalize()
+            if not name.endswith('s'):
+                name += 's'
+
+            try:
+                err_fraction = v / summary['total_errors']
+            except ZeroDivisionError:
+                err_fraction = 0
+
+            print('{name}: {val}{tab}Perc Error {percent}%'.format(
+                name=name, val=v,
+                percent=round(100 * err_fraction, self.ndigits),
+                tab='\t' * (1 if ' ' in name else 2)))
+
+        for k in bad_detections:
+            name = k.replace('_', ' ').capitalize().replace(' det ', ' detections')
+            print('{name}: {val}'.format(name=name, val=summary[k]))
+
+        print('SEG:', round(summary['seg'], self.ndigits), '\n')
+
+        print('Average Pixel IOU (Jaccard Index):',
+              round(summary['jaccard'], self.ndigits), '\n')
+
+    def run_all(self, y_true, y_pred, axis=-1):
+        object_metrics = self.calc_object_stats(y_true, y_pred)
+        pixel_metrics = self.calc_pixel_stats(y_true, y_pred, axis=axis)
+
+        object_list = self.df_to_dict(object_metrics, stat_type='object')
+        all_output = object_list + pixel_metrics
+        self.save_to_json(all_output)
 
     def save_to_json(self, L):
         """Save list of dictionaries to json file with file metadata
@@ -1036,7 +1236,7 @@ class Metrics(object):
         """
         todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
         outname = os.path.join(
-            self.outdir, self.model_name + '_' + todays_date + '.json')
+            self.outdir, '{}_{}.json'.format(self.model_name, todays_date))
 
         # Configure final output
         D = {}
@@ -1083,11 +1283,11 @@ def split_stack(arr, batch, n_split1, axis1, n_split2, axis2):
         >>> from deepcell import metrics
         >>> from numpy import np
         >>> arr = np.ones((10, 100, 100, 1))
-        >>> out = metrics.test_split_stack(arr, True, 10, 1, 10, 2)
+        >>> out = metrics.split_stack(arr, True, 10, 1, 10, 2)
         >>> out.shape
         (1000, 10, 10, 1)
         >>> arr = np.ones((100, 100, 1))
-        >>> out = metrics.test_split_stack(arr, False, 10, 1, 10, 2)
+        >>> out = metrics.split_stack(arr, False, 10, 1, 10, 2)
         >>> out.shape
         (100, 10, 10, 1)
     """
@@ -1112,18 +1312,19 @@ def split_stack(arr, batch, n_split1, axis1, n_split2, axis2):
     return split2con
 
 
-def match_nodes(gt, res):
+def match_nodes(y_true, y_pred):
     """Loads all data that matches each pattern and compares the graphs.
 
     Args:
-        gt (numpy.array): data array to match to unique.
-        res (numpy.array): ground truth array with all cells labeled uniquely.
+        y_true (numpy.array): ground truth array with all cells labeled uniquely.
+        y_pred (numpy.array): data array to match to unique.
 
     Returns:
         numpy.array: IoU of ground truth cells and predicted cells.
     """
-    num_frames = gt.shape[0]
-    iou = np.zeros((num_frames, np.max(gt) + 1, np.max(res) + 1))
+    num_frames = y_true.shape[0]
+    # TODO: does max make the shape bigger than necessary?
+    iou = np.zeros((num_frames, np.max(y_true) + 1, np.max(y_pred) + 1))
 
     # Compute IOUs only when neccesary
     # If bboxs for true and pred do not overlap with each other, the assignment
@@ -1131,8 +1332,8 @@ def match_nodes(gt, res):
 
     # Regionprops expects one frame at a time
     for frame in range(num_frames):
-        gt_frame = gt[frame]
-        res_frame = res[frame]
+        gt_frame = y_true[frame]
+        res_frame = y_pred[frame]
 
         gt_props = regionprops(np.squeeze(gt_frame.astype('int')))
         gt_boxes = [np.array(gt_prop.bbox) for gt_prop in gt_props]
@@ -1162,66 +1363,3 @@ def match_nodes(gt, res):
             iou[frame, iou_gt_idx, iou_res_idx] = intersection.sum() / union.sum()
 
     return iou
-
-
-def assign_plot_values(y_true, y_pred, error_dict):
-    """Generates a matrix with cells belong to error classes numbered for plotting
-
-    Args:
-        y_true: 2D matrix of true labels
-        y_pred 2D matrix of predicted labels
-        error_dict: dictionary produced by save_error_ids with IDs of all error cells
-
-    Returns:
-        plotting_tiff: 2D matrix with cells belonging to same error class having same value
-    """
-
-    plotting_tif = np.zeros_like(y_true)
-
-    # erode edges for easier visualization of adjacent cells
-    y_true = erode_edges(y_true, 1)
-    y_pred = erode_edges(y_pred, 1)
-
-    # missed detections are tracked with true labels
-    misses = error_dict.pop('misses')['y_true']
-    plotting_tif[np.isin(y_true, misses)] = 1
-
-    # all other events are tracked with predicted labels
-    category_id = 2
-    for key in error_dict.keys():
-        labels = error_dict[key]['y_pred']
-        plotting_tif[np.isin(y_pred, labels)] = category_id
-        category_id += 1
-
-    return plotting_tif
-
-
-def plot_errors(y_true, y_pred, error_dict):
-    """Plots the errors identified from linear assignment code
-
-    Due to sequential relabeling that occurs within the metrics code, only run
-    this plotting function on the outputs of save_error_ids so that values match up.
-
-    Args:
-        y_true: 2D matrix of true labels returned by save_error_ids
-        y_pred: 2D matrix of predicted labels returned by save_error_ids
-        error_dict: dictionary returned by save_error_ids with IDs of all error cells
-    """
-
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-
-    plotting_tif = assign_plot_values(y_true, y_pred, error_dict)
-
-    plotting_colors = ['Black', 'Pink', 'Blue', 'Green', 'tan', 'Red', 'Grey']
-    cmap = mpl.colors.ListedColormap(plotting_colors)
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    mat = ax.imshow(plotting_tif, cmap=cmap, vmin=np.min(plotting_tif) - .5,
-                    vmax=np.max(plotting_tif) + .5)
-
-    # tell the colorbar to tick at integers
-    cbar = fig.colorbar(mat, ticks=np.arange(np.min(plotting_tif), np.max(plotting_tif) + 1))
-    cbar.ax.set_yticklabels(['Background', 'misses', 'splits', 'merges',
-                             'gains', 'catastrophes', 'correct'])
-    fig.tight_layout()

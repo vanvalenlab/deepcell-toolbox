@@ -14,3 +14,4 @@ show_missing = True
 
 omit =
     **/*_test.py
+    deepcell_toolbox/__version__.py
