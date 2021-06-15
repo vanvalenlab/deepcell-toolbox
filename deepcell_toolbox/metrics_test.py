@@ -386,15 +386,13 @@ class TestObjectMetrics():
         # Test basic initialization
         o = metrics.ObjectMetrics(y_true, y_true)
 
+        # Test __repr__
+        print(o)
+
         # Test using float dtype warns but still works
         o = metrics.ObjectMetrics(
             y_true.astype('float'),
             y_true.astype('float'))
-
-        # Test _get_props with invalid detection type
-        o = metrics.ObjectMetrics(y_true, y_true)
-        with pytest.raises(ValueError):
-            o._get_props('invalid_type')
 
         # test errors thrown for improper ndim inputs
         y_true = np.zeros(shape=(10))  # too few dimensions
@@ -417,6 +415,17 @@ class TestObjectMetrics():
         # Test mismatched input size
         with pytest.raises(ValueError):
             metrics.ObjectMetrics(y_true, y_true[0])
+
+    def test__get_props(self):
+        y_true, y_pred = _sample1(10, 10, 30, 30, True)
+        o = metrics.ObjectMetrics(y_true, y_true)
+
+        props = o._get_props('correct')
+        # assert props != []
+
+        # Test _get_props with invalid detection type
+        with pytest.raises(ValueError):
+            o._get_props('invalid_type')
 
     def test_y_true_equals_y_pred(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
@@ -449,6 +458,11 @@ class TestObjectMetrics():
         assert o.true_det_in_catastrophe == 0
         assert o.pred_det_in_catastrophe == 0
 
+        assert o.missed_props == []
+        assert o.merge_props == []
+        assert o.split_props == []
+        assert o.gained_props == []
+
     def test_y_pred_empty(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
 
@@ -467,8 +481,6 @@ class TestObjectMetrics():
         assert o.missed_det_from_merge == 0
         assert o.true_det_in_catastrophe == 0
         assert o.pred_det_in_catastrophe == 0
-
-        assert o.gained_props == []
 
     def test_y_true_empty(self):
         y_pred, _ = _sample1(10, 10, 30, 30, True)
@@ -489,7 +501,39 @@ class TestObjectMetrics():
         assert o.true_det_in_catastrophe == 0
         assert o.pred_det_in_catastrophe == 0
 
-        assert o.missed_props == []
+    def test_merge_error(self):
+        y_true, y_pred = _sample1(10, 10, 30, 30, True)
+        o = metrics.ObjectMetrics(y_true, y_pred)
+        assert o.merges == 1
+        assert o.missed_det_from_merge == 1
+        assert o.merge_props != []
+
+    def test_split_error(self):
+        y_true, y_pred = _sample1(10, 10, 30, 30, False)
+        o = metrics.ObjectMetrics(y_true, y_pred)
+        assert o.splits == 1
+        assert o.gained_det_from_split == 1
+        assert o.split_props != []
+
+    def test_multi_merge_error(self):
+        # 3 cells merged together
+        # forced event links to ensure accurate assignment
+        y_true, y_pred = _sample2_3(10, 10, 30, 30,
+                                    merge=True, similar_size=False)
+        o = metrics.ObjectMetrics(y_true, y_pred, force_event_links=True)
+        assert o.merges == 1
+        assert o.missed_det_from_merge == 2
+        assert o.merge_props != []
+
+    def test_multi_split_error(self):
+        # 1 cell split into 3
+        # forced event links to ensure accurate assignment
+        y_true, y_pred = _sample2_3(10, 10, 30, 30,
+                                    merge=False, similar_size=False)
+        o = metrics.ObjectMetrics(y_true, y_pred, force_event_links=True)
+        assert o.splits == 1
+        assert o.gained_det_from_split == 2
+        assert o.split_props != []
 
     def test_calc_iou(self):
         # TODO: test correctness
@@ -585,6 +629,30 @@ class TestMetrics():
             y_pred[0, 0, 0] = 40
             m.calc_object_stats(y_true, y_pred)
 
+        # seg is deprecated (TODO: this will be removed)
+        with pytest.warns(DeprecationWarning):
+            _ = metrics.Metrics('test', seg=True)
+
+    def test_calc_object_stats_3d(self):
+        y_true = _generate_stack_4d()
+        y_pred = _generate_stack_4d()
+
+        m = metrics.Metrics('test', is_3d=True)
+
+        object_metrics = m.calc_object_stats(y_true, y_pred)
+
+        for stat in object_metrics:
+            assert 'name' in stat
+
+        object_metrics = m.calc_object_stats(
+            np.zeros_like(y_true), np.zeros_like(y_pred))
+
+        for metric in object_metrics:
+            if metric['name'] == 'precision':
+                assert metric['value'] == 0
+            if metric['name'] == 'recall':
+                assert metric['value'] == 0
+
         # Raise error if is_3d and ndim !=4
         with testing.assert_raises(ValueError):
             m3d = metrics.Metrics('test', is_3d=True)
@@ -632,6 +700,12 @@ class TestMetrics():
         assert np.array_equal(sorted(list(data.keys())), ['metadata', 'metrics'])
         assert isinstance(data['metrics'], list)
         assert isinstance(data['metadata'], dict)
+
+
+def test__cast_to_tuple():
+    assert metrics._cast_to_tuple(None) == ()
+    assert metrics._cast_to_tuple(1) == (1,)
+    assert metrics._cast_to_tuple((1,)) == (1,)
 
 
 def test_split_stack():
