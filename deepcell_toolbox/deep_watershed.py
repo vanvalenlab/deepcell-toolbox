@@ -205,7 +205,7 @@ def deep_watershed_mibi(model_output,
     return label_images
 
 
-def deep_watershed_3d(*args, **kwargs):
+def deep_watershed_3D(*args, **kwargs):
     """DEPRECATED. Please use ``deep_watershed`` instead."""
     text = ('deep_watershed_3d is deprecated and will be removed in a future '
             'version. Please use '
