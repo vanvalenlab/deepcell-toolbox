@@ -84,7 +84,7 @@ def deep_watershed(outputs,
 
         # Find peaks and merge equal regions
         markers = np.zeros_like(inner_distance)
-        slc = tuple([coords[:, i] for i in range(coords.shape[1])])
+        slc = tuple(coords[:, i] for i in range(coords.shape[1]))
         markers[slc] = 1
         markers = label(markers)
         label_image = watershed(-outer_distance,
