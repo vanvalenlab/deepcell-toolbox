@@ -54,6 +54,15 @@ def test_deep_watershed():
                                                     maxima_algorithm=algo)
         np.testing.assert_array_equal(label_img, label_img_2)
 
+        # all the bells and whistels
+        label_img_3 = deep_watershed.deep_watershed(inputs, maxima_algorithm=algo,
+                                                    small_objects_threshold=1,
+                                                    label_erosion=1,
+                                                    pixel_expansion=1,
+                                                    fill_holes_threshold=1)
+
+        np.testing.assert_equal(label_img_3.shape, shape[:-1] + (1,))
+
     # test bad inputs, pairs of maxima and interior shapes
     bad_shapes = [
         ((1, 32, 32, 1), (1, 32, 16, 1)),  # unequal dimensions
