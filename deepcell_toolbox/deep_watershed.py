@@ -270,4 +270,4 @@ def deep_watershed_3D(*args, **kwargs):
             'version. Please use '
             '`deepcell_toolbox.deep_watershed.deep_watershed` instead.')
     warnings.warn(text, DeprecationWarning)
-    return deep_watershed(*args, maxima_algorithm='peak_local_max', **kwargs)
+    return deep_watershed(*args, **kwargs)
