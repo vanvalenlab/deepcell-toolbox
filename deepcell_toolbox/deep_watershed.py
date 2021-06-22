@@ -35,7 +35,8 @@ import scipy.ndimage as nd
 
 from skimage.feature import peak_local_max
 from skimage.measure import label
-from skimage.morphology import remove_small_objects, h_maxima, disk, square, dilation, ball
+from skimage.morphology import remove_small_objects, h_maxima
+from skimage.morphology import disk, square, dilation, ball
 from skimage.segmentation import relabel_sequential, watershed
 
 from deepcell_toolbox.utils import erode_edges, fill_holes
