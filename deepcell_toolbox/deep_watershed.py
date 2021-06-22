@@ -36,7 +36,7 @@ import scipy.ndimage as nd
 from skimage.feature import peak_local_max
 from skimage.measure import label
 from skimage.morphology import remove_small_objects, h_maxima
-from skimage.morphology import disk, square, dilation, ball
+from skimage.morphology import disk, ball, square, cube, dilation
 from skimage.segmentation import relabel_sequential, watershed
 
 from deepcell_toolbox.utils import erode_edges, fill_holes
@@ -139,9 +139,12 @@ def deep_watershed(outputs,
                          'Rank 4 is 2D data of shape (batch, x, y, c). '
                          'Rank 5 is 3D data of shape (batch, frames, x, y, c).')
 
-    selem_fn = ball if maximas.ndim > 4 else disk
+    input_is_3d = maximas.ndim > 4
 
-    maxima_algorithm = 'peak_local_max' if maximas.ndim > 4 else maxima_algorithm
+    # fill_holes is not supported in 3D
+    if fill_holes_threshold and input_is_3d:
+        warnings.warn('`fill_holes` is not supported for 3D data.')
+        fill_holes_threshold = 0
 
     label_images = []
     for maxima, interior in zip(maximas, interiors):
@@ -150,8 +153,8 @@ def deep_watershed(outputs,
         interior = nd.gaussian_filter(interior[..., 0], interior_smooth)
 
         if pixel_expansion:
-            selem = square(pixel_expansion * 2 + 1)
-            interior = dilation(interior, selem=selem)
+            fn = cube if input_is_3d else square
+            interior = dilation(interior, selem=fn(pixel_expansion * 2 + 1))
 
         # peak_local_max is much faster but has poorer performance
         # when dealing with more ambiguous local maxima
@@ -167,9 +170,10 @@ def deep_watershed(outputs,
             markers[slc] = 1
         else:
             # Find peaks and merge equal regions
+            fn = ball if input_is_3d else disk
             markers = h_maxima(image=maxima,
                                h=maxima_threshold,
-                               selem=selem_fn(radius))
+                               selem=fn(radius))
 
         markers = label(markers)
         label_image = watershed(-1 * interior, markers,
