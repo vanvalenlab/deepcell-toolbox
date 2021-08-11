@@ -24,7 +24,7 @@
 # limitations under the License.
 # ============================================================================
 
-__title__ = 'Deepcell_Toolbox'
+__title__ = 'DeepCell_Toolbox'
 __description__ = 'The pre- and post-processing functions module for ' \
     'deepcell-tf.'
 __url__ = 'https://github.com/vanvalenlab/deepcell-toolbox'
