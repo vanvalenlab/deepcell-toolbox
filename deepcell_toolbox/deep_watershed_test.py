@@ -115,12 +115,15 @@ def test_deep_watershed():
     inputs_small = [maxima[:, :900, :900, :], interior[:, :900, :900, :]]
 
     # fast function is called for large image
-    deep_watershed.fill_holes_fast = Mock(side_effect=lambda x, size: np.zeros((5, 5)))
+    def test_func(x, size):
+            return np.zeros((5, 5), dtype='int')
+
+    deep_watershed.fill_holes_fast = Mock(side_effect=test_func)
     _ = deep_watershed.deep_watershed(inputs, fill_holes_threshold=5)
     assert(deep_watershed.fill_holes_fast.call_count == 1)
 
     # default function is called for small image
-    deep_watershed.fill_holes = Mock(side_effect=lambda x, size: np.zeros((5, 5)))
+    deep_watershed.fill_holes = Mock(side_effect=test_func)
     _ = deep_watershed.deep_watershed(inputs_small, fill_holes_threshold=5)
     assert(deep_watershed.fill_holes.call_count == 1)
 
