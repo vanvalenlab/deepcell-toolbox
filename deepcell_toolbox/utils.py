@@ -772,4 +772,3 @@ def fill_holes_fast(label_img, size=10):
     label_img_filled = watershed(1 - holes_removed, label_img,
                                  mask=holes_removed, watershed_line=True)
     return label_img_filled.astype(label_img.dtype)
-
