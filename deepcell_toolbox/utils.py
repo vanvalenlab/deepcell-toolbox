@@ -769,7 +769,7 @@ def fill_holes_fast(label_img, size=10):
     Returns:
         numpy.array: a labeled image with small holes filled in with same value as the label"""
     holes_removed = remove_small_holes(label_img, area_threshold=size)
-    label_img_filled = watershed(1-holes_removed, label_img,
+    label_img_filled = watershed(1 - holes_removed, label_img,
                                  mask=holes_removed, watershed_line=True)
-    return label_img_filled
+    return label_img_filled.astype(label_img.dtype)
 
