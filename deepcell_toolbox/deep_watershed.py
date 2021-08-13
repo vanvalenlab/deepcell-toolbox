@@ -39,7 +39,7 @@ from skimage.morphology import remove_small_objects, h_maxima
 from skimage.morphology import disk, ball, square, cube, dilation
 from skimage.segmentation import relabel_sequential, watershed
 
-from deepcell_toolbox.utils import erode_edges, fill_holes
+from deepcell_toolbox.utils import erode_edges, fill_holes, fill_holes_fast
 
 
 def deep_watershed(outputs,
@@ -55,6 +55,7 @@ def deep_watershed(outputs,
                    fill_holes_threshold=0,
                    pixel_expansion=None,
                    maxima_algorithm='h_maxima',
+                   fill_holes_algorithm=None,
                    **kwargs):
     """Uses ``maximas`` and ``interiors`` to perform watershed segmentation.
     ``maximas`` are used as the watershed seeds for each object and
@@ -83,6 +84,9 @@ def deep_watershed(outputs,
             One of ``h_maxima`` (default) or ``peak_local_max``.
             ``peak_local_max`` is much faster but seems to underperform when
             given regious of ambiguous maxima.
+        fill_holes_algorithm (str): Algorithm used to fill holes within objects.
+            One of ``default`` or ``fast``. ``default`` is more accurate but is
+            extremely slow for large images due to nonlinear scaling.
 
     Returns:
         numpy.array: Integer label mask for instance segmentation.
@@ -146,6 +150,25 @@ def deep_watershed(outputs,
         warnings.warn('`fill_holes` is not supported for 3D data.')
         fill_holes_threshold = 0
 
+    # set appropriate default hole-filling algorithm based on image size
+    valid_fill_holes = ['default', 'fast']
+    total_pixels = maximas.shape[1] * maximas.shape[2]
+    if fill_holes_algorithm is None:
+        if total_pixels < 1024**2:
+            fill_holes_algorithm = 'default'
+        else:
+            fill_holes_algorithm = 'fast'
+    else:
+        if fill_holes_algorithm not in valid_fill_holes:
+            raise ValueError('fill_holes_algorithm must be one of {}.'
+                             'However {} was provided'.format(valid_fill_holes,
+                                                              fill_holes_algorithm))
+        if fill_holes_algorithm == 'default' and total_pixels > 1024**2:
+            warnings.warn('Default hole_filling algorithm was selected, '
+                          'but the provided image is larger than 1024x1024.'
+                          'This will lead to slow prediction performance. Consider'
+                          'selecting ''fast'' as the hole_filling algorithm or '
+                          'setting the fill_holes_threshold to 0 to skip completely')
     label_images = []
     for maxima, interior in zip(maximas, interiors):
         # squeeze out the channel dimension if passed
@@ -190,7 +213,10 @@ def deep_watershed(outputs,
 
         # fill in holes that lie completely within a segmentation label
         if fill_holes_threshold > 0:
-            label_image = fill_holes(label_image, size=fill_holes_threshold)
+            if fill_holes_algorithm == 'default':
+                label_image = fill_holes(label_image, size=fill_holes_threshold)
+            else:
+                label_image = fill_holes_fast(label_image, size=fill_holes_threshold)
 
         # Relabel the label image
         label_image, _, _ = relabel_sequential(label_image)

@@ -37,8 +37,9 @@ from copy import copy
 from scipy.ndimage import fourier_shift
 from skimage.feature import register_translation
 from skimage import transform
-from skimage.segmentation import find_boundaries
-from skimage.morphology import remove_small_objects, square, dilation
+from skimage.segmentation import find_boundaries, watershed
+from skimage.morphology import remove_small_objects, remove_small_holes
+from skimage.morphology import square, dilation
 from skimage.measure import label
 
 
@@ -726,7 +727,7 @@ def fill_holes(label_img, size=10, connectivity=1):
         connectivity: the connectivity used to define the hole
 
     Returns:
-        label_img_filled: a labeled image with small holes filled in with same value as the label
+        numpy.array: a labeled image with small holes filled in with same value as the label
     """
 
     label_img_filled = copy(label_img)
@@ -755,3 +756,20 @@ def fill_holes(label_img, size=10, connectivity=1):
             label_img_filled[mask] = label_values[0]
 
     return label_img_filled
+
+
+def fill_holes_fast(label_img, size=10):
+    """Fills holes within cells. Significantly faster than fill_holes, but
+    produces small inaccuracies for holes located between distinct cells
+
+    Args:
+        label_img: a 2D labeled image
+        size: maximum size for a hole to be filled in
+
+    Returns:
+        numpy.array: a labeled image with small holes filled in with same value as the label"""
+    holes_removed = remove_small_holes(label_img, area_threshold=size)
+    label_img_filled = watershed(1-holes_removed, label_img,
+                                 mask=holes_removed, watershed_line=True)
+    return label_img_filled
+

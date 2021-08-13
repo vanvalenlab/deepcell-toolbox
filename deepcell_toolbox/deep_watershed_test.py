@@ -30,9 +30,11 @@ from __future__ import print_function
 
 import numpy as np
 
+from unittest.mock import Mock
+
 import pytest
 
-from deepcell_toolbox import deep_watershed
+from deepcell_toolbox import deep_watershed, utils
 
 
 def test_deep_watershed():
@@ -104,6 +106,31 @@ def test_deep_watershed():
         dep_img = deep_watershed.deep_watershed(inputs, **dep_kwargs)
         new_img = deep_watershed.deep_watershed(inputs, **new_kwargs)
         np.testing.assert_array_equal(dep_img, new_img)
+
+    # test large images are handled appropriately
+    shape = (1, 1100, 1100, 1)
+    maxima = np.random.random(shape) * 100
+    interior = np.random.random(shape) * 100
+    inputs = [maxima, interior]
+    inputs_small = [maxima[:, :900, :900, :], interior[:, :900, :900, :]]
+
+    # fast function is called for large image
+    deep_watershed.fill_holes_fast = Mock(side_effect=lambda x, size: np.zeros((5, 5)))
+    _ = deep_watershed.deep_watershed(inputs, fill_holes_threshold=5)
+    assert(deep_watershed.fill_holes_fast.call_count == 1)
+
+    # default function is called for small image
+    deep_watershed.fill_holes = Mock(side_effect=lambda x, size: np.zeros((5, 5)))
+    _ = deep_watershed.deep_watershed(inputs_small, fill_holes_threshold=5)
+    assert(deep_watershed.fill_holes.call_count == 1)
+
+    # warning is raised if large image and slow function specified
+    with pytest.warns(Warning):
+        _ = deep_watershed.deep_watershed(inputs, fill_holes_algorithm='default',
+                                          fill_holes_threshold=5)
+
+    # reset function
+    deep_watershed.fill_holes = utils.fill_holes
 
 
 def test_deep_watershed_mibi():
