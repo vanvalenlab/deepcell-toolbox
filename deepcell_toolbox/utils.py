@@ -40,7 +40,7 @@ from skimage import transform
 from skimage.segmentation import find_boundaries, watershed
 from skimage.morphology import remove_small_objects, remove_small_holes
 from skimage.morphology import square, dilation
-from skimage.measure import label
+from skimage.measure import label, regionprops
 
 
 def erode_edges(mask, erosion_width):
@@ -722,53 +722,32 @@ def fill_holes(label_img, size=10, connectivity=1):
     """Fills holes located completely within a given label with pixels of the same value
 
     Args:
-        label_img: a 2D labeled image
-        size: maximum size for a hole to be filled in
-        connectivity: the connectivity used to define the hole
+        label_img (numpy.array): a 2D labeled image
+        size (int): maximum size for a hole to be filled in
+        connectivity (int): the connectivity used to define the hole
 
     Returns:
-        numpy.array: a labeled image with small holes filled in with same value as the label
+        numpy.array: a labeled image with no holes smaller than ``size``
+            contained within any label.
     """
+    output_image = np.copy(label_img)
 
-    label_img_filled = copy(label_img)
+    props = regionprops(np.squeeze(label_img.astype('int')), cache=False)
+    for prop in props:
+        x1, y1, x2, y2 = prop.bbox
+        # widen box to make sure there is boundary
+        w, h = (x2 - x1) // 2, (y2 - y1) // 2
+        x1 = max(x1 - w, 0)
+        x2 = min(x2 + w, output_image.shape[0])
+        y1 = max(y1 - h, 0)
+        y2 = min(y2 + h, output_image.shape[1])
+        patch = output_image[x1:x2, y1:y2]
 
-    # invert the image, so that holes are objects
-    inverse_img = np.logical_not(label_img)
+        filled = remove_small_holes(
+            ar=(patch == prop.label),
+            area_threshold=size,
+            connectivity=connectivity)
 
-    inverse_img_removed = remove_small_objects(ar=inverse_img, min_size=size,
-                                               connectivity=connectivity)
+        output_image[x1:x2, y1:y2] = np.where(filled, prop.label, patch)
 
-    # identify potential holes in the image
-    potential_holes = inverse_img != inverse_img_removed
-    potential_holes = label(potential_holes)
-
-    # for each identified hole, check if it is contained completely within a single label
-    for i in np.unique(potential_holes):
-        mask = potential_holes == i
-        enlarged_mask = dilation(mask, selem=square(3))
-
-        label_values = np.unique(label_img[enlarged_mask])
-        label_values = [x for x in label_values if x != 0]
-
-        # the enlarged mask only contains a single value, hence the hole is completely contained
-        # within a single label
-        if len(label_values) == 1:
-            label_img_filled[mask] = label_values[0]
-
-    return label_img_filled
-
-
-def fill_holes_fast(label_img, size=10):
-    """Fills holes within cells. Significantly faster than fill_holes, but
-    produces small inaccuracies for holes located between distinct cells
-
-    Args:
-        label_img: a 2D labeled image
-        size: maximum size for a hole to be filled in
-
-    Returns:
-        numpy.array: a labeled image with small holes filled in with same value as the label"""
-    holes_removed = remove_small_holes(label_img, area_threshold=size)
-    label_img_filled = watershed(1 - holes_removed, label_img,
-                                 mask=holes_removed, watershed_line=True)
-    return label_img_filled.astype(label_img.dtype)
+    return output_image
