@@ -30,11 +30,9 @@ from __future__ import print_function
 
 import numpy as np
 
-from unittest.mock import Mock
-
 import pytest
 
-from deepcell_toolbox import deep_watershed, utils
+from deepcell_toolbox import deep_watershed
 
 
 def test_deep_watershed():

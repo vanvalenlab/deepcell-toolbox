@@ -55,7 +55,6 @@ def deep_watershed(outputs,
                    fill_holes_threshold=0,
                    pixel_expansion=None,
                    maxima_algorithm='h_maxima',
-                   fill_holes_algorithm=None,
                    **kwargs):
     """Uses ``maximas`` and ``interiors`` to perform watershed segmentation.
     ``maximas`` are used as the watershed seeds for each object and
@@ -196,7 +195,7 @@ def deep_watershed(outputs,
 
         # fill in holes that lie completely within a segmentation label
         if fill_holes_threshold > 0:
-                label_image = fill_holes(label_image, size=fill_holes_threshold)
+            label_image = fill_holes(label_image, size=fill_holes_threshold)
 
         # Relabel the label image
         label_image, _, _ = relabel_sequential(label_image)
