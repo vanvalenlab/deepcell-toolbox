@@ -734,20 +734,15 @@ def fill_holes(label_img, size=10, connectivity=1):
 
     props = regionprops(np.squeeze(label_img.astype('int')), cache=False)
     for prop in props:
-        x1, y1, x2, y2 = prop.bbox
-        # widen box to make sure there is boundary
-        w, h = (x2 - x1) // 2, (y2 - y1) // 2
-        x1 = max(x1 - w, 0)
-        x2 = min(x2 + w, output_image.shape[0])
-        y1 = max(y1 - h, 0)
-        y2 = min(y2 + h, output_image.shape[1])
-        patch = output_image[x1:x2, y1:y2]
+        if prop.euler_number < 1:
 
-        filled = remove_small_holes(
-            ar=(patch == prop.label),
-            area_threshold=size,
-            connectivity=connectivity)
+            patch = output_image[prop.slice]
 
-        output_image[x1:x2, y1:y2] = np.where(filled, prop.label, patch)
+            filled = remove_small_holes(
+                ar=(patch == prop.label),
+                area_threshold=size,
+                connectivity=connectivity)
+
+            output_image[prop.slice] = np.where(filled, prop.label, patch)
 
     return output_image
