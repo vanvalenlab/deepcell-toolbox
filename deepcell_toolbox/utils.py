@@ -37,9 +37,9 @@ from copy import copy
 from scipy.ndimage import fourier_shift
 from skimage.feature import register_translation
 from skimage import transform
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_holes
 from skimage.segmentation import find_boundaries
-from skimage.morphology import remove_small_objects, square, dilation
-from skimage.measure import label
 
 
 def erode_edges(mask, erosion_width):
@@ -721,37 +721,27 @@ def fill_holes(label_img, size=10, connectivity=1):
     """Fills holes located completely within a given label with pixels of the same value
 
     Args:
-        label_img: a 2D labeled image
-        size: maximum size for a hole to be filled in
-        connectivity: the connectivity used to define the hole
+        label_img (numpy.array): a 2D labeled image
+        size (int): maximum size for a hole to be filled in
+        connectivity (int): the connectivity used to define the hole
 
     Returns:
-        label_img_filled: a labeled image with small holes filled in with same value as the label
+        numpy.array: a labeled image with no holes smaller than ``size``
+            contained within any label.
     """
+    output_image = np.copy(label_img)
 
-    label_img_filled = copy(label_img)
+    props = regionprops(np.squeeze(label_img.astype('int')), cache=False)
+    for prop in props:
+        if prop.euler_number < 1:
 
-    # invert the image, so that holes are objects
-    inverse_img = np.logical_not(label_img)
+            patch = output_image[prop.slice]
 
-    inverse_img_removed = remove_small_objects(ar=inverse_img, min_size=size,
-                                               connectivity=connectivity)
+            filled = remove_small_holes(
+                ar=(patch == prop.label),
+                area_threshold=size,
+                connectivity=connectivity)
 
-    # identify potential holes in the image
-    potential_holes = inverse_img != inverse_img_removed
-    potential_holes = label(potential_holes)
+            output_image[prop.slice] = np.where(filled, prop.label, patch)
 
-    # for each identified hole, check if it is contained completely within a single label
-    for i in np.unique(potential_holes):
-        mask = potential_holes == i
-        enlarged_mask = dilation(mask, selem=square(3))
-
-        label_values = np.unique(label_img[enlarged_mask])
-        label_values = [x for x in label_values if x != 0]
-
-        # the enlarged mask only contains a single value, hence the hole is completely contained
-        # within a single label
-        if len(label_values) == 1:
-            label_img_filled[mask] = label_values[0]
-
-    return label_img_filled
+    return output_image

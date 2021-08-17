@@ -103,6 +103,11 @@ def deep_watershed(outputs,
                          'Must be one of {}'.format(
                              maxima_algorithm, valid_algos))
 
+    total_pixels = maximas.shape[1] * maximas.shape[2]
+    if maxima_algorithm == 'h_maxima' and total_pixels > 5000**2:
+        warnings.warn('h_maxima peak finding algorithm was selected, '
+                      'but the provided image is larger than 5k x 5k pixels.'
+                      'This will lead to slow prediction performance.')
     # Handle deprecated arguments
     min_distance = kwargs.pop('min_distance', None)
     if min_distance is not None:
