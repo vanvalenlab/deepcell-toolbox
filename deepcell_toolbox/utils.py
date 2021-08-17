@@ -37,10 +37,9 @@ from copy import copy
 from scipy.ndimage import fourier_shift
 from skimage.feature import register_translation
 from skimage import transform
-from skimage.segmentation import find_boundaries, watershed
-from skimage.morphology import remove_small_objects, remove_small_holes
-from skimage.morphology import square, dilation
-from skimage.measure import label, regionprops
+from skimage.measure import regionprops
+from skimage.morphology import remove_small_holes
+from skimage.segmentation import find_boundaries
 
 
 def erode_edges(mask, erosion_width):
