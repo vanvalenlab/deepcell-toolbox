@@ -81,11 +81,8 @@ extensions = [
         'deepcell_toolbox.compute_overlap',
         ['deepcell_toolbox/compute_overlap.pyx']
     ),
-    Extension(
-        'deepcell_toolbox.compute_overlap_3D',
-        ['deepcell_toolbox/compute_overlap_3D.pyx']
-    ),
 ]
+
 
 setup(name=about['__title__'],
       version=about['__version__'],

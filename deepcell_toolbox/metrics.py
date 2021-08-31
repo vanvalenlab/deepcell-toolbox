@@ -61,7 +61,7 @@ from tqdm import tqdm
 
 from deepcell_toolbox import erode_edges
 from deepcell_toolbox.compute_overlap import compute_overlap  # pylint: disable=E0401
-from deepcell_toolbox.compute_overlap_3D import compute_overlap_3D
+from deepcell_toolbox.compute_overlap import compute_overlap_3D
 
 
 def _cast_to_tuple(x):
