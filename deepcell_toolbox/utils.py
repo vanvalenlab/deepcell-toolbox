@@ -32,8 +32,6 @@ import numpy as np
 import cv2
 import scipy.signal
 
-from copy import copy
-
 from scipy.ndimage import fourier_shift
 from skimage.feature import register_translation
 from skimage import transform
