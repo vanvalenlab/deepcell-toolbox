@@ -43,7 +43,6 @@ from skimage.measure import label
 from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
 
-
 from deepcell_toolbox import metrics, erode_edges, utils
 
 
