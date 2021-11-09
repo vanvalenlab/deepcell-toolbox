@@ -1146,8 +1146,8 @@ class Metrics(object):
             'n_true': n_true,
             'n_pred': n_pred,
             'recall': _round(recall),
-            'precision': _round(precision * 100),
-            'seg': _round(seg * 100),
+            'precision': _round(precision),
+            'seg': _round(seg),
             'jaccard': _round(jaccard),
             'total_errors': 0,
         }
