@@ -225,6 +225,7 @@ def watershed(image, min_distance=10, min_size=50, threshold_abs=0.05):
         image[..., -1],
         min_distance=min_distance,
         threshold_abs=threshold_abs,
+        indices=False,
         labels=labels,
         exclude_border=False)
 
