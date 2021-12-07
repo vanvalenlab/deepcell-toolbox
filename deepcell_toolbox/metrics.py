@@ -986,8 +986,8 @@ class Metrics(object):
         slc = [slice(None)] * y_pred.ndim
         for i in range(n_features):
             slc[axis] = slice(i, i + 1)
-            yt = y_true[slc] > self.pixel_threshold
-            yp = y_pred[slc] > self.pixel_threshold
+            yt = y_true[tuple(slc)] > self.pixel_threshold
+            yp = y_pred[tuple(slc)] > self.pixel_threshold
             pm = PixelMetrics(yt, yp)
             pixel_metrics.append(pm.to_dict())
 
