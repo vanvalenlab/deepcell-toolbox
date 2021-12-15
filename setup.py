@@ -104,7 +104,7 @@ setup(name=about['__title__'],
                         'networkx>=2.1',
                         'numpy>=1.16.6,<1.20.0',
                         'scipy>=1.3.0',
-                        'scikit-image',
+                        'scikit-image<0.19.0',
                         'scikit-learn',
                         'tqdm'],
       extras_require={
