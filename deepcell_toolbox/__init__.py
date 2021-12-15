@@ -36,7 +36,6 @@ from deepcell_toolbox.processing import mibi
 from deepcell_toolbox.processing import watershed
 from deepcell_toolbox.processing import pixelwise
 
-from deepcell_toolbox.utils import correct_drift
 from deepcell_toolbox.utils import erode_edges
 
 from deepcell_toolbox.compute_overlap import compute_overlap

@@ -106,34 +106,6 @@ def test_erode_edges_3d():
         erode_1 = utils.erode_edges(unique, erosion_width=1)
 
 
-def test_correct_drift():
-    img2d = np.random.rand(30, 30)
-    img3d = np.random.rand(10, 30, 30)
-    img4d = np.random.rand(10, 30, 30, 1)
-
-    # Wrong  input size
-    with pytest.raises(ValueError):
-        utils.correct_drift(img2d)
-
-    # Mismatched inputs
-    with pytest.raises(ValueError):
-        utils.correct_drift(img3d, img4d)
-
-    # 3d X alone
-    res = utils.correct_drift(img3d)
-    assert len(res.shape) == 3
-
-    # 3d with y
-    res = utils.correct_drift(img3d, img3d)
-    assert len(res) == 2
-    assert len(res[0].shape) == 3
-    assert len(res[1].shape) == 3
-
-    # 4d input
-    res = utils.correct_drift(img4d)
-    assert len(res.shape) == 4
-
-
 def test_resize():
     base_shape = (32, 32)
     out_shapes = [
