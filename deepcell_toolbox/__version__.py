@@ -1,4 +1,4 @@
-# Copyright 2016-2021 The Van Valen Lab at the California Institute of
+# Copyright 2016-2022 The Van Valen Lab at the California Institute of
 # Technology (Caltech), with support from the Paul Allen Family Foundation,
 # Google, & National Institutes of Health (NIH) under Grant U24CA224309-01.
 # All rights reserved.
@@ -28,9 +28,9 @@ __title__ = 'DeepCell_Toolbox'
 __description__ = 'The pre- and post-processing functions module for ' \
     'deepcell-tf.'
 __url__ = 'https://github.com/vanvalenlab/deepcell-toolbox'
-__version__ = '0.11.0'
+__version__ = '0.11.1'
 __author__ = 'Van Valen Lab'
 __author_email__ = 'vanvalenlab@gmail.com'
 __license__ = 'LICENSE'
-__copyright__ = 'Copyright 2016-2021 The Van Valen Lab at the ' \
+__copyright__ = 'Copyright 2016-2022 The Van Valen Lab at the ' \
     'California Institute of Technology (Caltech)'
