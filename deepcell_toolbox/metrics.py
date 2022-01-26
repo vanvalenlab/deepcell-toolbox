@@ -815,7 +815,7 @@ class ObjectMetrics(BaseMetrics):
 
     @property
     def dice(self):
-        return self.pixel_stats.jaccard
+        return self.pixel_stats.dice
 
     def plot_errors(self):
         """Plots the errors identified from linear assignment code.
