@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -38,7 +38,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install .[tests] "coveralls<3.3.0"
         python setup.py build_ext --inplace
-  
+
     - name: PyTest
       run: |
         pytest --cov deepcell_toolbox --pep8
