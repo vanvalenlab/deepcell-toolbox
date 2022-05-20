@@ -132,7 +132,7 @@ def parse_segmentation_example(example, dataset_ndims=None,
             X_dtype=tf.float32, y_dtype=tf.float32):
 
     # Use standard (x,y,c) data structure if not specified
-    if detaset_ndims is None:
+    if dataset_ndims is None:
         dataset_ndims = {'X': 3, 'y':3}
         
     # Recreate the example structure
@@ -140,7 +140,11 @@ def parse_segmentation_example(example, dataset_ndims=None,
 
     X_shape_strings = ['X_shape_' + str(i) for i in range(dataset_ndims['X'])]
 
-    y_keys = [key in dataset_ndims if 'y' in key]
+    y_keys = []
+    for key in dataset_ndims:
+        if 'y' in key:
+            y_keys.append(key)
+    
     y_shape_strings_dict = {}
     for key in y_keys:
         y_shape_strings = [key + '_shape_' + str(i) for i in range(dataset_ndims[key])]
