@@ -115,10 +115,11 @@ setup(name=about['__title__'],
       packages=find_packages(),
       ext_modules=extensions,
       setup_requires=['cython>=0.28', 'numpy>=1.16.6'],
-      python_requires='>=3.7, <3.10',
+      python_requires='>=3.7, <=3.10',
       classifiers=[
           'Programming Language :: Python',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
-          'Programming Language :: Python :: 3.9'])
+          'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10'])
