@@ -221,13 +221,16 @@ def watershed(image, min_distance=10, min_size=50, threshold_abs=0.05):
     distance = np.argmax(image, axis=-1)
     labels = (distance > 0).astype('int')
 
-    local_maxi = peak_local_max(
+    local_maxi_coords = peak_local_max(
         image[..., -1],
         min_distance=min_distance,
         threshold_abs=threshold_abs,
-        indices=False,
         labels=labels,
         exclude_border=False)
+
+    # Construct mask from local_maxi coords
+    local_maxi = np.zeros_like(image[..., -1], dtype=bool)
+    local_maxi[tuple(local_maxi_coords.T)] = True
 
     # markers = label(local_maxi)
     markers = ndimage.label(local_maxi)[0]
