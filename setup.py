@@ -107,7 +107,6 @@ setup(name=about['__title__'],
           'tqdm'],
       extras_require={
           'tests': ['pytest',
-                    'pytest-pep8',
                     'pytest-cov',
                     'pytest-mock']},
       long_description=readme,
