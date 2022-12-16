@@ -360,7 +360,7 @@ def untile_image(tiles, tiles_info, power=2, **kwargs):
 
     image_shape = [image_shape[0], image_shape[1], image_shape[2], tiles.shape[-1]]
     window_size = (tile_size_x, tile_size_y)
-    image = np.zeros(image_shape, dtype=np.float)
+    image = np.zeros(image_shape, dtype=float)
 
     window_cache = {}
     for x, y in zip(overlaps_x, overlaps_y):
@@ -622,7 +622,7 @@ def untile_image_3D(tiles, tiles_info, power=3, force=False, **kwargs):
 
     image_shape = tuple(list(image_shape[:4]) + [tiles.shape[-1]])
     window_size = (tile_size_z, tile_size_x, tile_size_y)
-    image = np.zeros(image_shape, dtype=np.float)
+    image = np.zeros(image_shape, dtype=float)
 
     tile_data_zip = zip(tiles, batches, x_starts, x_ends, y_starts,
                         y_ends, z_starts, z_ends, overlaps_x, overlaps_y, overlaps_z)
