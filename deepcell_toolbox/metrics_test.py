@@ -389,9 +389,8 @@ class TestObjectMetrics():
         print(o)
 
         # Test using float dtype warns but still works
-        o = metrics.ObjectMetrics(
-            y_true.astype('float'),
-            y_true.astype('float'))
+        with pytest.warns(UserWarning, match="Casting.*from float64 to int"):
+            o = metrics.ObjectMetrics(y_true.astype('float'), y_true.astype('float'))
 
         # test errors thrown for improper ndim inputs
         y_true = np.zeros(shape=(10))  # too few dimensions
@@ -606,8 +605,9 @@ class TestMetrics():
         # each row of metrics corresponds to a batch
         assert len(object_metrics) == len(y_true)
 
-        object_metrics = m.calc_object_stats(
-            np.zeros_like(y_true), np.zeros_like(y_pred))
+        with pytest.warns(UserWarning, match=".*prediction and truth arrays are empty"):
+            object_metrics = m.calc_object_stats(
+                np.zeros_like(y_true), np.zeros_like(y_pred))
 
         # test accuracy of metrics with blank predictions
         assert object_metrics['precision'].sum() == 0
@@ -642,8 +642,9 @@ class TestMetrics():
         assert len(object_metrics) == len(y_true)
 
         # test accuracy of metrics with blank predictions
-        object_metrics = m.calc_object_stats(
-            np.zeros_like(y_true), np.zeros_like(y_pred))
+        with pytest.warns(UserWarning, match=".*prediction and truth arrays are empty"):
+            object_metrics = m.calc_object_stats(
+                np.zeros_like(y_true), np.zeros_like(y_pred))
 
         assert object_metrics['precision'].sum() == 0
         assert object_metrics['recall'].sum() == 0
