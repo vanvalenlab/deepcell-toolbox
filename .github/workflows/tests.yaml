@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -41,7 +41,7 @@ jobs:
 
     - name: PyTest
       run: |
-        pytest --cov deepcell_toolbox --pep8
+        pytest --cov deepcell_toolbox
 
     - name: Coveralls
       if: env.COVERALLS_REPO_TOKEN != null
