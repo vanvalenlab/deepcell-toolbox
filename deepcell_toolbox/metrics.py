@@ -942,7 +942,7 @@ class Metrics(object):
         L = []
 
         # Write out average statistics
-        for k, v in df.mean().iteritems():
+        for k, v in df.mean().items():
             L.append(dict(
                 name=k,
                 value=v,
@@ -952,7 +952,7 @@ class Metrics(object):
 
         # Save individual stats to list
         for i, row in df.iterrows():
-            for k, v in row.iteritems():
+            for k, v in row.items():
                 L.append(dict(
                     name=k,
                     value=v,

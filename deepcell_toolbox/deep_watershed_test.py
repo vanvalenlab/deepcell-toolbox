@@ -101,7 +101,8 @@ def test_deep_watershed():
         dep_kwargs = {deprecated_arg: value}
         new_kwargs = {new_arg: value}
 
-        dep_img = deep_watershed.deep_watershed(inputs, **dep_kwargs)
+        with pytest.deprecated_call():
+            dep_img = deep_watershed.deep_watershed(inputs, **dep_kwargs)
         new_img = deep_watershed.deep_watershed(inputs, **new_kwargs)
         np.testing.assert_array_equal(dep_img, new_img)
 
@@ -118,36 +119,43 @@ def test_deep_watershed_mibi():
                     'pixelwise-interior': pixelwise}
 
     # basic tests
-    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output)
+    with pytest.deprecated_call():
+        watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output)
     np.testing.assert_equal(watershed_img.shape, shape)
 
     # turn some knobs
-    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
-                                                       small_objects_threshold=1,
-                                                       pixel_expansion=5)
+    with pytest.deprecated_call():
+        watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
+                                                           small_objects_threshold=1,
+                                                           pixel_expansion=5)
 
     # turn turn
-    watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
-                                                       small_objects_threshold=1,
-                                                       maxima_model='fgbg-fg',
-                                                       interior_model='outer-distance',
-                                                       maxima_model_smooth=0,
-                                                       fill_holes_threshold=4)
+    with pytest.deprecated_call():
+        watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
+                                                           small_objects_threshold=1,
+                                                           maxima_model='fgbg-fg',
+                                                           interior_model='outer-distance',
+                                                           maxima_model_smooth=0,
+                                                           fill_holes_threshold=4)
 
     np.testing.assert_equal(watershed_img.shape, shape)
 
     for model_under_test in ['interior_model', 'maxima_model']:
         with pytest.raises(ValueError):
             bad_model = {model_under_test: 'bad_model_name'}
-            watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
-                                                               **bad_model)
+            with pytest.deprecated_call():
+                watershed_img = deep_watershed.deep_watershed_mibi(model_output=model_output,
+                                                                   **bad_model)
 
     bad_array = pixelwise[..., 0]
     for bad_transform in ['inner-distance', 'pixelwise-interior']:
         bad_model_output = model_output.copy()
         bad_model_output[bad_transform] = bad_array
         with pytest.raises(ValueError):
-            watershed_img = deep_watershed.deep_watershed_mibi(model_output=bad_model_output)
+            with pytest.deprecated_call():
+                watershed_img = deep_watershed.deep_watershed_mibi(
+                    model_output=bad_model_output
+                )
 
 
 def test_deep_watershed_3D():
@@ -170,15 +178,17 @@ def test_deep_watershed_3D():
         np.testing.assert_array_equal(label_img, label_img_2)
 
         # all the bells and whistles
-        label_img_3 = deep_watershed.deep_watershed(inputs, maxima_algorithm=algo,
-                                                    small_objects_threshold=1,
-                                                    label_erosion=1,
-                                                    pixel_expansion=1,
-                                                    fill_holes_threshold=1)
+        with pytest.warns(UserWarning, match="`fill_holes` is not supported for 3D data"):
+            label_img_3 = deep_watershed.deep_watershed(inputs, maxima_algorithm=algo,
+                                                        small_objects_threshold=1,
+                                                        label_erosion=1,
+                                                        pixel_expansion=1,
+                                                        fill_holes_threshold=1)
 
         np.testing.assert_equal(label_img_3.shape, shape[:-1] + (1,))
 
         # test deprecated `deep_watershed_3D` function
-        label_img_3d = deep_watershed.deep_watershed_3D(
-            inputs, maxima_algorithm=algo)
+        with pytest.deprecated_call():
+            label_img_3d = deep_watershed.deep_watershed_3D(
+                inputs, maxima_algorithm=algo)
         np.testing.assert_array_equal(label_img, label_img_3d)

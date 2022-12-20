@@ -159,7 +159,7 @@ def deep_watershed(outputs,
 
         if pixel_expansion:
             fn = cube if input_is_3d else square
-            interior = dilation(interior, selem=fn(pixel_expansion * 2 + 1))
+            interior = dilation(interior, footprint=fn(pixel_expansion * 2 + 1))
 
         # peak_local_max is much faster but has poorer performance
         # when dealing with more ambiguous local maxima
@@ -178,7 +178,7 @@ def deep_watershed(outputs,
             fn = ball if input_is_3d else disk
             markers = h_maxima(image=maxima,
                                h=maxima_threshold,
-                               selem=fn(radius))
+                               footprint=fn(radius))
 
         markers = label(markers)
         label_image = watershed(-1 * interior, markers,
