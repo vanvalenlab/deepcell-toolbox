@@ -33,7 +33,6 @@ from itertools import product
 import numpy as np
 from skimage.measure import label
 from skimage.morphology import binary_dilation
-from skimage.morphology import disk
 
 import pytest
 

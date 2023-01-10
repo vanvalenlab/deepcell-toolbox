@@ -40,10 +40,9 @@ import pandas as pd
 
 from numpy import testing
 from skimage.measure import label
-from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
 
-from deepcell_toolbox import metrics, erode_edges, utils
+from deepcell_toolbox import metrics
 
 
 def _get_image(img_h=300, img_w=300):
