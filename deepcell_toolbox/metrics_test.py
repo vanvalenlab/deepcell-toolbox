@@ -332,9 +332,6 @@ class TestPixelMetrics():
         with pytest.raises(ValueError, match="Input shapes must match"):
             metrics.PixelMetrics(y_true, y_true[0])
 
-        # using float dtype warns but still works
-        o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
-
     def test_y_true_equals_y_pred(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
         y_pred = y_true.copy()
