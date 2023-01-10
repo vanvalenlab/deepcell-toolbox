@@ -327,6 +327,7 @@ class TestPixelMetrics():
 
         # Test basic initialization
         o = metrics.PixelMetrics(y_true, y_true)
+        assert np.array_equal(o.y_true, o.y_pred)
 
         # Test mismatched input size
         with pytest.raises(ValueError, match="Input shapes must match"):
