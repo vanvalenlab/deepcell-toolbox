@@ -382,11 +382,10 @@ def test_untile_image_3D():
             np.testing.assert_equal(big_image, untiled_image)
 
     # test that a stride_fraction of 0 raises an error
-    with pytest.raises(ValueError):
-        big_image_test = np.zeros((4, 4)).astype('int32')
+    big_image_test = np.zeros((4, 4)).astype('int32')
+    with pytest.raises(ValueError, match="Expected image of rank 4, got 2"):
         tiles, tiles_info = utils.tile_image(big_image_test, model_input_shape=(2, 2),
                                              stride_ratio=0)
-        untiled_image = utils.untile_image(tiles, tile_info)
 
 
 def test_fill_holes():
