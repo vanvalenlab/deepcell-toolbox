@@ -416,7 +416,7 @@ class TestObjectMetrics():
         o = metrics.ObjectMetrics(y_true, y_true)
 
         props = o._get_props('correct')
-        # assert props != []
+        assert props != []
 
         # Test _get_props with invalid detection type
         with pytest.raises(ValueError):
