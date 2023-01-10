@@ -329,7 +329,7 @@ class TestPixelMetrics():
         o = metrics.PixelMetrics(y_true, y_true)
 
         # Test mismatched input size
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Input shapes must match"):
             metrics.PixelMetrics(y_true, y_true[0])
 
         # using float dtype warns but still works
