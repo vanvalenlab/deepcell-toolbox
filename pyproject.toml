@@ -6,3 +6,11 @@ requires = [
     "numpy>=1.16.6",
     "Cython>=0.28.0"
 ]
+
+[tool.ruff]
+line-length = 99
+
+ignore = ["E731"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignore unused imports in __init__.py

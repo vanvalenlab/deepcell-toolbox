@@ -40,10 +40,9 @@ import pandas as pd
 
 from numpy import testing
 from skimage.measure import label
-from skimage.draw import random_shapes
 from skimage.segmentation import relabel_sequential
 
-from deepcell_toolbox import metrics, erode_edges, utils
+from deepcell_toolbox import metrics
 
 
 def _get_image(img_h=300, img_w=300):
@@ -328,13 +327,11 @@ class TestPixelMetrics():
 
         # Test basic initialization
         o = metrics.PixelMetrics(y_true, y_true)
+        assert np.array_equal(o.y_true, o.y_pred)
 
         # Test mismatched input size
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Input shapes must match"):
             metrics.PixelMetrics(y_true, y_true[0])
-
-        # using float dtype warns but still works
-        o = metrics.PixelMetrics(y_true.astype('float'), y_true.astype('float'))
 
     def test_y_true_equals_y_pred(self):
         y_true, _ = _sample1(10, 10, 30, 30, True)
@@ -419,7 +416,7 @@ class TestObjectMetrics():
         o = metrics.ObjectMetrics(y_true, y_true)
 
         props = o._get_props('correct')
-        # assert props != []
+        assert props != []
 
         # Test _get_props with invalid detection type
         with pytest.raises(ValueError):

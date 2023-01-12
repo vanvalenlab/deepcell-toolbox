@@ -32,8 +32,6 @@ import itertools
 
 import numpy as np
 
-import pytest
-
 from deepcell_toolbox import processing
 
 
