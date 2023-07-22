@@ -4,7 +4,7 @@ requires = [
     "wheel",
     "setuptools>=40.8.0",
     "numpy>=1.16.6",
-    "Cython>=0.28.0"
+    "Cython>=0.28.0,<3.0"
 ]
 
 [tool.ruff]
