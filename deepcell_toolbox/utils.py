@@ -30,7 +30,7 @@ from __future__ import print_function
 
 import numpy as np
 import cv2
-import scipy.signal
+from scipy.signal import windows
 
 from skimage import transform
 from skimage.measure import regionprops
@@ -281,10 +281,10 @@ def spline_window(window_size, overlap_left, overlap_right, power=2):
 
     def _spline_window(w_size):
         intersection = int(w_size / 4)
-        wind_outer = (abs(2 * (scipy.signal.triang(w_size))) ** power) / 2
+        wind_outer = (abs(2 * (windows.triang(w_size))) ** power) / 2
         wind_outer[intersection:-intersection] = 0
 
-        wind_inner = 1 - (abs(2 * (scipy.signal.triang(w_size) - 1)) ** power) / 2
+        wind_inner = 1 - (abs(2 * (windows.triang(w_size) - 1)) ** power) / 2
         wind_inner[:intersection] = 0
         wind_inner[-intersection:] = 0
 
