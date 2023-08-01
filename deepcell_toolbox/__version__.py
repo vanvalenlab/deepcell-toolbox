@@ -28,9 +28,9 @@ __title__ = 'DeepCell_Toolbox'
 __description__ = 'The pre- and post-processing functions module for ' \
     'deepcell-tf.'
 __url__ = 'https://github.com/vanvalenlab/deepcell-toolbox'
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 __author__ = 'Van Valen Lab'
 __author_email__ = 'vanvalenlab@gmail.com'
 __license__ = 'LICENSE'
-__copyright__ = 'Copyright 2016-2022 The Van Valen Lab at the ' \
+__copyright__ = 'Copyright 2016-2023 The Van Valen Lab at the ' \
     'California Institute of Technology (Caltech)'
