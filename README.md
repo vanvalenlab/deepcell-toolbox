@@ -7,3 +7,27 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/deepcell_toolbox.svg)](https://pypi.org/project/deepcell_toolbox/)
 
 A collection of tools for processing data for [`deepcell-tf`](https://github.com/vanvalenlab/deepcell-tf).
+
+# Developer instructions
+
+First, follow the instructions for [`deepcell-tf`](https://github.com/vanvalenlab/deepcell-tf).
+
+Then, from the `deepcell-toolbox` checkout, run:
+
+```bash
+python3.10 -m venv .venv
+# Activate your environment with:
+#   on Unix/macOS
+#     source .venv/bin/activate
+#   on Windows
+#     .venv\Scripts\activate
+
+python3.10 -m pip install --editable .
+
+# Optionally: (to have ipython in the venv)
+python3.10 -m pip install ipython
+# Re-activate the venv if you installed ipython.
+
+# Run unit tests
+pytest
+```
