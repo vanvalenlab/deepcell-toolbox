@@ -16,18 +16,10 @@ Then, from the `deepcell-toolbox` checkout, run:
 
 ```bash
 python3.10 -m venv .venv
-# Activate your environment with:
-#   on Unix/macOS
-#     source .venv/bin/activate
-#   on Windows
-#     .venv\Scripts\activate
+source .venv/bin/activate
 
-python3.10 -m pip install --editable .
-
-# Optionally: (to have ipython in the venv)
-python3.10 -m pip install ipython
-# Re-activate the venv if you installed ipython.
+pip install -e .
 
 # Run unit tests
-pytest
+pytest --pyargs deecell_toolbox
 ```
