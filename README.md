@@ -10,9 +10,9 @@ A collection of tools for processing data for [`deepcell-tf`](https://github.com
 
 # Developer instructions
 
-First, follow the instructions for [`deepcell-tf`](https://github.com/vanvalenlab/deepcell-tf).
+Feel free to use your preferred developer tools. Here is a simple workflow using standard tools.
 
-Then, from the `deepcell-toolbox` checkout, run:
+From the `deepcell-toolbox` checkout, run:
 
 ```bash
 python3.10 -m venv .venv
