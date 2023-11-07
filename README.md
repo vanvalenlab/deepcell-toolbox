@@ -7,3 +7,19 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/deepcell_toolbox.svg)](https://pypi.org/project/deepcell_toolbox/)
 
 A collection of tools for processing data for [`deepcell-tf`](https://github.com/vanvalenlab/deepcell-tf).
+
+# Developer instructions
+
+Feel free to use your preferred developer tools. Here is a simple workflow using standard tools.
+
+From the `deepcell-toolbox` checkout, run:
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+
+pip install -e .
+
+# Run unit tests
+pytest --pyargs deecell_toolbox
+```
